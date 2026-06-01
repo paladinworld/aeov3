@@ -299,13 +299,17 @@ export default function Home() {
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
   const [visFilter, setVisFilter] = useState<SurfaceFilter>("all");
   const [sovFilter, setSovFilter] = useState<SurfaceFilter>("all");
+  const [citFilter, setCitFilter] = useState<SurfaceFilter>("all");
 
   const summary = payload.summary;
   const leaderboard = useMemo(() => buildLeaderboardData(payload), [payload]);
   const citationStats = useMemo(() => buildCitationStats(payload), [payload]);
+  const citRank = useMemo(() => buildCitationStats(payload, citFilter), [payload, citFilter]);
 
   const targetMetrics = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "all"), payload.company.name, true);
-  const score100 = Math.round(weightedVisibilityScore(targetMetrics) * 100);
+  // targetMetrics.visibility is already the weighted score; use it directly so the gauge
+  // equals this company's value in the Visibility score rank leaderboard.
+  const score100 = Math.round(targetMetrics.visibility * 100);
   const gband = score100 >= 67 ? "High" : score100 >= 34 ? "Medium" : "Low";
 
   const surfaceShow = customerSurfaces
@@ -336,7 +340,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const citRate = allCited.size ? brandCited.size / allCited.size : 0;
 
   const topOneRate = topOneRateOf(payload);
-  const topDomains = citationStats.domainRows.slice(0, 6);
+  const topDomains = citRank.domainRows.slice(0, 6);
 
   return (
     <div className="view-stack">
@@ -412,43 +416,41 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
 
       <section className="dashboard-grid">
         <div className="panel">
-          <PanelHead title="Citation domain rank" subtitle="Most-cited sources across answers" />
-          <div>
-            {topDomains.map((row) => (
-              <div key={row.domain} className="rank-row">
-                <span className="lhs">
-                  <b>{row.domain}</b>
-                  <Badge tone={row.type}>{row.type}</Badge>
-                </span>
-                <strong>{row.count}</strong>
+          <PanelHead
+            title="Citation domain rank"
+            right={
+              <div className="segmented">
+                {(["all", "gemini", "chatgpt"] as const).map((option) => (
+                  <button key={option} className={citFilter === option ? "active" : ""} onClick={() => setCitFilter(option)}>
+                    {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+                  </button>
+                ))}
               </div>
-            ))}
+            }
+          />
+          <div>
+            {topDomains.length ? (
+              topDomains.map((row) => (
+                <div key={row.domain} className="rank-row">
+                  <span className="lhs">
+                    <b>{row.domain}</b>
+                    <Badge tone={row.type}>{row.type}</Badge>
+                  </span>
+                  <strong>{row.count}</strong>
+                </div>
+              ))
+            ) : (
+              <p className="muted" style={{ padding: "16px 20px" }}>
+                No citations captured for this platform.
+              </p>
+            )}
           </div>
           <button className="text-cta" onClick={() => onNav("citations")}>
             See all citations <Icon name="arrow" size={13} />
           </button>
         </div>
 
-        <div className="panel">
-          <PanelHead title="AI visibility score by prompt type" subtitle="How often AI recommends you, by what the homeowner is asking" />
-          <div className="cov-list">
-            {stats.categoryCoverage.map((row) => (
-              <div key={row.category} className="coverage-row">
-                <span>{row.category}</span>
-                <Track value={row.rate} tone={band(row.rate, 0.6, 0.34)} />
-                <strong>
-                  {pct(row.rate)}
-                  <small>
-                    {row.mentioned}/{row.total}
-                  </small>
-                </strong>
-              </div>
-            ))}
-          </div>
-          <button className="text-cta" onClick={() => onNav("prompts")}>
-            See all prompts <Icon name="arrow" size={13} />
-          </button>
-        </div>
+        <CategoryCoveragePanel payload={payload} onMore={() => onNav("prompts")} moreLabel="See all prompts" />
       </section>
     </div>
   );
@@ -480,7 +482,9 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
     if (!expanded || !visible.some((row) => row.query.id === expanded)) {
       setExpanded(visible[0].query.id);
     }
-  }, [visible, expanded]);
+    // Key on `visible` only: re-running on `expanded` would instantly re-open a row the user just collapsed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   return (
     <div className="view-stack">
@@ -492,23 +496,7 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
         <MetricCard label="Top competitor" value={topCompetitor ? topCompetitor.name : "—"} valueSm helper={topCompetitor ? pct(topCompetitor.visibilityRate) + " visibility" : ""} />
       </section>
 
-      <section className="panel">
-        <PanelHead title="AI visibility score by prompt type" subtitle="How often AI recommends you, by what the homeowner is asking" />
-        <div className="cov-list">
-          {stats.categoryCoverage.map((row) => (
-            <div key={row.category} className="coverage-row">
-              <span>{row.category}</span>
-              <Track value={row.rate} tone={band(row.rate, 0.6, 0.34)} />
-              <strong>
-                {pct(row.rate)}
-                <small>
-                  {row.mentioned}/{row.total}
-                </small>
-              </strong>
-            </div>
-          ))}
-        </div>
-      </section>
+      <CategoryCoveragePanel payload={payload} />
 
       <section className="panel">
         <div className="prompt-tools">
@@ -1122,14 +1110,20 @@ function Leaderboard({
   onMore?: () => void;
   moreLabel?: string;
 }) {
-  const rows = data[filter] || [];
+  const scoreOf = (row: MentionShareRow) => row.visibilityScore ?? row.visibilityRate;
+  // Visibility score ranks by the quality-weighted score; share of voice ranks by raw mention count.
+  const rows = [...(data[filter] || [])].sort((a, b) =>
+    mode === "vis" ? scoreOf(b) - scoreOf(a) || Number(b.isTarget) - Number(a.isTarget) : b.count - a.count || Number(b.isTarget) - Number(a.isTarget)
+  );
   const maxCount = Math.max(1, ...rows.map((row) => row.count));
+  const maxScore = Math.max(0.0001, ...rows.map(scoreOf));
   const totalCount = rows.reduce((sum, row) => sum + row.count, 0) || 1;
   const top = rows.slice(0, limit);
   const targetRow = rows.find((row) => row.isTarget);
   const pinned = Boolean(targetRow && !top.some((row) => row.isTarget));
   const visible = pinned && targetRow ? [...top, targetRow] : top;
-  const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : row.visibilityRate);
+  const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : scoreOf(row));
+  const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : scoreOf(row) / maxScore);
   const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.2) : value >= 0.15 ? "High" : value >= 0.08 ? "Medium" : "Low");
 
   return (
@@ -1149,13 +1143,53 @@ function Leaderboard({
       <div className="lb-list">
         {visible.map((row, index) => (
           <div key={row.name + index} className={"lb-row" + (row.isTarget ? " you" : "")}>
-            {pinned && row.isTarget ? <small className="your-pos">Your position</small> : null}
             <div className="who">
               <strong>{row.name}</strong>
               <span>{row.isTarget ? "You" : "Competitor"}</span>
             </div>
-            <Track value={row.count / maxCount} tone={bandOf(valOf(row))} />
+            <Track value={barOf(row)} tone={bandOf(valOf(row))} />
             <b>{pct(valOf(row))}</b>
+          </div>
+        ))}
+      </div>
+      {onMore ? (
+        <button className="text-cta" onClick={onMore}>
+          {moreLabel} <Icon name="arrow" size={13} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── AI visibility score by prompt type (platform-toggleable) ── */
+function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: ReportPayload; onMore?: () => void; moreLabel?: string }) {
+  const [filter, setFilter] = useState<SurfaceFilter>("all");
+  const coverage = useMemo(() => buildCategoryCoverage(payload, filter), [payload, filter]);
+  return (
+    <div className="panel">
+      <PanelHead
+        title="AI visibility score by prompt type"
+        right={
+          <div className="segmented">
+            {(["all", "gemini", "chatgpt"] as const).map((option) => (
+              <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
+                {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <div className="cov-list">
+        {coverage.map((row) => (
+          <div key={row.category} className="coverage-row">
+            <span>{row.category}</span>
+            <Track value={row.rate} tone={band(row.rate, 0.6, 0.34)} />
+            <strong>
+              {pct(row.rate)}
+              <small>
+                {row.mentioned}/{row.total}
+              </small>
+            </strong>
           </div>
         ))}
       </div>
@@ -1273,7 +1307,7 @@ type PromptRow = {
   topCompetitor: string | null;
 };
 
-type MentionShareRow = { name: string; count: number; visibilityRate: number; averageRank: number | null; isTarget: boolean };
+type MentionShareRow = { name: string; count: number; visibilityRate: number; averageRank: number | null; isTarget: boolean; visibilityScore?: number };
 
 type ReportStats = {
   totalQueries: number;
@@ -1341,12 +1375,31 @@ function buildReportStats(payload: ReportPayload): ReportStats {
   };
 }
 
+function buildCategoryCoverage(payload: ReportPayload, surfaceFilter: SurfaceFilter) {
+  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ["gemini_maps"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : customerSurfaces;
+  const rows = payload.report.queries.map((query) => {
+    const runs = payload.report.runs.filter((run) => run.queryId === query.id && surfaces.includes(run.surface));
+    return { category: normalizeCategory(query.category), hasTarget: runs.some((run) => targetRank(run) !== null) };
+  });
+  const categories = categoryOrder.filter((category) => rows.some((row) => row.category === category));
+  return categories.map((category) => {
+    const catRows = rows.filter((row) => row.category === category);
+    const mentioned = catRows.filter((row) => row.hasTarget).length;
+    return { category, total: catRows.length, mentioned, rate: catRows.length ? mentioned / catRows.length : 0 };
+  });
+}
+
 function buildLeaderboardData(payload: ReportPayload): Record<SurfaceFilter, MentionShareRow[]> {
-  return {
-    all: buildMentionShareRows(payload, mentionShareRuns(payload.report.runs, "all")),
-    gemini: buildMentionShareRows(payload, mentionShareRuns(payload.report.runs, "gemini")),
-    chatgpt: buildMentionShareRows(payload, mentionShareRuns(payload.report.runs, "chatgpt"))
+  // Each row carries BOTH metrics: `count` (mention share) and `visibilityScore`
+  // (the gauge's quality-weighted score, which also rewards ranking near the top).
+  const make = (filter: SurfaceFilter) => {
+    const runs = mentionShareRuns(payload.report.runs, filter);
+    return buildMentionShareRows(payload, runs).map((row) => ({
+      ...row,
+      visibilityScore: visibilityMetricsForName(payload, runs, row.name, row.isTarget).visibility
+    }));
   };
+  return { all: make("all"), gemini: make("gemini"), chatgpt: make("chatgpt") };
 }
 
 function mentionShareRuns(runs: SurfaceRun[], filter: SurfaceFilter) {
@@ -1425,12 +1478,13 @@ function topOneRateOf(payload: ReportPayload) {
   return payload.report.runs.length ? topOne.length / payload.report.runs.length : 0;
 }
 
-function buildCitationStats(payload: ReportPayload): CitationStats {
+function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter = "all"): CitationStats {
   const ownedDomain = domainFromValue(payload.company.website);
   const domainRuns = new Map<string, Set<string>>();
   const urlRuns = new Map<string, Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>>();
 
-  const citationRuns = payload.report.runs.filter((item) => !item.rawAnswer.startsWith("Provider error:"));
+  const surfaces = surfaceFilter === "gemini" ? ["gemini_maps", "gemini_search"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : null;
+  const citationRuns = payload.report.runs.filter((item) => !item.rawAnswer.startsWith("Provider error:") && (!surfaces || surfaces.includes(item.surface)));
 
   for (const run of citationRuns) {
     const domains = new Set<string>();

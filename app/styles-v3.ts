@@ -6,7 +6,10 @@
 
 export const dashboardStyles = `
 *{box-sizing:border-box}
-.aeo3 button,.aeo3 input,.aeo3 select,.aeo3 textarea{font:inherit;color:inherit}
+/* Global UI density — matches the Claude design-tool view (~90%). Tune to taste. */
+.aeo3{zoom:0.9}
+.aeo3 .app{min-height:calc(100vh / 0.9)}
+button,input,select,textarea{font:inherit;color:inherit}
 .aeo3 a{color:var(--primary);text-decoration:none}
 .tnum{font-variant-numeric:tabular-nums}
 
@@ -220,7 +223,6 @@ export const dashboardStyles = `
 .lb-row .track{height:8px}
 .lb-row>b{text-align:right;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
 .lb-row>small{text-align:right;font-size:11px;color:var(--fg-muted)}
-.your-pos{grid-column:1/-1;font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--primary);padding-top:4px}
 
 /* ── Badges & pills ── */
 .badge{display:inline-flex;align-items:center;border-radius:var(--radius-sm);padding:2px 7px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--secondary);color:var(--fg-muted);white-space:nowrap}
