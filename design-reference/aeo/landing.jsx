@@ -1,0 +1,348 @@
+/* global React, ReactDOM */
+const { useState } = React;
+
+const WORDMARK_GREEN = "aeo/assets/netic-wordmark-green.svg";
+const WORDMARK_CREAM = "aeo/assets/netic-wordmark-cream.svg";
+
+const REVENUE = [
+{ id: "<15M", label: "Under $15M", note: "" },
+{ id: "15-20M", label: "$15M – $20M", note: "" },
+{ id: "20-60M", label: "$20M – $60M", note: "" },
+{ id: "60-100M", label: "$60M – $100M", note: "" },
+{ id: "100M+", label: "$100M+", note: "" }];
+
+
+function Check() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>);
+
+}
+function Clock() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
+
+}
+function Arrow() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>);
+
+}
+function Back() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>);
+
+}
+const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+const CITES = [
+{ domain: "houzz.com", count: 15, owned: false },
+{ domain: "summitcomfort.com", count: 13, owned: true },
+{ domain: "mapquest.com", count: 13, owned: false },
+{ domain: "nextdoor.com", count: 12, owned: false }];
+
+const RANK = [
+{ rk: 1, nm: "Brightway Heating & Air", v: 72 },
+{ rk: 2, nm: "You", v: 55, you: true },
+{ rk: 3, nm: "Northpoint Plumbing & HVAC", v: 49 },
+{ rk: 4, nm: "Hearthside Heating & Cooling", v: 41 }];
+
+
+/* ── Semicircular visibility gauge ── */
+function Gauge({ value }) {
+  const cx = 100,cy = 100,r = 78,sw = 15;
+  const toRad = (v) => (180 - v * 1.8) * Math.PI / 180;
+  const pt = (v, rad = r) => {
+    const a = toRad(v);
+    return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)];
+  };
+  const seg = (a, b) => {
+    const [x1, y1] = pt(a);
+    const [x2, y2] = pt(b);
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  };
+  const aRad = toRad(value);
+  const markBaseR = r - sw / 2 - 13;
+  const markTipR = r - sw / 2 - 1;
+  const bc = pt(value, markBaseR);
+  const tipP = pt(value, markTipR);
+  const tang = aRad + Math.PI / 2;
+  const hw = 6.5;
+  const b1 = [bc[0] + hw * Math.cos(tang), bc[1] - hw * Math.sin(tang)];
+  const b2 = [bc[0] - hw * Math.cos(tang), bc[1] + hw * Math.sin(tang)];
+  const ticks = [
+  { v: 0, t: "0" }, { v: 25, t: "25" }, { v: 50, t: "50" },
+  { v: 75, t: "75" }, { v: 100, t: "100" }];
+
+  return (
+    <svg className="gauge-svg" viewBox="-2 -4 204 124" role="img">
+      <path className="gtrack" d={seg(0, 100)} strokeWidth={sw} />
+      <path d={seg(1, 32)} stroke="var(--green-300)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(34, 65)} stroke="var(--green-500)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(67, 99)} stroke="var(--primary)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      {ticks.map((k) => {
+        const [tx, ty] = pt(k.v, r + 13);
+        return <text key={k.v} className="gtick" x={tx} y={ty + 3.5} textAnchor="middle">{k.t}</text>;
+      })}
+      <polygon className="gneedle"
+      points={`${tipP[0].toFixed(2)},${tipP[1].toFixed(2)} ${b1[0].toFixed(2)},${b1[1].toFixed(2)} ${b2[0].toFixed(2)},${b2[1].toFixed(2)}`} data-comment-anchor="245b0e6799-polygon-90-7" />
+    </svg>);
+
+}
+
+/* ── Brand hero (right) — bento collage ── */
+function Hero() {
+  return (
+    <div className="hero">
+      <div className="hero-content">
+        <h1>When a homeowner asks AI who to recommend, <em>are you the answer?</em></h1>
+        <p className="lede">The first AI visibility tool built for home service companies.</p>
+        <p className="lede-src">Pulled straight from ChatGPT and Gemini.</p>
+
+        <div className="bento" aria-hidden="true">
+          {/* AI visibility score */}
+          <div className="bcard b-vis">
+            <div className="blab"><span>AI visibility score</span></div>
+            <div className="glegend">
+              <span><i className="lo" />Low</span>
+              <span><i className="md" />Medium</span>
+              <span><i className="hi" />High</span>
+            </div>
+            <div className="gauge-wrap">
+              <Gauge value={55} />
+              <div className="gauge-center">
+                <strong>55%</strong>
+                <span className="pill">Medium</span>
+              </div>
+            </div>
+            <div className="cap">Across 50 tracked prompts</div>
+            <div className="surf">
+              <div className="row"><span>Gemini</span><div className="track-sm"><i style={{ width: "79%" }} /></div><b>79%</b></div>
+              <div className="row"><span>ChatGPT</span><div className="track-sm"><i style={{ width: "32%" }} /></div><b>32%</b></div>
+            </div>
+          </div>
+
+          {/* Sentiment score */}
+          <div className="bcard b-sent">
+            <div className="blab"><span>AI sentiment</span></div>
+            <div className="sval"><strong>+0.59</strong><em>Positive</em></div>
+            <div className="meter"><i style={{ left: "79.5%" }} /></div>
+            <div className="scale"><span>−1</span><span>0</span><span>+1</span></div>
+          </div>
+
+          {/* Top citation sources */}
+          <div className="bcard b-cit">
+            <div className="blab"><span>Top citation sources</span></div>
+            <div className="clist">
+              {CITES.map((c) =>
+              <div key={c.domain} className={"crow" + (c.owned ? " you" : "")}>
+                  <span className="dn">
+                    <span>{c.domain}</span>
+                    {c.owned ? <span className="own">You</span> : null}
+                  </span>
+                  <b>{c.count}</b>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Competitor visibility ranking */}
+          <div className="bcard b-rank">
+            <div className="blab"><span>Competitor visibility ranking</span><span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500, color: "var(--fg-placeholder)" }}>Your market</span></div>
+            {RANK.map((r) =>
+            <div key={r.rk} className={"rrow" + (r.you ? " you" : "")}>
+                <span className="rk">{r.rk}</span>
+                <span className="nm">{r.nm}</span>
+                <div className="track-sm"><i style={{ width: r.v + "%", background: r.you ? "var(--primary)" : "var(--border-strong)" }} /></div>
+                <span className="vv">{r.v}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>);
+
+}
+
+/* ── Signup flow (left) ── */
+function Signup() {
+  const [isClient, setIsClient] = useState(""); // "", "yes", "no"
+  const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
+  const [size, setSize] = useState("");
+  const [touched, setTouched] = useState(false);
+  const [view, setView] = useState("form"); // form | ok | wait
+
+  const reset = () => {
+    setView("form");setIsClient("");setCompany("");setEmail("");setSize("");setTouched(false);
+  };
+
+  const submit = () => {
+    setTouched(true);
+    if (isClient === "yes") {
+      if (!emailOk(email)) return;
+      setView("ok");
+      return;
+    }
+    if (isClient === "no") {
+      if (!company.trim() || !emailOk(email) || !size) return;
+      setView(size === "<15M" ? "wait" : "ok");
+    }
+  };
+
+  /* ── Result screens ── */
+  if (view === "ok") {
+    return (
+      <div className="signup">
+        <div className="signup-inner">
+          <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
+          <div className="result ok">
+            <div className="mark"><Check /></div>
+            <h2>You're on the list.</h2>
+            <p>
+              We've received your request and we'll email your access link the moment your report is ready.
+              Running every query takes a couple of days, so hang tight while we put your numbers together.
+            </p>
+            <div className="recap">
+              {isClient === "no" && company.trim() ?
+              <div className="rr"><span>Company</span><b>{company.trim()}</b></div> :
+              null}
+              <div className="rr"><span>Access link to</span><b>{email.trim()}</b></div>
+            </div>
+            <button className="backlink" onClick={reset}><Back />Submit another company</button>
+          </div>
+        </div>
+        <div className="signup-foot">Questions? Reach your Netic contact or email pilot@netic.ai.</div>
+      </div>);
+
+  }
+
+  if (view === "wait") {
+    return (
+      <div className="signup">
+        <div className="signup-inner">
+          <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
+          <div className="result wait">
+            <div className="mark"><Clock /></div>
+            <h2>We've saved your spot.</h2>
+            <p>
+              Right now the pilot is open to companies above $15M in revenue. We've added you to the
+              waitlist and we'll reach out the moment we open it up to more companies — your spot is held.
+            </p>
+            <div className="recap">
+              <div className="rr"><span>Company</span><b>{company.trim()}</b></div>
+              <div className="rr"><span>We'll notify</span><b>{email.trim()}</b></div>
+            </div>
+            <button className="backlink" onClick={reset}><Back />Submit another company</button>
+          </div>
+        </div>
+        <div className="signup-foot">Questions? Reach your Netic contact or email pilot@netic.ai.</div>
+      </div>);
+
+  }
+
+  /* ── Form ── */
+  const showDetails = isClient === "no";
+  const stepTwo = isClient !== "";
+
+  return (
+    <div className="signup">
+      <div className="signup-inner">
+        <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
+        <h1 className="s-head">Request your AI visibility deep dive</h1>
+        <p className="s-sub">A dashboard of how your company shows up across ChatGPT and Gemini.</p>
+
+        <ul className="whatsin">
+          <li><Check /><span>The key prompts homeowners ask, and who AI recommends</span></li>
+          <li><Check /><span>Where you rank against local competitors</span></li>
+          <li><Check /><span>How AI describes your business</span></li>
+          <li><Check /><span>The exact sources AI cites about you</span></li>
+        </ul>
+
+        <div className="steps">
+          <span className="step-label">Step {stepTwo ? 2 : 1} of 2</span>
+          <div className="step-bars">
+            <i className="on" />
+            <i className={stepTwo ? "on" : ""} />
+          </div>
+        </div>
+
+        <div className="fld">
+          <label data-comment-anchor="8923004f07-label-267-11">Are you already a Netic client?</label>
+          <div className={"seg-row" + (touched && !isClient ? " err" : "")} role="radiogroup" aria-label="Are you already a Netic client?">
+            <button type="button" className={"seg" + (isClient === "yes" ? " sel" : "")}
+            role="radio" aria-checked={isClient === "yes"}
+            onClick={() => {setIsClient("yes");setTouched(false);}}>Yes</button>
+            <button type="button" className={"seg" + (isClient === "no" ? " sel" : "")}
+            role="radio" aria-checked={isClient === "no"}
+            onClick={() => {setIsClient("no");setTouched(false);}}>Not yet</button>
+          </div>
+        </div>
+
+        {isClient === "yes" ?
+        <div className="fld">
+            <label htmlFor="email-y">Company email</label>
+            <input id="email-y" type="email" placeholder="you@company.com" value={email}
+          className={touched && !emailOk(email) ? "err" : ""}
+          onChange={(e) => setEmail(e.target.value)} />
+            {touched && !emailOk(email) ? <span className="msg-err">Enter a valid company email.</span> : null}
+          </div> :
+        null}
+
+        {showDetails ?
+        <React.Fragment>
+            <div className="fld">
+              <label htmlFor="company">Company name</label>
+              <input id="company" type="text" placeholder="e.g. AllTech Services" value={company}
+            className={touched && !company.trim() ? "err" : ""}
+            onChange={(e) => setCompany(e.target.value)} />
+              {touched && !company.trim() ? <span className="msg-err">Company name is required.</span> : null}
+            </div>
+            <div className="fld">
+              <label htmlFor="email-n">Company email</label>
+              <input id="email-n" type="email" placeholder="you@company.com" value={email}
+            className={touched && !emailOk(email) ? "err" : ""}
+            onChange={(e) => setEmail(e.target.value)} />
+              {touched && !emailOk(email) ? <span className="msg-err">Enter a valid company email.</span> : null}
+            </div>
+            <div className="field-group">
+              <span>Annual revenue</span>
+              <div className="radio-list">
+                {REVENUE.map((r) =>
+              <div key={r.id} className={"radio-opt" + (size === r.id ? " sel" : "")}
+              role="radio" aria-checked={size === r.id} tabIndex={0}
+              onClick={() => setSize(r.id)}
+              onKeyDown={(e) => {if (e.key === "Enter" || e.key === " ") {e.preventDefault();setSize(r.id);}}}>
+                    <span className="dot" />
+                    <span className="lbl">{r.label}</span>
+                  </div>
+              )}
+              </div>
+              {touched && !size ? <span className="msg-err" style={{ marginTop: 8, display: "block" }}>Select your revenue band.</span> : null}
+            </div>
+          </React.Fragment> :
+        null}
+
+        {stepTwo ?
+        <button className="submit" onClick={submit}>
+            Request my report <Arrow />
+          </button> :
+        null}
+      </div>
+    </div>);
+
+}
+
+function LandingApp() {
+  return (
+    <div className="land">
+      <Signup />
+      <Hero />
+    </div>);
+
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<LandingApp />);
