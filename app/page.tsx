@@ -100,9 +100,30 @@ export default function Home() {
     [companies, selectedCompanyId]
   );
 
-  const reportOptions = useMemo(() => buildCompanyReportOptions(companies, reports), [companies, reports]);
+  // Single fixed company (the default account); the sidebar dropdown switches LOCATION.
+  const [selectedLocationId, setSelectedLocationId] = useState("");
 
-  const reportStats = useMemo(() => (activeReport ? buildReportStats(activeReport) : null), [activeReport]);
+  useEffect(() => {
+    if (!activeReport) return;
+    const locs = activeReport.company.locations;
+    const primary = locs.find((location) => location.isPrimary) ?? locs[0];
+    setSelectedLocationId(primary?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeReport?.report.id]);
+
+  const viewPayload = useMemo(() => {
+    if (!activeReport) return null;
+    const locs = activeReport.company.locations;
+    if (locs.length <= 1 || !selectedLocationId) return activeReport;
+    const runs = activeReport.report.runs.filter((run) => run.locationId === selectedLocationId);
+    return {
+      company: activeReport.company,
+      report: { ...activeReport.report, runs, locationIds: [selectedLocationId] },
+      summary: recomputeSummaryForLocation(runs, activeReport.summary)
+    };
+  }, [activeReport, selectedLocationId]);
+
+  const reportStats = useMemo(() => (viewPayload ? buildReportStats(viewPayload) : null), [viewPayload]);
 
   async function refresh() {
     const [companyResponse, reportResponse] = await Promise.all([fetch("/api/companies"), fetch("/api/reports")]);
@@ -126,12 +147,6 @@ export default function Home() {
     }
     setActiveReport(payload);
     setSelectedCompanyId(payload.company.id);
-  }
-
-  async function switchReport(reportId: string) {
-    if (!reportId || reportId === activeReport?.report.id) return;
-    await loadReport(reportId);
-    setView("home");
   }
 
   async function createReport() {
@@ -185,19 +200,18 @@ export default function Home() {
             </div>
 
             <div className="acct">
-              <label htmlFor="acct">Company</label>
+              <div className="acct-company">{company?.name ?? "—"}</div>
+              <label htmlFor="loc">Location</label>
               <div className="sel">
-                <select id="acct" value={activeReport?.report.id ?? ""} onChange={(event) => switchReport(event.target.value)} disabled={!reportOptions.length}>
-                  {!reportOptions.length ? <option value="">No reports yet</option> : null}
-                  {reportOptions.map((option) => (
-                    <option key={option.reportId} value={option.reportId}>
-                      {option.companyName} — {option.location}
+                <select id="loc" value={selectedLocationId} onChange={(event) => setSelectedLocationId(event.target.value)} disabled={!company || company.locations.length <= 1}>
+                  {(company?.locations ?? []).map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.label}
                     </option>
                   ))}
                 </select>
                 <Icon name="chevdown" size={14} />
               </div>
-              <span className="loc">{primaryLocation(company) ?? "Create an account"}</span>
             </div>
 
             <NavGroup label="Overview">
@@ -272,18 +286,18 @@ export default function Home() {
                   loadReport={loadReport}
                   refresh={refresh}
                 />
-              ) : !activeReport || !reportStats ? (
+              ) : !viewPayload || !reportStats ? (
                 <EmptyState onSetup={() => setView("setup")} />
               ) : view === "prompts" ? (
-                <PromptsView payload={activeReport} stats={reportStats} />
+                <PromptsView payload={viewPayload} stats={reportStats} />
               ) : view === "citations" ? (
-                <CitationsView payload={activeReport} />
+                <CitationsView payload={viewPayload} />
               ) : view === "competitors" ? (
-                <CompetitorsView payload={activeReport} stats={reportStats} />
+                <CompetitorsView payload={viewPayload} stats={reportStats} />
               ) : view === "sentiment" ? (
-                <SentimentView payload={activeReport} stats={reportStats} />
+                <SentimentView payload={viewPayload} stats={reportStats} />
               ) : (
-                <OverviewView payload={activeReport} stats={reportStats} onNav={setView} />
+                <OverviewView payload={viewPayload} stats={reportStats} onNav={setView} />
               )}
             </div>
           </section>
@@ -1372,6 +1386,39 @@ function buildReportStats(payload: ReportPayload): ReportStats {
     promptRows,
     categoryCoverage,
     mentionShareRows
+  };
+}
+
+function recomputeSummaryForLocation(runs: SurfaceRun[], base: VisibilitySummary): VisibilitySummary {
+  const targetMentions = runs.flatMap((run) => run.mentions.filter((mention) => mention.isTarget));
+  const topThree = targetMentions.filter((mention) => mention.rank <= 3).length;
+  const surfaceScores = Array.from(new Set(runs.map((run) => run.surface))).map((surface) => {
+    const sr = runs.filter((run) => run.surface === surface);
+    const ms = sr.flatMap((run) => run.mentions.filter((mention) => mention.isTarget));
+    return { surface, runs: sr.length, mentionRate: sr.length ? ms.length / sr.length : 0, averageRank: averageNumber(ms.map((mention) => mention.rank)) };
+  });
+  const groups = new Map<string, { name: string; count: number }>();
+  runs.forEach((run) =>
+    run.mentions
+      .filter((mention) => !mention.isTarget)
+      .forEach((mention) => {
+        const key = canonicalCompanyName(mention.companyName);
+        const group = groups.get(key) ?? { name: mention.companyName, count: 0 };
+        group.count += 1;
+        if (mention.companyName.length > group.name.length) group.name = mention.companyName;
+        groups.set(key, group);
+      })
+  );
+  const competitorCounts = Array.from(groups.values()).sort((a, b) => b.count - a.count).slice(0, 8);
+  return {
+    ...base,
+    totalRuns: runs.length,
+    targetMentions: targetMentions.length,
+    mentionRate: runs.length ? targetMentions.length / runs.length : 0,
+    topThreeRate: runs.length ? topThree / runs.length : 0,
+    averageRank: averageNumber(targetMentions.map((mention) => mention.rank)),
+    competitorCounts,
+    surfaceScores
   };
 }
 

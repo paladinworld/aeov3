@@ -26,6 +26,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ── Account switcher ── */
 .acct{padding:10px 10px 14px;margin:0 0 8px;border-bottom:1px solid var(--border)}
+.acct-company{font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--fg);padding:0 2px 12px}
 .acct label{display:block;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-muted);margin-bottom:6px}
 .acct .sel{position:relative}
 .acct select{width:100%;appearance:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 28px 8px 10px;font-size:13px;font-weight:500;cursor:pointer;outline:none}
