@@ -112,6 +112,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wide-panel{grid-column:1/-1}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border)}
 .panel-head h2{font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em}
+.panel-head h2 .info-dot,.controls-head h2 .info-dot{margin-left:7px;vertical-align:middle}
+.panel-head .info-dot em,.controls-head .info-dot em{bottom:auto;top:calc(100% + 7px)}
 .panel-head .sub{font-size:12px;color:var(--fg-muted)}
 .panel-body{padding:18px 20px}
 
@@ -192,8 +194,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .platform-top b{font-variant-numeric:tabular-nums;font-weight:700;font-size:16px;color:var(--fg)}
 .platform-track{height:12px;background:var(--secondary);border-radius:var(--radius-full);overflow:hidden}
 .platform-track i{display:block;height:100%;border-radius:var(--radius-full);background:var(--primary);transition:width var(--dur) var(--ease-out)}
-.platform-track.medium i{background:var(--green-500)}
-.platform-track.low i{background:var(--green-300)}
+.platform-track.medium i{background:var(--warning)}
+.platform-track.low i{background:var(--destructive)}
 
 /* ── Coverage / bar rows ── */
 .coverage{display:flex;flex-direction:column;gap:15px}

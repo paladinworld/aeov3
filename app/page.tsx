@@ -242,7 +242,7 @@ export default function Home() {
             <div className="side-foot">
               <div className="av">{initials(company?.name ?? "Netic")}</div>
               <div>
-                <div className="nm">{(company?.name ?? "Netic").split(",")[0]} ops</div>
+                <div className="nm">{(company?.name ?? "Netic").split(",")[0]}</div>
                 <div className="rl">operator</div>
               </div>
             </div>
@@ -324,7 +324,8 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   // targetMetrics.visibility is already the weighted score; use it directly so the gauge
   // equals this company's value in the Visibility score rank leaderboard.
   const score100 = Math.round(targetMetrics.visibility * 100);
-  const gband = score100 >= 67 ? "High" : score100 >= 34 ? "Medium" : "Low";
+  // Official Visibility Score bands (backend): 30%+ High, 20–30% Medium, <20% Low.
+  const gband = score100 >= 30 ? "High" : score100 >= 20 ? "Medium" : "Low";
 
   const surfaceShow = customerSurfaces
     .map((surface) => {
@@ -366,7 +367,11 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </p>
 
       <div className="panel score-panel">
-        <PanelHead title="AI visibility score" subtitle="How often AI recommends you, overall" />
+        <PanelHead
+          title="AI visibility score"
+          subtitle="How often AI recommends you, overall"
+          tooltip="A weighted measure of how often AI recommends you overall — based on how often you're named, across how many prompts, and how highly you rank. Bands: 30%+ High, 20–30% Medium, under 20% Low."
+        />
         <div className="score-body">
           <div className="score-gauge">
             <div className="glegend">
@@ -399,7 +404,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
                 <div key={surface.surface} className="pf-row">
                   <div className="pf-name">{surface.label}</div>
                   <div className="pf-bar">
-                    <div className={"platform-track " + band(surface.rate, 0.6, 0.3).toLowerCase()}>
+                    <div className={"platform-track " + band(surface.rate, 0.3, 0.2).toLowerCase()}>
                       <i style={{ width: pct(surface.rate) }} />
                     </div>
                     <b>{pct(surface.rate)}</b>
@@ -1051,10 +1056,17 @@ function Navi({ icon, active, count, onClick, children }: { icon: string; active
   );
 }
 
-function PanelHead({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+function PanelHead({ title, subtitle, right, tooltip }: { title: string; subtitle?: string; right?: React.ReactNode; tooltip?: string }) {
   return (
     <div className={right ? "controls-head" : "panel-head"}>
-      <h2>{title}</h2>
+      <h2>
+        {title}
+        {tooltip ? (
+          <i className="info-dot" tabIndex={0}>
+            i<em>{tooltip}</em>
+          </i>
+        ) : null}
+      </h2>
       {subtitle ? <span className="sub">{subtitle}</span> : null}
       {right || null}
     </div>
@@ -1243,9 +1255,9 @@ function Gauge({ value }: { value: number }) {
   return (
     <svg className="gauge-svg" viewBox="-8 -4 216 126" role="img" aria-label={`Visibility score ${value} of 100`}>
       <path className="gtrack" d={seg(0, 100)} strokeWidth={sw} />
-      <path d={seg(1, 32)} stroke="var(--destructive)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-      <path d={seg(34, 65)} stroke="var(--warning)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-      <path d={seg(67, 99)} stroke="var(--success)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(1, 19)} stroke="var(--destructive)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(21, 29)} stroke="var(--warning)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(31, 99)} stroke="var(--success)" strokeWidth={sw} strokeLinecap="round" fill="none" />
       {ticks.map((tick) => {
         const [tx, ty] = pt(tick, r + 16);
         return (
