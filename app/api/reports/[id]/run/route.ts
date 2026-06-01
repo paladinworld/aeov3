@@ -6,6 +6,7 @@ import { Location, Query, Surface } from "@/lib/types";
 // Tier 1 speedup: process the audit with bounded concurrency instead of one call
 // at a time. Tune with AUDIT_CONCURRENCY. (Production-durable fan-out = Tier 2.)
 const CONCURRENCY = Math.max(1, Number(process.env.AUDIT_CONCURRENCY) || 6);
+const CHECKPOINT_EVERY = 20;
 
 async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
   let cursor = 0;
@@ -54,6 +55,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   report.targetedSentiment = [];
   await writeDb(db);
 
+  // Serialized incremental persistence: checkpoint progress without overlapping writes,
+  // so a disconnect/restart mid-run never loses what's already completed.
+  let writeChain: Promise<void> = Promise.resolve();
+  const persist = () => {
+    writeChain = writeChain.then(() => writeDb(db)).catch(() => {});
+    return writeChain;
+  };
+
   // Expand to the full task list, then run with bounded concurrency.
   type Task = { location: Location; query: Query; surface: Surface; runNumber: number };
   const tasks: Task[] = [];
@@ -67,6 +76,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
   }
 
+  let completed = 0;
   await runPool(tasks, CONCURRENCY, async (task) => {
     try {
       const run = await withRetry(() => runSurface({ company, ...task }));
@@ -85,7 +95,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         createdAt: new Date().toISOString()
       });
     }
+    completed += 1;
+    if (completed % CHECKPOINT_EVERY === 0) persist();
   });
+  await writeChain;
 
   // Targeted sentiment (once per location/surface) — also concurrent.
   const sentimentTasks = locations.flatMap((location) =>

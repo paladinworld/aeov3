@@ -114,11 +114,16 @@ export default function Home() {
   const viewPayload = useMemo(() => {
     if (!activeReport) return null;
     const locs = activeReport.company.locations;
-    if (locs.length <= 1 || !selectedLocationId) return activeReport;
-    const runs = activeReport.report.runs.filter((run) => run.locationId === selectedLocationId);
+    const filterLoc = locs.length > 1 && Boolean(selectedLocationId);
+    // Drop provider-error runs (failed checks) so they aren't counted as "not recommended",
+    // and narrow to the selected location when the company has more than one.
+    const runs = activeReport.report.runs.filter(
+      (run) => !run.rawAnswer.startsWith("Provider error:") && (!filterLoc || run.locationId === selectedLocationId)
+    );
+    if (runs.length === activeReport.report.runs.length) return activeReport;
     return {
       company: activeReport.company,
-      report: { ...activeReport.report, runs, locationIds: [selectedLocationId] },
+      report: { ...activeReport.report, runs, locationIds: filterLoc ? [selectedLocationId] : activeReport.report.locationIds },
       summary: recomputeSummaryForLocation(runs, activeReport.summary)
     };
   }, [activeReport, selectedLocationId]);
