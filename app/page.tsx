@@ -370,7 +370,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <PanelHead
           title="AI visibility score"
           subtitle="How often AI recommends you, overall"
-          tooltip="A weighted measure of how often AI recommends you overall — based on how often you're named, across how many prompts, and how highly you rank. Bands: 30%+ High, 20–30% Medium, under 20% Low."
+          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
         <div className="score-body">
           <div className="score-gauge">
@@ -1356,7 +1356,9 @@ function buildReportStats(payload: ReportPayload): ReportStats {
     const bySurface = Object.fromEntries(customerSurfaces.map((surface) => [surface, runs.find((run) => run.surface === surface)])) as PromptRow["bySurface"];
     const customerRuns = runs.filter((run) => customerSurfaces.includes(run.surface as (typeof customerSurfaces)[number]));
     const ranks = customerRuns.map((run) => targetRank(run)).filter((rank): rank is number => typeof rank === "number");
-    const competitors = runs
+    // Use the customer-facing surfaces (Gemini Maps + ChatGPT) shown in the cards,
+    // not Gemini Search (citations-only) — so the "#1 competitor" is always visible below.
+    const competitors = customerRuns
       .flatMap((run) => run.mentions)
       .filter((mention) => !mention.isTarget)
       .sort((a, b) => a.rank - b.rank);

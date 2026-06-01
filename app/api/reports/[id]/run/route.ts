@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
 import { runSurface, runTargetedSentimentTask } from "@/lib/runner";
 import { id as createId, readDb, writeDb } from "@/lib/store";
+import { Location, Query, Surface } from "@/lib/types";
+
+// Tier 1 speedup: process the audit with bounded concurrency instead of one call
+// at a time. Tune with AUDIT_CONCURRENCY. (Production-durable fan-out = Tier 2.)
+const CONCURRENCY = Math.max(1, Number(process.env.AUDIT_CONCURRENCY) || 6);
+
+async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
+  let cursor = 0;
+  const size = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(
+    Array.from({ length: size }, async () => {
+      while (cursor < items.length) {
+        const index = cursor;
+        cursor += 1;
+        await worker(items[index]);
+      }
+    })
+  );
+}
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2, delayMs = 2500): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+  throw lastError;
+}
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -22,67 +54,59 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   report.targetedSentiment = [];
   await writeDb(db);
 
-  let completedRuns = 0;
-
+  // Expand to the full task list, then run with bounded concurrency.
+  type Task = { location: Location; query: Query; surface: Surface; runNumber: number };
+  const tasks: Task[] = [];
   for (const location of locations) {
     for (const query of report.queries) {
       for (const surface of query.surfaces) {
         for (let runNumber = 1; runNumber <= report.repeatRuns; runNumber += 1) {
-          try {
-            const run = await runSurface({
-              company,
-              location,
-              query,
-              surface,
-              runNumber
-            });
-            report.runs.push(run);
-          } catch (error) {
-            report.runs.push({
-              id: createId("run"),
-              queryId: query.id,
-              queryText: query.text,
-              locationId: location.id,
-              locationLabel: location.label,
-              surface,
-              runNumber,
-              rawAnswer: `Provider error: ${error instanceof Error ? error.message : "Unknown error"}`,
-              mentions: [],
-              createdAt: new Date().toISOString()
-            });
-          }
-
-          completedRuns += 1;
-          if (completedRuns % 5 === 0) {
-            await writeDb(db);
-          }
+          tasks.push({ location, query, surface, runNumber });
         }
       }
     }
   }
 
-  for (const location of locations) {
-    for (const surface of ["gemini_maps", "chatgpt_search"] as const) {
-      try {
-        const sentimentRun = await runTargetedSentimentTask({
-          company,
-          location,
-          surface
-        });
-        report.targetedSentiment?.push(sentimentRun);
-      } catch (error) {
-        report.targetedSentiment?.push({
-          id: createId("targeted_sentiment"),
-          surface,
-          prompt: "Targeted sentiment unavailable",
-          rawAnswer: `Provider error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          sentiment: "neutral",
-          summary: "Targeted sentiment task failed.",
-          createdAt: new Date().toISOString()
-        });
-      }
+  await runPool(tasks, CONCURRENCY, async (task) => {
+    try {
+      const run = await withRetry(() => runSurface({ company, ...task }));
+      report.runs.push(run);
+    } catch (error) {
+      report.runs.push({
+        id: createId("run"),
+        queryId: task.query.id,
+        queryText: task.query.text,
+        locationId: task.location.id,
+        locationLabel: task.location.label,
+        surface: task.surface,
+        runNumber: task.runNumber,
+        rawAnswer: `Provider error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        mentions: [],
+        createdAt: new Date().toISOString()
+      });
     }
-  }
+  });
+
+  // Targeted sentiment (once per location/surface) — also concurrent.
+  const sentimentTasks = locations.flatMap((location) =>
+    (["gemini_maps", "chatgpt_search"] as const).map((surface) => ({ location, surface }))
+  );
+  await runPool(sentimentTasks, CONCURRENCY, async ({ location, surface }) => {
+    try {
+      const sentimentRun = await withRetry(() => runTargetedSentimentTask({ company, location, surface }));
+      report.targetedSentiment?.push(sentimentRun);
+    } catch (error) {
+      report.targetedSentiment?.push({
+        id: createId("targeted_sentiment"),
+        surface,
+        prompt: "Targeted sentiment unavailable",
+        rawAnswer: `Provider error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        sentiment: "neutral",
+        summary: "Targeted sentiment task failed.",
+        createdAt: new Date().toISOString()
+      });
+    }
+  });
 
   report.status = "complete";
   report.completedAt = new Date().toISOString();
