@@ -1,0 +1,69 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap}
+
+  /* Base button — locked metrics so every variant matches its row */
+  .btn{
+    font-family:inherit;
+    cursor:pointer;
+    border:0;
+    border-radius:6px;
+    font-weight:500;
+    line-height:1;
+    white-space:nowrap;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    transition:background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+  }
+  .btn svg{width:14px;height:14px;flex:0 0 14px}
+
+  /* Sizes — fixed height so adjacent buttons align to a baseline grid */
+  .btn.sm{height:28px;padding:0 10px;font-size:12px}
+  .btn.md{height:32px;padding:0 14px;font-size:13px}
+  .btn.lg{height:40px;padding:0 18px;font-size:14px}
+
+  /* Ghost trims horizontal padding only — height/font stay locked to size */
+  .btn.ghost.sm{padding:0 8px}
+  .btn.ghost.md{padding:0 10px}
+  .btn.ghost.lg{padding:0 12px}
+
+  /* Variants */
+  .btn.primary{background:var(--primary);color:var(--primary-fg)}
+  .btn.primary:hover{background:var(--primary-hover)}
+  .btn.secondary{background:var(--secondary);color:var(--secondary-fg)}
+  .btn.secondary:hover{background:var(--secondary-hover)}
+  .btn.ghost{background:transparent;color:var(--fg-muted)}
+  .btn.ghost:hover{background:var(--bg-muted);color:var(--fg)}
+  .btn.destructive{background:var(--destructive);color:var(--destructive-fg)}
+  .btn.destructive:hover{background:var(--destructive-hover)}
+</style></head><body>
+<div class="card">
+  <!-- md row — the default. All four variants at 32 px height. -->
+  <div class="row">
+    <button class="btn md primary">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New tenant
+    </button>
+    <button class="btn md primary">Continue</button>
+    <button class="btn md secondary">Back</button>
+    <button class="btn md destructive">Delete</button>
+    <button class="btn md ghost">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      Clear
+    </button>
+  </div>
+
+  <!-- size row — same primary fill at sm / md / lg so heights are comparable -->
+  <div class="row">
+    <button class="btn sm primary">Save</button>
+    <button class="btn md primary">Save</button>
+    <button class="btn lg primary">Confirm configuration</button>
+  </div>
+</div>
+</body></html>

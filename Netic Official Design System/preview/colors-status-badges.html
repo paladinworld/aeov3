@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .row:last-child{margin-bottom:0}
+  .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:2px 10px;font-size:11px;font-weight:500}
+  .lbl{font-size:10px;color:var(--fg-muted);font-family:var(--font-mono);margin-top:4px}
+  .group{display:flex;flex-direction:column;gap:2px}
+</style></head><body>
+<div class="card">
+  <div class="row">
+    <div class="group">
+      <span class="badge" style="background:color-mix(in oklab, var(--success) 10%, transparent);color:var(--success)">High</span>
+      <span class="lbl">success/10</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:color-mix(in oklab, var(--warning) 10%, transparent);color:var(--warning)">Medium</span>
+      <span class="lbl">warning/10</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:color-mix(in oklab, var(--destructive) 10%, transparent);color:var(--destructive)">Low</span>
+      <span class="lbl">destructive/10</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:color-mix(in oklab, var(--destructive) 10%, transparent);color:var(--destructive)">No Match</span>
+      <span class="lbl">no_match</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:var(--bg-muted);color:var(--fg-muted)">Excluded</span>
+      <span class="lbl">muted</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:var(--bg-muted);color:var(--fg-muted)">Pending</span>
+      <span class="lbl">muted</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:color-mix(in oklab, var(--accent) 10%, transparent);color:var(--accent)">Manual</span>
+      <span class="lbl">accent/10</span>
+    </div>
+  </div>
+  <div class="row">
+    <div class="group">
+      <span class="badge" style="background:#EFF5FE;color:#1E4FA3">HVAC</span>
+      <span class="lbl">trade-hvac</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:#E6FAFD;color:#0B6C82">PLUMBING</span>
+      <span class="lbl">trade-plumbing</span>
+    </div>
+    <div class="group">
+      <span class="badge" style="background:#FCF2DA;color:#A3680F">ELECTRICAL</span>
+      <span class="lbl">trade-electrical</span>
+    </div>
+  </div>
+</div>
+</body></html>

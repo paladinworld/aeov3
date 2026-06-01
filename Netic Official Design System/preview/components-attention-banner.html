@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box}
+  .banner{border:1px solid color-mix(in oklab, var(--warning) 30%, transparent);background:color-mix(in oklab, var(--warning) 5%, transparent);border-radius:8px;padding:14px 16px}
+  .head{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:500}
+  .head svg{color:var(--warning)}
+  .item{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:6px;padding:10px 12px;gap:12px}
+  .txt{font-size:13px}
+  .sub{font-size:11px;color:var(--fg-muted);margin-top:2px}
+  .btns{display:flex;gap:6px}
+  .btns button{font-family:inherit;font-size:11px;border:0;border-radius:4px;padding:6px 10px;cursor:pointer}
+  .accept{background:color-mix(in oklab, var(--success) 10%, transparent);color:var(--success)}
+  .deny{background:var(--bg-muted);color:var(--fg-muted)}
+</style></head><body>
+<div class="card">
+  <div class="banner">
+    <div class="head">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      Needs your attention (2 items)
+    </div>
+    <div class="item">
+      <div><div class="txt">Whole Home Repipe</div><div class="sub">No matching model tenant job type found</div></div>
+      <div class="btns"><button class="deny">Don't Handle</button></div>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box;display:flex;gap:28px;flex-wrap:wrap;align-items:center}
+  .group{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  .lbl{font-size:11px;color:var(--fg-muted);font-family:var(--font-mono)}
+
+  /* Toggle track */
+  .toggle{position:relative;width:36px;height:20px;border-radius:9999px;border:0;cursor:pointer;padding:0;transition:background var(--dur)}
+  .toggle[aria-checked="true"]{background:var(--primary)}
+  .toggle[aria-checked="false"]{background:rgba(113,113,122,0.25)}
+  .toggle .thumb{position:absolute;top:3px;width:14px;height:14px;border-radius:9999px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.2);transition:transform var(--dur)}
+  .toggle[aria-checked="true"] .thumb{transform:translateX(18px)}
+  .toggle[aria-checked="false"] .thumb{transform:translateX(3px)}
+  .toggle[disabled]{opacity:.4;cursor:not-allowed}
+
+  /* Checkbox */
+  .cb{width:20px;height:20px;border-radius:4px;border:2px solid rgba(113,113,122,0.4);background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:transparent}
+  .cb[aria-checked="true"],.cb[aria-checked="mixed"]{background:var(--primary);border-color:var(--primary);color:#fff}
+  .cb svg{width:14px;height:14px}
+</style></head><body>
+<div class="card">
+  <div class="group">
+    <span class="toggle" aria-checked="true"><span class="thumb"></span></span>
+    <span class="lbl">ON / bookable</span>
+  </div>
+  <div class="group">
+    <span class="toggle" aria-checked="false"><span class="thumb"></span></span>
+    <span class="lbl">OFF</span>
+  </div>
+  <div class="group">
+    <span class="toggle" aria-checked="false" disabled><span class="thumb"></span></span>
+    <span class="lbl">disabled</span>
+  </div>
+  <div class="group">
+    <span class="cb" aria-checked="false"></span>
+    <span class="lbl">unchecked</span>
+  </div>
+  <div class="group">
+    <span class="cb" aria-checked="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+    <span class="lbl">checked</span>
+  </div>
+  <div class="group">
+    <span class="cb" aria-checked="mixed"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+    <span class="lbl">indeterminate</span>
+  </div>
+</div>
+</body></html>

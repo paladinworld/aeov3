@@ -1,0 +1,480 @@
+import { Company, CompanyMention, Citation, Location, Query, SurfaceRun, TargetedSentimentRun } from "../types";
+import { id } from "../store";
+import { mockSurfaceRun } from "./mock";
+
+type GeminiCandidate = {
+  content?: {
+    parts?: Array<{ text?: string }>;
+  };
+  groundingMetadata?: {
+    groundingChunks?: Array<{
+      web?: { title?: string; uri?: string };
+      maps?: { title?: string; uri?: string; placeId?: string };
+    }>;
+  };
+};
+
+type GeminiResponse = {
+  candidates?: GeminiCandidate[];
+};
+
+export async function runGeminiMaps(params: {
+  company: Company;
+  location: Location;
+  query: Query;
+  runNumber: number;
+}): Promise<SurfaceRun> {
+  if (isDemoMode()) {
+    return mockSurfaceRun({ ...params, surface: "gemini_maps" });
+  }
+
+  const response = await generateGroundedContent({
+    prompt: buildPrompt(params),
+    tool: "maps",
+    location: params.location
+  });
+
+  return buildRunFromGemini({
+    ...params,
+    surface: "gemini_maps",
+    response
+  });
+}
+
+export async function runGeminiSearch(params: {
+  company: Company;
+  location: Location;
+  query: Query;
+  runNumber: number;
+}): Promise<SurfaceRun> {
+  if (isDemoMode()) {
+    return mockSurfaceRun({ ...params, surface: "gemini_search" });
+  }
+
+  const response = await generateGroundedContent({
+    prompt: buildPrompt(params),
+    tool: "search",
+    location: params.location
+  });
+
+  return buildRunFromGemini({
+    ...params,
+    surface: "gemini_search",
+    response
+  });
+}
+
+export async function runGeminiTargetedSentiment(params: {
+  company: Company;
+  location: Location;
+  prompt: string;
+}): Promise<TargetedSentimentRun> {
+  if (isDemoMode()) {
+    return {
+      id: id("targeted_sentiment"),
+      surface: "gemini_maps",
+      prompt: params.prompt,
+      rawAnswer: params.company.name + " appears to be a credible HVAC option in " + params.location.label + ", with strengths around local reputation, relevant HVAC service coverage, and customer proof. Main gaps to verify are pricing clarity, service-area fit, and whether third-party sources consistently support the same story.",
+      sentiment: "positive",
+      summary: "Positive but qualified homeowner-facing perception.",
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  const response = await generateGroundedContent({
+    tool: "maps",
+    location: params.location,
+    prompt: [
+      params.prompt,
+      "",
+      "Company website: " + params.company.website,
+      "",
+      "Return JSON only in this shape:",
+      "{\"answer\":\"homeowner-facing paragraph with specifics\",\"sentiment\":\"positive|neutral|negative\",\"summary\":\"one sentence summary\"}",
+      "Do not include markdown links or raw URLs in the answer."
+    ].join("\n")
+  });
+
+  const parsed = parseTargetedSentiment(extractAnswer(response));
+  return {
+    id: id("targeted_sentiment"),
+    surface: "gemini_maps",
+    prompt: params.prompt,
+    rawAnswer: parsed.answer,
+    sentiment: parsed.sentiment,
+    summary: parsed.summary,
+    createdAt: new Date().toISOString()
+  };
+}
+
+export async function diagnoseGeminiMissingRecommendation(params: {
+  company: Company;
+  location: Location;
+  query: Query;
+  originalAnswer: string;
+  surface: "gemini_maps" | "gemini_search";
+}): Promise<string> {
+  if (isDemoMode()) {
+    return "The response did not recommend " + params.company.name + " because the visible evidence in this test answer favored other local providers. Strengthen location-specific service pages, review profiles, and third-party proof sources for this query.";
+  }
+
+  const response = await generateGroundedContent({
+    tool: params.surface === "gemini_maps" ? "maps" : "search",
+    location: params.location,
+    prompt: [
+      "You previously answered this local HVAC recommendation question.",
+      "",
+      "Location: " + params.location.label,
+      "Original question: " + params.query.text,
+      "Company being audited: " + params.company.name,
+      "Company website: " + params.company.website,
+      "Original answer:",
+      params.originalAnswer,
+      "",
+      "Follow-up question: Why did you not recommend " + params.company.name + "?",
+      "",
+      "Answer in 3-5 concise bullets. Be specific about missing proof, weaker signals, competitor advantages, or source gaps. Do not be polite filler."
+    ].join("\n")
+  });
+
+  return extractAnswer(response);
+}
+
+async function buildRunFromGemini(params: {
+  company: Company;
+  location: Location;
+  query: Query;
+  runNumber: number;
+  surface: "gemini_maps" | "gemini_search";
+  response: GeminiResponse;
+}): Promise<SurfaceRun> {
+  const answer = extractAnswer(params.response);
+  const citations = await extractCitations(params.response);
+  const mentions = await extractMentions({
+    answer,
+    citations,
+    targetCompanyName: params.company.name,
+    knownCompetitors: params.company.competitors
+  });
+
+  return {
+    id: id("run"),
+    queryId: params.query.id,
+    queryText: params.query.text,
+    locationId: params.location.id,
+    locationLabel: params.location.label,
+    surface: params.surface,
+    runNumber: params.runNumber,
+    rawAnswer: answer,
+    mentions,
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function generateGroundedContent(params: {
+  prompt: string;
+  tool: "search" | "maps";
+  location: Location;
+}): Promise<GeminiResponse> {
+  const apiKey = getApiKey();
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const body =
+    params.tool === "search"
+      ? {
+          contents: [{ role: "user", parts: [{ text: params.prompt }] }],
+          tools: [{ googleSearch: {} }]
+        }
+      : {
+          contents: [{ role: "user", parts: [{ text: params.prompt }] }],
+          tools: [{ googleMaps: {} }],
+          toolConfig: {
+            retrievalConfig: {
+              latLng: {
+                latitude: params.location.latitude ?? 37.3382,
+                longitude: params.location.longitude ?? -121.8863
+              }
+            }
+          }
+        };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey
+    },
+    body: JSON.stringify(body)
+  });
+
+  const json = (await response.json()) as GeminiResponse & { error?: { message?: string } };
+  if (!response.ok) {
+    throw new Error(`Gemini ${params.tool} request failed: ${json.error?.message ?? response.statusText}`);
+  }
+
+  return json;
+}
+
+async function extractMentions(params: {
+  answer: string;
+  citations: Citation[];
+  targetCompanyName: string;
+  knownCompetitors: string[];
+}): Promise<CompanyMention[]> {
+  if (!params.answer.trim()) return [];
+
+  try {
+    const apiKey = getApiKey();
+    const model = process.env.GEMINI_EXTRACTION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Extract ranked local HVAC company mentions from this AI answer.
+
+Return JSON only in this shape:
+{"mentions":[{"companyName":"...","rank":1,"sentiment":"positive|neutral|negative","summary":"short reason","isTarget":false}]}
+
+Target company: ${params.targetCompanyName}
+Known competitors: ${params.knownCompetitors.join(", ") || "none"}
+Answer:
+${params.answer}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    const json = (await response.json()) as GeminiResponse;
+    const raw = extractAnswer(json);
+    const parsed = JSON.parse(raw) as {
+      mentions?: Array<{
+        companyName?: string;
+        rank?: number;
+        sentiment?: "positive" | "neutral" | "negative";
+        summary?: string;
+        isTarget?: boolean;
+      }>;
+    };
+
+    return (parsed.mentions ?? [])
+      .filter((mention) => mention.companyName)
+      .map((mention, index) => ({
+        companyName: mention.companyName ?? "Unknown company",
+        rank: Number.isFinite(mention.rank) ? Number(mention.rank) : index + 1,
+        sentiment: mention.sentiment ?? "neutral",
+        summary: mention.summary ?? "",
+        isTarget: isLikelyTargetCompany(mention.companyName ?? "", params.targetCompanyName),
+        citations: params.citations
+      }));
+  } catch {
+    return fallbackMentions(params.answer, params.targetCompanyName, params.knownCompetitors, params.citations);
+  }
+}
+
+function buildPrompt(params: { company: Company; location: Location; query: Query }) {
+  return `You are helping a homeowner evaluate local HVAC providers.
+
+Location: ${params.location.label}
+Question: ${params.query.text}
+
+Answer naturally. If you recommend companies, list specific company names in ranked order and briefly explain why. Use current grounded sources when available.`;
+}
+
+function extractAnswer(response: GeminiResponse) {
+  return response.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("\n").trim() ?? "";
+}
+
+async function extractCitations(response: GeminiResponse): Promise<Citation[]> {
+  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const citations = await Promise.all(
+    chunks.map(async (chunk) => {
+      const source = chunk.web ?? chunk.maps;
+      const placeId = chunk.maps?.placeId;
+      const rawUrl = source?.uri ?? (placeId ? `google-maps-place:${placeId}` : "");
+      const url = await resolveCitationUrl(rawUrl, source?.title);
+
+      return {
+        title: source?.title ?? url,
+        url,
+        domain: domainFromUrl(url)
+      };
+    })
+  );
+
+  return citations.filter((citation) => citation.url);
+}
+
+async function resolveCitationUrl(url: string, title?: string) {
+  if (!url || url.startsWith("google-maps-place:") || !isGoogleGroundingRedirectUrl(url)) {
+    return url;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(3500)
+    });
+    if (response.url && !isInfrastructureDomain(domainFromUrl(response.url))) {
+      return response.url;
+    }
+  } catch {
+    // Fall through to the title-domain fallback below.
+  }
+
+  const titleDomain = domainFromTitle(title ?? "");
+  return titleDomain ? `https://${titleDomain}` : url;
+}
+
+function isGoogleGroundingRedirectUrl(url: string) {
+  return domainFromUrl(url) === "vertexaisearch.cloud.google.com";
+}
+
+function domainFromTitle(title: string) {
+  const normalized = title
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/.*$/, "");
+
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(normalized) && !isInfrastructureDomain(normalized)
+    ? normalized
+    : "";
+}
+
+function isInfrastructureDomain(domain: string) {
+  return [
+    "maps.google.com",
+    "google.com",
+    "vertexaisearch.cloud.google.com",
+    "google-maps-place"
+  ].includes(domain);
+}
+
+function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[]): CompanyMention[] {
+  const names = [target, ...competitors].filter((name) => answer.toLowerCase().includes(name.toLowerCase()));
+  return names.map((name, index) => ({
+    companyName: name,
+    rank: index + 1,
+    sentiment: "neutral",
+    summary: "Mentioned in the grounded Gemini response.",
+    isTarget: isLikelyTargetCompany(name, target),
+    citations
+  }));
+}
+
+function domainFromUrl(url: string) {
+  if (url.startsWith("google-maps-place:")) return "google-maps-place";
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function isLikelyTargetCompany(candidate: string, target: string) {
+  const candidateNormalized = normalize(candidate);
+  const targetNormalized = normalize(target);
+
+  if (!candidateNormalized || !targetNormalized) return false;
+  if (candidateNormalized === targetNormalized) return true;
+  if (candidateNormalized.includes(targetNormalized) || targetNormalized.includes(candidateNormalized)) return true;
+
+  const targetTokens = companyTokens(target);
+  const candidateTokens = companyTokens(candidate);
+  const sharedTokens = targetTokens.filter((token) => candidateTokens.includes(token));
+
+  if (sharedTokens.length >= 2) return true;
+  return sharedTokens.length === 1 && sharedTokens[0].length >= 5 && candidateTokens[0] === sharedTokens[0];
+}
+
+function companyTokens(value: string) {
+  const stopwords = new Set([
+    "air",
+    "and",
+    "the",
+    "hvac",
+    "heat",
+    "heating",
+    "cooling",
+    "plumbing",
+    "electric",
+    "electrical",
+    "services",
+    "service",
+    "company",
+    "home",
+    "homes",
+    "inc",
+    "llc"
+  ]);
+
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter((token) => token.length >= 3 && !stopwords.has(token));
+}
+
+function normalize(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function getApiKey() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
+  return apiKey;
+}
+
+function isDemoMode() {
+  return process.env.DEMO_MODE !== "false" || !process.env.GEMINI_API_KEY;
+}
+
+function parseTargetedSentiment(text: string): { answer: string; sentiment: "positive" | "neutral" | "negative"; summary: string } {
+  try {
+    const parsed = JSON.parse(extractJson(text)) as { answer?: string; sentiment?: "positive" | "neutral" | "negative"; summary?: string };
+    return {
+      answer: parsed.answer?.trim() || text.trim(),
+      sentiment: parsed.sentiment ?? sentimentFromText(parsed.answer || text),
+      summary: parsed.summary?.trim() || "Targeted homeowner perception captured."
+    };
+  } catch {
+    return {
+      answer: text.trim(),
+      sentiment: sentimentFromText(text),
+      summary: "Targeted homeowner perception captured."
+    };
+  }
+}
+
+function extractJson(text: string) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start >= 0 && end > start) return text.slice(start, end + 1);
+  return text;
+}
+
+function sentimentFromText(text: string): "positive" | "neutral" | "negative" {
+  const value = text.toLowerCase();
+  const negativeSignals = ["concern", "gap", "limited", "mixed", "complaint", "weak", "issue", "expensive"];
+  const positiveSignals = ["strong", "credible", "reliable", "highly rated", "positive", "trusted", "recommend"];
+  const negativeCount = negativeSignals.filter((signal) => value.includes(signal)).length;
+  const positiveCount = positiveSignals.filter((signal) => value.includes(signal)).length;
+  if (negativeCount > positiveCount + 1) return "negative";
+  if (positiveCount > 0) return "positive";
+  return "neutral";
+}

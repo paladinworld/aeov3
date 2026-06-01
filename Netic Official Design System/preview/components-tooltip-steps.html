@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+  /* Tooltip */
+  .tip-wrap{position:relative;display:inline-flex;align-items:center}
+  .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--fg);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;white-space:nowrap;box-shadow:var(--shadow-md)}
+  .tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--fg)}
+
+  /* Step pills — wizard */
+  .steps{display:flex;align-items:center;gap:6px}
+  .pill{display:inline-flex;align-items:center;gap:8px;border-radius:9999px;padding:6px 12px;font-size:11px;font-weight:500;white-space:nowrap}
+  .pill .dot{width:18px;height:18px;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;background:rgba(0,0,0,0.15)}
+  .pill.done{background:color-mix(in oklab, var(--success) 10%, transparent);color:var(--success)}
+  .pill.active{background:var(--primary);color:#fff}
+  .pill.active .dot{background:rgba(255,255,255,0.25)}
+  .pill.idle{background:var(--bg-muted);color:var(--fg-muted)}
+  .sep{width:18px;height:1px;background:var(--border)}
+</style></head><body>
+<div class="card">
+  <div class="tip-wrap">
+    <span class="tip">When ON, the Netic AI agent can schedule this job type for your customers.</span>
+    <span style="font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px">Bookable
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fg-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </span>
+  </div>
+
+  <div class="steps" style="margin-top:8px">
+    <span class="pill done"><span class="dot">✓</span>Your Job Types</span>
+    <span class="sep"></span>
+    <span class="pill done"><span class="dot">✓</span>Excluded</span>
+    <span class="sep"></span>
+    <span class="pill active"><span class="dot">3</span>Needs Input</span>
+    <span class="sep"></span>
+    <span class="pill idle"><span class="dot">4</span>Rules</span>
+    <span class="sep"></span>
+    <span class="pill idle"><span class="dot">5</span>Review</span>
+  </div>
+</div>
+</body></html>

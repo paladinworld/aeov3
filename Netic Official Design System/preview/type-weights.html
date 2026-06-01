@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:22px 24px;box-sizing:border-box;display:flex;gap:32px;align-items:flex-start}
+  .col{min-width:200px}
+  .lbl{font-size:11px;color:var(--fg-muted);font-family:var(--font-mono);margin-bottom:6px}
+  .w{display:flex;flex-direction:column;gap:6px}
+  .w div{font-size:14px;color:var(--fg)}
+  .num{font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;color:var(--fg)}
+</style></head><body>
+<div class="card">
+  <div class="col">
+    <div class="lbl">Weights (Inter)</div>
+    <div class="w">
+      <div style="font-weight:400">Regular — 400</div>
+      <div style="font-weight:500">Medium — 500</div>
+      <div style="font-weight:600">Semibold — 600</div>
+      <div style="font-weight:700">Bold — 700</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="lbl">Numerals (tabular)</div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <span class="num">34 matched</span>
+      <span class="num">08 excluded</span>
+      <span class="num">02 no match</span>
+      <span class="num" style="color:var(--fg-muted)">$ 1,249.00</span>
+    </div>
+  </div>
+</div>
+</body></html>

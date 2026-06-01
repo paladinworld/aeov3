@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  .card{padding:20px 24px;box-sizing:border-box}
+  table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  thead tr{background:color-mix(in oklab, var(--bg-muted) 60%, transparent)}
+  th{text-align:left;padding:10px 12px;font-size:11px;font-weight:500;color:var(--fg-muted);text-transform:none}
+  tbody tr{border-top:1px solid var(--border)}
+  td{padding:10px 12px;font-size:13px;color:var(--fg)}
+  .name{font-weight:500}
+  .sub{font-size:11px;color:var(--fg-placeholder);margin-top:1px;font-family:var(--font-mono)}
+  .badge{display:inline-flex;align-items:center;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;margin-right:6px;vertical-align:middle}
+  .hvac{background:#EFF5FE;color:#1E4FA3}
+  .plumb{background:#E6FAFD;color:#0B6C82}
+  .toggle{position:relative;display:inline-block;width:36px;height:20px;border-radius:9999px;vertical-align:middle;background:var(--primary)}
+  .toggle.off{background:rgba(113,113,122,0.25)}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:9999px;background:#fff}
+  .toggle:not(.off)::after{left:19px}
+  td.c{text-align:center}
+  td .price{color:var(--fg-muted)}
+</style></head><body>
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Job type</th>
+        <th style="width:70px">Price</th>
+        <th class="c" style="width:90px">Bookable</th>
+        <th class="c" style="width:90px">Cancel</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge hvac">HVAC</span><span class="name">AC Repair</span><div class="sub">AC Diag — No Cool</div></td>
+        <td><span class="price">$129.00</span></td>
+        <td class="c"><span class="toggle"></span></td>
+        <td class="c"><span class="toggle"></span></td>
+      </tr>
+      <tr>
+        <td><span class="badge plumb">PLUMB</span><span class="name">Drain Clearing</span><div class="sub">Drain Clear — Main</div></td>
+        <td><span class="price">$79.00</span></td>
+        <td class="c"><span class="toggle"></span></td>
+        <td class="c"><span class="toggle off"></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body></html>
