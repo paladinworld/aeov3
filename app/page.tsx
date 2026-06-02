@@ -251,11 +251,6 @@ export default function Home() {
                 Sentiment
               </Navi>
             </NavGroup>
-            <NavGroup label="Configure">
-              <Navi icon="setup" active={view === "setup"} onClick={() => setView("setup")}>
-                Setup
-              </Navi>
-            </NavGroup>
 
             <div className="side-foot">
               <div className="av">{initials(company?.name ?? "Netic")}</div>
