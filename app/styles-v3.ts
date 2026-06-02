@@ -78,6 +78,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ── Main scroll body ── */
 .main{padding:28px 32px 56px;max-width:1240px;width:100%;margin:0 auto}
 .page-note{font-size:14px;color:var(--fg-caption);margin:0 0 6px;max-width:760px;line-height:var(--lh-normal)}
+.cit-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cit-note{font-size:12.5px;color:var(--fg-caption);background:var(--bg-muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 12px;margin:0;max-width:760px;line-height:1.5}
 .bench-note{font-size:12px;color:var(--fg-muted);margin:0 0 22px;line-height:1.5;max-width:760px}
 .view-stack{display:flex;flex-direction:column;gap:16px}
 

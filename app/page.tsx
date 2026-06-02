@@ -29,6 +29,7 @@ type ReportPayload = {
 type View = "home" | "prompts" | "citations" | "competitors" | "sentiment" | "setup";
 type PromptFilter = "all" | "ranked" | "missing";
 type SurfaceFilter = "all" | "gemini" | "chatgpt";
+type PromptTypeFilter = "all" | "intention" | "informational";
 
 const NAV: Record<View, string> = {
   home: "Overview",
@@ -714,8 +715,12 @@ function PromptDetails({ row }: { row: PromptRow }) {
    Citations
    ──────────────────────────────────────────────────────────── */
 function CitationsView({ payload }: { payload: ReportPayload }) {
-  const cit = useMemo(() => buildCitationStats(payload), [payload]);
-  const [expanded, setExpanded] = useState(cit.domainDetails[0]?.domain ?? "");
+  const [cFilter, setCFilter] = useState<SurfaceFilter>("all");
+  const [pType, setPType] = useState<PromptTypeFilter>("all");
+  // The intent split only applies to Gemini (it's about Google AI Overview vs local pack).
+  const effectivePType = cFilter === "gemini" ? pType : "all";
+  const cit = useMemo(() => buildCitationStats(payload, cFilter, effectivePType), [payload, cFilter, effectivePType]);
+  const [expanded, setExpanded] = useState("");
 
   useEffect(() => {
     setExpanded(cit.domainDetails[0]?.domain ?? "");
@@ -726,6 +731,33 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       <p className="page-note">
         Citation stats use the sources AI cites as supporting authority. Platform sources are directories, review sites, trust profiles, and editorial lists; competitor sources are other HVAC company websites.
       </p>
+
+      <div className="cit-controls">
+        <div className="segmented">
+          {([["all", "All"], ["gemini", "Gemini"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
+            <button key={key} className={cFilter === key ? "active" : ""} onClick={() => setCFilter(key)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {cFilter === "gemini" ? (
+          <div className="segmented">
+            {([["all", "All prompts"], ["intention", "Intention-driven"], ["informational", "Informational"]] as const).map(([key, label]) => (
+              <button key={key} className={pType === key ? "active" : ""} onClick={() => setPType(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {cFilter === "gemini" && pType !== "all" ? (
+        <p className="cit-note">
+          {pType === "intention"
+            ? "Intention-driven: local, ready-to-hire prompts (e.g. “HVAC companies near me”) where Google shows the local pack instead of an AI Overview. Competitor company sites tend to dominate these citations."
+            : "Informational: research-style, longer-tail prompts where Google surfaces an AI Overview. Citations skew toward guides, directories, and editorial lists rather than competitor sites."}
+        </p>
+      ) : null}
 
       <section className="metric-grid four">
         <MetricCard label="Unique sources" value={String(cit.uniqueSources)} helper="real citation domains" />
@@ -1613,13 +1645,28 @@ function topOneRateOf(payload: ReportPayload) {
   return payload.report.runs.length ? topOne.length / payload.report.runs.length : 0;
 }
 
-function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter = "all"): CitationStats {
+// Split prompts by search intent. Local "ready to hire" prompts (e.g. "HVAC
+// companies near me") use Maps grounding and Google shows a local pack, not an
+// AI Overview — competitor sites dominate. Research/long-tail prompts get an AI
+// Overview and cite a broader set of guides/directories. The Maps surface on a
+// query is a clean proxy for that local-intent split.
+function queryIntentClass(query: Query | undefined): Extract<PromptTypeFilter, "intention" | "informational"> {
+  return query?.surfaces.includes("gemini_maps") ? "intention" : "informational";
+}
+
+function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter = "all", promptType: PromptTypeFilter = "all"): CitationStats {
   const ownedDomain = domainFromValue(payload.company.website);
   const domainRuns = new Map<string, Set<string>>();
   const urlRuns = new Map<string, Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>>();
 
   const surfaces = surfaceFilter === "gemini" ? ["gemini_maps", "gemini_search"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : null;
-  const citationRuns = payload.report.runs.filter((item) => !item.rawAnswer.startsWith("Provider error:") && (!surfaces || surfaces.includes(item.surface)));
+  const queryById = new Map(payload.report.queries.map((query) => [query.id, query]));
+  const citationRuns = payload.report.runs.filter(
+    (item) =>
+      !item.rawAnswer.startsWith("Provider error:") &&
+      (!surfaces || surfaces.includes(item.surface)) &&
+      (promptType === "all" || queryIntentClass(queryById.get(item.queryId)) === promptType)
+  );
 
   for (const run of citationRuns) {
     const domains = new Set<string>();
