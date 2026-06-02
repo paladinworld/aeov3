@@ -628,7 +628,12 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 
 function PromptDetails({ row }: { row: PromptRow }) {
   const citedSources = buildPromptCitationRows(row);
-  const insightRuns = customerSurfaces.map((surface) => row.bySurface[surface]).filter((run): run is SurfaceRun => Boolean(run && run.missingInsight));
+  // The diagnostic insight is only computed on run #1, so look across all repeats
+  // (not just the displayed bySurface run) to find the run that carries it.
+  const insightRuns = customerSurfaces
+    .map((surface) => row.runs.find((run) => run.surface === surface && run.missingInsight))
+    .filter((run): run is SurfaceRun => Boolean(run && run.missingInsight));
+  const insightQuestion = insightRuns[0]?.missingInsight?.question ?? "";
 
   return (
     <div className="prompt-details">
@@ -654,18 +659,28 @@ function PromptDetails({ row }: { row: PromptRow }) {
       })}
 
       {insightRuns.length ? (
-        <div className="answer-card full">
+        <div className="answer-card full insight-card">
           <div className="answer-top">
-            <Badge tone="others">Missing insight</Badge>
-            <span>Why you were not recommended</span>
+            <Badge>Insight</Badge>
+            <span className="insight-q">{insightQuestion}</span>
           </div>
-          <div className="missing-list">
-            {insightRuns.map((run) => (
-              <div key={run.id} className="missing-row">
-                <strong>{shortSurface(run.surface)}</strong>
-                <p>{run.missingInsight?.answer}</p>
-              </div>
-            ))}
+          <div className="insight-list">
+            {insightRuns.map((run) => {
+              const parsed = parseInsight(run.missingInsight?.answer ?? "");
+              return (
+                <div key={run.id} className="insight-block">
+                  <div className="insight-surface">{shortSurface(run.surface)} answered</div>
+                  {parsed.intro ? <p className="insight-intro">{renderRich(parsed.intro)}</p> : null}
+                  {parsed.bullets.length ? (
+                    <ul className="insight-bullets">
+                      {parsed.bullets.map((bullet, index) => (
+                        <li key={index}>{renderRich(bullet)}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -1404,7 +1419,15 @@ const categoryOrder = ["Core Local Service", "Emergency Repair", "Trust & Review
 function buildReportStats(payload: ReportPayload): ReportStats {
   const promptRows: PromptRow[] = payload.report.queries.map((query) => {
     const runs = payload.report.runs.filter((run) => run.queryId === query.id);
-    const bySurface = Object.fromEntries(customerSurfaces.map((surface) => [surface, runs.find((run) => run.surface === surface)])) as PromptRow["bySurface"];
+    // Show run #1 for each surface so the displayed answer/ranking matches the
+    // "why not recommended" insight (which is only computed on run #1), instead
+    // of an arbitrary repeat picked by array order.
+    const bySurface = Object.fromEntries(
+      customerSurfaces.map((surface) => {
+        const surfaceRuns = runs.filter((run) => run.surface === surface);
+        return [surface, surfaceRuns.find((run) => run.runNumber === 1) ?? surfaceRuns[0]];
+      })
+    ) as PromptRow["bySurface"];
     const customerRuns = runs.filter((run) => customerSurfaces.includes(run.surface as (typeof customerSurfaces)[number]));
     const ranks = customerRuns.map((run) => targetRank(run)).filter((rank): rank is number => typeof rank === "number");
     // Use the customer-facing surfaces (Gemini Maps + ChatGPT) shown in the cards,
@@ -1950,6 +1973,38 @@ function shortSurface(surface: string) {
   if (surface === "gemini_maps" || surface === "gemini_search") return "Gemini";
   if (surface === "chatgpt_search") return "ChatGPT";
   return surface;
+}
+
+// The provider answers come back as a short intro line plus dash/asterisk bullets
+// (ChatGPT uses "- ", Gemini uses "*   **label:** …"). Split them into a lead
+// sentence + clean bullet list so the panel reads well instead of as a wall of text.
+function parseInsight(raw: string): { intro: string; bullets: string[] } {
+  const text = (raw || "").trim();
+  if (!text) return { intro: "", bullets: [] };
+  const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const intro: string[] = [];
+  const bullets: string[] = [];
+  for (const line of lines) {
+    const match = line.match(/^[*\-•]\s+(.*)$/);
+    if (match) {
+      bullets.push(match[1].trim());
+    } else if (bullets.length === 0) {
+      intro.push(line);
+    } else {
+      bullets[bullets.length - 1] += " " + line;
+    }
+  }
+  // No bullets detected — treat the whole thing as one paragraph.
+  if (!bullets.length) return { intro: intro.join(" "), bullets: [] };
+  return { intro: intro.join(" "), bullets };
+}
+
+// Render inline **bold** markdown segments (used for Gemini's "**label:**" lead-ins).
+function renderRich(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((segment, index) => {
+    const bold = segment.match(/^\*\*([^*]+)\*\*$/);
+    return bold ? <strong key={index}>{bold[1]}</strong> : <span key={index}>{segment}</span>;
+  });
 }
 
 function initials(value: string) {
