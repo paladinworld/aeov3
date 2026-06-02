@@ -117,6 +117,7 @@ export type Report = {
   repeatRuns: number;
   queries: Query[];
   runs: SurfaceRun[];
+  runCount?: number; // set on the lightweight GET /api/reports list (runs are stripped there)
   targetedSentiment?: TargetedSentimentRun[];
   status: "draft" | "running" | "complete" | "failed";
   createdAt: string;

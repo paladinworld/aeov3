@@ -13,7 +13,16 @@ const createReportSchema = z.object({
 
 export async function GET() {
   const db = await readDb();
-  return NextResponse.json(db.reports);
+  // Lightweight list: the dashboard only uses this to pick/list reports. The heavy
+  // runs[]/targetedSentiment (often >10MB combined) are fetched per-report via [id],
+  // so strip them here and expose runCount for the "preferred report" tiebreaker.
+  const summaries = db.reports.map((report) => ({
+    ...report,
+    runCount: report.runs?.length ?? 0,
+    runs: [],
+    targetedSentiment: []
+  }));
+  return NextResponse.json(summaries);
 }
 
 export async function POST(request: Request) {

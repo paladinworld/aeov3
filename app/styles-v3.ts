@@ -333,8 +333,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .insight-block+.insight-block{padding-top:14px;border-top:1px solid var(--border)}
 .insight-surface{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--fg-muted)}
 .insight-intro{font-size:12.5px;color:var(--fg-caption);margin:0;line-height:1.55}
-.insight-bullets{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
-.insight-bullets li{font-size:12.5px;color:var(--fg-caption);line-height:1.5;padding-left:2px}
+.insight-bullets{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.insight-bullets li{font-size:12.5px;color:var(--fg-caption);line-height:1.55}
 .insight-bullets li strong{color:var(--fg);font-weight:600}
 .pc-list{display:flex;flex-direction:column;gap:8px}
 .pc-row{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-md);transition:background var(--dur)}

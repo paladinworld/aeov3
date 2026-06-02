@@ -2061,7 +2061,9 @@ function selectPreferredReport(reports: Report[]) {
     const aComplete = a.status === "complete" ? 1 : 0;
     const bComplete = b.status === "complete" ? 1 : 0;
     if (aComplete !== bComplete) return bComplete - aComplete;
-    if (a.runs.length !== b.runs.length) return b.runs.length - a.runs.length;
+    const aRuns = a.runCount ?? a.runs.length;
+    const bRuns = b.runCount ?? b.runs.length;
+    if (aRuns !== bRuns) return bRuns - aRuns;
     if (a.queries.length !== b.queries.length) return b.queries.length - a.queries.length;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   })[0];
