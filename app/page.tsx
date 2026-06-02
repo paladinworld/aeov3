@@ -64,7 +64,9 @@ const ICONS: Record<string, string> = {
   share: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13",
   arrow: "M5 12h14M12 5l7 7-7 7",
   chevron: "M9 18l6-6-6-6",
-  chevdown: "M6 9l6 6 6-6"
+  chevdown: "M6 9l6 6 6-6",
+  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"
 };
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -89,6 +91,7 @@ export default function Home() {
   const [activeReport, setActiveReport] = useState<ReportPayload | null>(null);
   const [view, setView] = useState<View>("home");
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
 
   useEffect(() => {
     refresh();
@@ -179,6 +182,12 @@ export default function Home() {
     window.setTimeout(() => setShareCopied(false), 1500);
   }
 
+  function downloadPdf() {
+    setShareMenuOpen(false);
+    setView("home"); // PDF captures the Overview metrics
+    window.setTimeout(() => window.print(), 350);
+  }
+
   function openEmailDraft() {
     if (!activeReport) return;
     const url = `${window.location.origin}/share/${activeReport.report.id}`;
@@ -190,6 +199,7 @@ export default function Home() {
   const total = reportStats?.totalQueries;
   const company = activeReport?.company;
   const lastRun = activeReport?.report.completedAt ? `Last run ${formatRunDate(activeReport.report.completedAt)}` : "No completed run";
+  const accessLeft = activeReport?.report.completedAt ? accessDaysLeft(activeReport.report.completedAt) : null;
 
   return (
     <>
@@ -260,13 +270,34 @@ export default function Home() {
                   {company?.name ?? "HVAC account"} <Icon name="chevron" size={13} /> AI Visibility <Icon name="chevron" size={13} /> <b>{NAV[view]}</b>
                 </div>
                 <div className="top-actions">
-                  <span className="last-run">{lastRun}</span>
+                  <span className="last-run">
+                    {lastRun}
+                    {accessLeft !== null ? (
+                      <span className={"access-left" + (accessLeft <= 0 ? " expired" : accessLeft <= 7 ? " soon" : "")}>
+                        <Icon name="clock" size={11} />
+                        {accessLeft > 0 ? `${accessLeft} ${accessLeft === 1 ? "day" : "days"} left for access` : "Access expired"}
+                      </span>
+                    ) : null}
+                  </span>
                   {activeReport ? (
                     <div className="share-tools">
-                      <button className="btn" onClick={copyShareLink}>
-                        <Icon name={shareCopied ? "copy" : "share"} size={13} />
-                        {shareCopied ? "Copied" : "Share report"}
-                      </button>
+                      <div className="share-wrap">
+                        <button className="btn" onClick={() => setShareMenuOpen((open) => !open)}>
+                          <Icon name={shareCopied ? "copy" : "share"} size={13} />
+                          {shareCopied ? "Copied" : "Share report"}
+                          <Icon name="chevdown" size={12} />
+                        </button>
+                        {shareMenuOpen ? (
+                          <div className="share-menu">
+                            <button onClick={() => { copyShareLink(); setShareMenuOpen(false); }}>
+                              <Icon name="copy" size={14} /> Copy link
+                            </button>
+                            <button onClick={downloadPdf}>
+                              <Icon name="download" size={14} /> Download PDF
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                       <button className="btn" onClick={openEmailDraft}>
                         <Icon name="mail" size={13} />
                         Gmail
@@ -278,6 +309,13 @@ export default function Home() {
             </header>
 
             <div className="main">
+              <div className="print-header">
+                <img src="/netic/netic-wordmark-green.svg" alt="Netic" />
+                <div className="ph-meta">
+                  <strong>{company?.name ?? "Company"}</strong>
+                  AI Visibility Report{activeReport?.report.completedAt ? ` · ${formatRunDate(activeReport.report.completedAt)}` : ""}
+                </div>
+              </div>
               {view === "setup" ? (
                 <SetupView
                   companies={companies}
@@ -400,7 +438,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
                 <span className={"gpill " + gband.toLowerCase()}>{gband}</span>
               </div>
             </div>
-            <p className="gauge-cap">Across {stats.totalQueries} tracked prompts</p>
+            <p className="gauge-cap">{payload.report.runs.length.toLocaleString()} queries run across {stats.totalQueries} tracked prompts</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
@@ -782,13 +820,23 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
    Sentiment
    ──────────────────────────────────────────────────────────── */
 function SentimentView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
-  const s = useMemo(() => buildSentimentStats(payload, stats), [payload, stats]);
+  const [sFilter, setSFilter] = useState<SurfaceFilter>("all");
+  const s = useMemo(() => buildSentimentStats(payload, stats, sFilter), [payload, stats, sFilter]);
   const leftPct = Math.round((s.score + 1) * 50);
 
   return (
     <div className="view-stack">
       <section className="sentiment-hero">
-        <span className="ov">Overall AI sentiment — {s.label}</span>
+        <div className="sent-head">
+          <span className="ov">Overall AI sentiment — {s.label}</span>
+          <div className="segmented">
+            {(["all", "gemini", "chatgpt"] as const).map((option) => (
+              <button key={option} className={sFilter === option ? "active" : ""} onClick={() => setSFilter(option)}>
+                {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+              </button>
+            ))}
+          </div>
+        </div>
         <strong className="sentiment-score">{signed(s.score)}</strong>
         <div className="sent-meter">
           <i style={{ left: `${leftPct}%` }}>{signed(s.score)}</i>
@@ -1647,12 +1695,14 @@ function buildPromptCitationRows(row: PromptRow): PromptCitationRow[] {
     .slice(0, 5);
 }
 
-function buildSentimentStats(payload: ReportPayload, stats: ReportStats): SentimentStats {
-  const targetContexts: MentionContext[] = payload.report.runs.flatMap((run) =>
+function buildSentimentStats(payload: ReportPayload, stats: ReportStats, surfaceFilter: SurfaceFilter = "all"): SentimentStats {
+  const surfaces: readonly string[] | null = surfaceFilter === "gemini" ? ["gemini_maps", "gemini_search"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : null;
+  const runs = surfaces ? payload.report.runs.filter((run) => surfaces.includes(run.surface)) : payload.report.runs;
+  const targetContexts: MentionContext[] = runs.flatMap((run) =>
     run.mentions.filter((mention) => mention.isTarget).map((mention) => ({ mention, answer: run.rawAnswer, surface: run.surface, companyName: payload.company.name }))
   );
   const targetScore = averageSentiment(targetContexts.map((context) => context.mention));
-  const competitorContexts: MentionContext[] = payload.report.runs.flatMap((run) =>
+  const competitorContexts: MentionContext[] = runs.flatMap((run) =>
     run.mentions.filter((mention) => !mention.isTarget).map((mention) => ({ mention, answer: run.rawAnswer, surface: run.surface, companyName: payload.company.name }))
   );
 
@@ -1921,6 +1971,13 @@ function truncate(value: string, length: number) {
 
 function formatRunDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Snapshot access window: report stays viewable for ACCESS_WINDOW_DAYS after the run.
+const ACCESS_WINDOW_DAYS = 30;
+function accessDaysLeft(completedAt: string, windowDays = ACCESS_WINDOW_DAYS) {
+  const expiresAt = new Date(completedAt).getTime() + windowDays * 86_400_000;
+  return Math.ceil((expiresAt - Date.now()) / 86_400_000);
 }
 
 /* ── account/report selection ── */

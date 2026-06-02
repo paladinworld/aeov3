@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     companyId: company.id,
     locationIds: parsed.locationIds,
     repeatRuns: parsed.repeatRuns,
-    queries: generateHvacQueries(company).slice(0, parsed.queryLimit ?? 36),
+    queries: generateHvacQueries(company).slice(0, parsed.queryLimit ?? 40),
     runs: [],
     status: "draft",
     createdAt: new Date().toISOString()

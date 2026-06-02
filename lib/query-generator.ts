@@ -43,7 +43,11 @@ function coreLocalQueries(place: string, city: string): QueryDraft[] {
     q("furnace repair {city}", "Furnace repair", "Core Local Service", "best", "high", "head", allSurfaces, place, city),
     q("top rated HVAC contractors in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
     q("best heating and air conditioning company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-    q("licensed HVAC contractor in {place}", "General HVAC", "Core Local Service", "comparison", "medium", "mid_tail", webSurfaces, place, city)
+    q("licensed HVAC contractor in {place}", "General HVAC", "Core Local Service", "comparison", "medium", "mid_tail", webSurfaces, place, city),
+    q("heating and cooling company near me", "General HVAC", "Core Local Service", "near_me", "high", "head", localSurfaces, place, city),
+    q("reliable HVAC company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
+    q("best AC and heating company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", webSurfaces, place, city),
+    q("who is the best HVAC company to call in {place}", "General HVAC", "Core Local Service", "comparison", "high", "long_tail", webSurfaces, place, city)
   ];
 }
 
@@ -218,14 +222,29 @@ function scoreQuery(query: QueryDraft) {
 }
 
 function balanceQueries(queries: QueryDraft[]): QueryDraft[] {
-  const targets = { head: 10, mid_tail: 12, long_tail: 14 };
+  const targets = { head: 11, mid_tail: 14, long_tail: 15 };
   const selected: QueryDraft[] = [];
+  const used = new Set<QueryDraft>();
 
   for (const depth of ["head", "mid_tail", "long_tail"] as const) {
-    selected.push(...queries.filter((query) => query.queryDepth === depth).slice(0, targets[depth]));
+    for (const query of queries.filter((query) => query.queryDepth === depth).slice(0, targets[depth])) {
+      selected.push(query);
+      used.add(query);
+    }
   }
 
-  return selected.slice(0, 36);
+  // Top up to 40 from the next highest-scoring queries if a depth bucket fell short.
+  if (selected.length < 40) {
+    for (const query of queries) {
+      if (selected.length >= 40) break;
+      if (!used.has(query)) {
+        selected.push(query);
+        used.add(query);
+      }
+    }
+  }
+
+  return selected.slice(0, 40);
 }
 
 function dedupeDrafts(queries: QueryDraft[]) {
