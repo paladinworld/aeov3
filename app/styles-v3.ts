@@ -330,6 +330,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .missing-row strong{font-size:12px;color:var(--fg)}
 .missing-row p{font-size:12.5px;color:var(--fg-caption);margin:0;line-height:1.5}
 .insight-card .insight-q{font-size:12.5px;color:var(--fg);font-weight:600}
+.insight-explainer{font-size:12px;color:var(--fg-muted);margin:-2px 0 2px;line-height:1.5;max-width:680px}
 .insight-list{display:flex;flex-direction:column;gap:14px}
 .insight-block{display:flex;flex-direction:column;gap:7px}
 .insight-block+.insight-block{padding-top:14px;border-top:1px solid var(--border)}

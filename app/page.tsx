@@ -665,6 +665,9 @@ function PromptDetails({ row }: { row: PromptRow }) {
             <Badge>Insight</Badge>
             <span className="insight-q">{insightQuestion}</span>
           </div>
+          <p className="insight-explainer">
+            When you&rsquo;re not in an AI&rsquo;s top 5 results, we ask it directly why it didn&rsquo;t recommend you — so you can see the exact gaps to close.
+          </p>
           <div className="insight-list">
             {insightRuns.map((run) => {
               const parsed = parseInsight(run.missingInsight?.answer ?? "");
