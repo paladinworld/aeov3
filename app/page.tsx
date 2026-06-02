@@ -139,7 +139,10 @@ export default function Home() {
     const nextReports = (await reportResponse.json()) as Report[];
     setCompanies(nextCompanies);
     setReports(nextReports);
-    const preferredReport = selectDefaultReport(nextReports, nextCompanies);
+    // Optional ?report=<id> override (per-client links); otherwise the demo default.
+    const requestedId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("report") : null;
+    const requested = requestedId ? nextReports.find((report) => report.id === requestedId) : null;
+    const preferredReport = requested ?? selectDefaultReport(nextReports, nextCompanies);
     setSelectedCompanyId((current) => current || preferredReport?.companyId || nextCompanies[0]?.id || "");
     if (!activeReport && preferredReport) {
       await loadReport(preferredReport.id);
