@@ -754,14 +754,18 @@ function PromptDetails({ row }: { row: PromptRow }) {
             <span className="insight-q">{insightQuestion}</span>
           </div>
           <p className="insight-explainer">
-            When you&rsquo;re not in an AI&rsquo;s top 5 results, we ask it directly why it didn&rsquo;t recommend you — so you can see the exact gaps to close.
+            When you&rsquo;re not in an AI&rsquo;s top 5, we ask it directly why it didn&rsquo;t recommend you. Each engine draws on different sources (noted below), so their reasons differ — a ChatGPT comment reflects the open web, not your Google reviews.
           </p>
           <div className="insight-list">
             {insightRuns.map((run) => {
               const parsed = parseInsight(run.missingInsight?.answer ?? "");
+              const src = surfaceSource(run.surface);
               return (
                 <div key={run.id} className="insight-block">
-                  <div className="insight-surface">{shortSurface(run.surface)} answered</div>
+                  <div className="insight-src">
+                    <span className={"isrc-badge isrc-" + run.surface}>{src.label}</span>
+                    {src.basis ? <span className="isrc-note">{src.basis}</span> : null}
+                  </div>
                   {parsed.intro ? <p className="insight-intro">{renderRich(parsed.intro)}</p> : null}
                   {parsed.bullets.length ? (
                     <ul className="insight-bullets">
@@ -2123,6 +2127,15 @@ function shortSurface(surface: string) {
   if (surface === "gemini_maps" || surface === "gemini_search") return "Gemini";
   if (surface === "chatgpt_search") return "ChatGPT";
   return surface;
+}
+
+// What each engine bases its answer on — surfaced in the insight card so clients
+// understand e.g. ChatGPT's "few reviews" reflects the open web, not Google reviews.
+function surfaceSource(surface: string): { label: string; basis: string } {
+  if (surface === "chatgpt_search") return { label: "ChatGPT", basis: "from open-web search & cited pages" };
+  if (surface === "gemini_maps") return { label: "Gemini", basis: "from Google Maps & local reviews" };
+  if (surface === "gemini_search") return { label: "Gemini", basis: "from Google web search" };
+  return { label: shortSurface(surface), basis: "" };
 }
 
 // The provider answers come back as a short intro line plus dash/asterisk bullets

@@ -347,6 +347,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .insight-block{display:flex;flex-direction:column;gap:7px}
 .insight-block+.insight-block{padding-top:14px;border-top:1px solid var(--border)}
 .insight-surface{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--fg-muted)}
+.insight-src{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.isrc-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.01em;color:#fff;padding:3px 10px;border-radius:999px}
+.isrc-chatgpt_search{background:#0f9d76}
+.isrc-gemini_maps,.isrc-gemini_search{background:#3b6fe0}
+.isrc-note{font-size:12px;color:var(--fg-muted)}
 .insight-intro{font-size:12.5px;color:var(--fg-caption);margin:0;line-height:1.55}
 .insight-bullets{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
 .insight-bullets li{font-size:12.5px;color:var(--fg-caption);line-height:1.55}
