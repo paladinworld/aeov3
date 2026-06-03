@@ -111,7 +111,7 @@ function Hero() {
     <div className="hero">
       <div className="hero-content">
         <h1>When a homeowner asks AI who to recommend, <em>are you the answer?</em></h1>
-        <p className="lede">The first hyperlocal AI visibility tool built for home service companies.</p>
+        <p className="lede">The first local AI visibility tool built for home service companies.</p>
 
         <a href="#signup" className="hero-cta">Request my free report <Arrow /></a>
 
