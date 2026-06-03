@@ -279,6 +279,8 @@ button,input,select,textarea{font:inherit;color:inherit}
   .hero h1{font-size:32px}
   .hero-cta{display:inline-flex}
   .bento{margin-top:30px}
+  /* On mobile, show only the visibility-score card so the form is quick to reach */
+  .b-sent,.b-cit,.b-rank{display:none}
   .signup-inner{padding:40px 32px;min-height:auto}
   .signup-foot{padding:0 32px 28px}
   #signup{scroll-margin-top:12px}

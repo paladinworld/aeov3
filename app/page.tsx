@@ -69,7 +69,9 @@ const ICONS: Record<string, string> = {
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
   menu: "M3 6h18M3 12h18M3 18h18",
-  spark: "M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"
+  spark: "M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z",
+  close: "M18 6L6 18M6 6l12 12",
+  desktop: "M3 4h18v12H3zM8 20h8M12 16v4"
 };
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -96,6 +98,7 @@ export default function Home() {
   const [shareCopied, setShareCopied] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   // Navigate + close the mobile drawer in one go.
   const goView = (next: View) => {
     setView(next);
@@ -354,6 +357,15 @@ export default function Home() {
           </section>
         </div>
       </div>
+      {!bannerDismissed ? (
+        <div className="mobile-banner" role="status">
+          <Icon name="desktop" size={16} />
+          <span>This dashboard is best viewed on a desktop. The mobile layout isn&rsquo;t fully optimized yet.</span>
+          <button aria-label="Dismiss" onClick={() => setBannerDismissed(true)}>
+            <Icon name="close" size={15} />
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -676,7 +688,6 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
             <span>Intent</span>
             <span>Gemini</span>
             <span>ChatGPT</span>
-            <span>Best</span>
             <span>#1 competitor</span>
           </div>
           {visible.map((row) => (
@@ -696,9 +707,6 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                 <span className="cell-center">
                   <RankCell run={row.bySurface.chatgpt_search} />
                 </span>
-                <span className="cell-center">
-                  <BestBadge rank={row.bestRank} />
-                </span>
                 <span className="comp-name">{row.topCompetitor || "—"}</span>
               </button>
               {expanded === row.query.id ? <PromptDetails row={row} /> : null}
@@ -715,93 +723,87 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
   );
 }
 
-function PromptDetails({ row }: { row: PromptRow }) {
-  const citedSources = buildPromptCitationRows(row);
-  // The diagnostic insight is only computed on run #1, so look across all repeats
-  // (not just the displayed bySurface run) to find the run that carries it.
-  const insightRuns = customerSurfaces
-    .map((surface) => row.runs.find((run) => run.surface === surface && run.missingInsight))
-    .filter((run): run is SurfaceRun => Boolean(run && run.missingInsight));
-  const insightQuestion = insightRuns[0]?.missingInsight?.question ?? "";
+// One column per platform: response → why-not-recommended → cited sources.
+// Grouping by platform makes each engine's story self-contained (and makes clear
+// that, e.g., a ChatGPT "few reviews" note is about the open web, not Google reviews).
+const PROMPT_PLATFORMS = [
+  { key: "gemini", surface: "gemini_maps", citeSurfaces: ["gemini_maps", "gemini_search"] },
+  { key: "chatgpt", surface: "chatgpt_search", citeSurfaces: ["chatgpt_search"] }
+] as const;
 
+function PromptDetails({ row }: { row: PromptRow }) {
   return (
     <div className="prompt-details">
-      {customerSurfaces.map((surface) => {
-        const run = row.bySurface[surface];
+      {PROMPT_PLATFORMS.map((pf) => {
+        const run = row.bySurface[pf.surface];
         const rank = targetRank(run);
+        // Insight is only computed on run #1 — look across repeats for the carrier.
+        const insightRun = row.runs.find((item) => item.surface === pf.surface && item.missingInsight);
+        const insight = insightRun?.missingInsight ? parseInsight(insightRun.missingInsight.answer) : null;
+        const citations = buildPromptCitationRows(row, pf.citeSurfaces);
+        const src = surfaceSource(pf.surface);
+
         return (
-          <div key={surface} className="answer-card">
-            <div className="answer-top">
-              <Badge>{shortSurface(surface)}</Badge>
-              <span>{rank ? `You rank #${rank}` : "You: not ranked"}</span>
+          <div key={pf.key} className="platform-col">
+            <div className="pcol-head">
+              <span className={"isrc-badge isrc-" + pf.surface}>{src.label}</span>
+              {src.basis ? <span className="isrc-note">{src.basis}</span> : null}
             </div>
-            <ol>
-              {(run ? run.mentions : []).slice(0, 5).map((mention, index) => (
-                <li key={index} className={mention.isTarget ? "you" : ""}>
-                  {mention.companyName}
-                </li>
-              ))}
-            </ol>
-            <p className="answer-excerpt">{run ? truncate(run.rawAnswer, 240) : "No response saved yet."}</p>
+
+            <div className="pcol-block">
+              <div className="pcol-h">
+                <span>Response</span>
+                <span className="pcol-rank">{rank ? `You rank #${rank}` : "You: not ranked"}</span>
+              </div>
+              <ol>
+                {(run ? run.mentions : []).slice(0, 5).map((mention, index) => (
+                  <li key={index} className={mention.isTarget ? "you" : ""}>
+                    {mention.companyName}
+                  </li>
+                ))}
+              </ol>
+              <p className="answer-excerpt">{run ? truncate(run.rawAnswer, 220) : "No response saved yet."}</p>
+            </div>
+
+            {insight ? (
+              <div className="pcol-block pcol-insight">
+                <div className="pcol-h">
+                  <span>Why you weren&rsquo;t recommended</span>
+                </div>
+                {insight.intro ? <p className="insight-intro">{renderRich(insight.intro)}</p> : null}
+                {insight.bullets.length ? (
+                  <ul className="insight-bullets">
+                    {insight.bullets.map((bullet, index) => (
+                      <li key={index}>{renderRich(bullet)}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="pcol-block">
+              <div className="pcol-h">
+                <span>Cited sources</span>
+              </div>
+              {citations.length ? (
+                <div className="pc-list">
+                  {citations.map((citation) => (
+                    <a key={citation.key} href={citation.url} target="_blank" rel="noreferrer" className="pc-row">
+                      <span>{citation.title}</span>
+                      <code>{citation.url}</code>
+                      <small>
+                        {citation.domain} · {citation.count}x cited
+                      </small>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">{pf.key === "gemini" ? "No web sources cited — Gemini answers from Maps often cite none." : "No sources cited for this prompt."}</p>
+              )}
+            </div>
           </div>
         );
       })}
-
-      {insightRuns.length ? (
-        <div className="answer-card full insight-card">
-          <div className="answer-top">
-            <Badge>Insight</Badge>
-            <span className="insight-q">{insightQuestion}</span>
-          </div>
-          <p className="insight-explainer">
-            When you&rsquo;re not in an AI&rsquo;s top 5, we ask it directly why it didn&rsquo;t recommend you. Each engine draws on different sources (noted below), so their reasons differ — a ChatGPT comment reflects the open web, not your Google reviews.
-          </p>
-          <div className="insight-list">
-            {insightRuns.map((run) => {
-              const parsed = parseInsight(run.missingInsight?.answer ?? "");
-              const src = surfaceSource(run.surface);
-              return (
-                <div key={run.id} className="insight-block">
-                  <div className="insight-src">
-                    <span className={"isrc-badge isrc-" + run.surface}>{src.label}</span>
-                    {src.basis ? <span className="isrc-note">{src.basis}</span> : null}
-                  </div>
-                  {parsed.intro ? <p className="insight-intro">{renderRich(parsed.intro)}</p> : null}
-                  {parsed.bullets.length ? (
-                    <ul className="insight-bullets">
-                      {parsed.bullets.map((bullet, index) => (
-                        <li key={index}>{renderRich(bullet)}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="answer-card full">
-        <div className="answer-top">
-          <Badge>Cited sources</Badge>
-          <span>Source citations</span>
-        </div>
-        {citedSources.length ? (
-          <div className="pc-list">
-            {citedSources.map((citation) => (
-              <a key={citation.key} href={citation.url} target="_blank" rel="noreferrer" className="pc-row">
-                <span>{citation.title}</span>
-                <code>{citation.url}</code>
-                <small>
-                  {citation.domain} · {citation.count}x cited
-                </small>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">No cited sources were captured for this prompt.</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -1304,10 +1306,6 @@ function RankCell({ run }: { run?: SurfaceRun }) {
   if (!run) return <span className="dash">—</span>;
   if (run.rawAnswer.startsWith("Provider error:")) return <span className="error-pill">Error</span>;
   const rank = targetRank(run);
-  return rank ? <span className={"rank-pill" + (rank === 1 ? " one" : "")}>#{rank}</span> : <span className="missing-pill">Missing</span>;
-}
-
-function BestBadge({ rank }: { rank: number | null }) {
   return rank ? <span className={"rank-pill" + (rank === 1 ? " one" : "")}>#{rank}</span> : <span className="missing-pill">Missing</span>;
 }
 
@@ -1839,9 +1837,10 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
   };
 }
 
-function buildPromptCitationRows(row: PromptRow): PromptCitationRow[] {
+function buildPromptCitationRows(row: PromptRow, surfaces?: readonly string[]): PromptCitationRow[] {
   const citationMap = new Map<string, PromptCitationRow>();
   for (const run of row.runs) {
+    if (surfaces && !surfaces.includes(run.surface)) continue;
     const seenInRun = new Set<string>();
     for (const mention of run.mentions) {
       for (const citation of mention.citations) {

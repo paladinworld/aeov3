@@ -312,11 +312,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .intent-pills button span{font-variant-numeric:tabular-nums;opacity:.7}
 
 .prompt-table{display:flex;flex-direction:column}
-.prompt-head{display:grid;grid-template-columns:minmax(0,1fr) 106px 60px 60px 54px 112px;gap:8px;align-items:center;padding:10px 20px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-muted);background:color-mix(in oklab,var(--bg-muted) 60%,transparent);border-bottom:1px solid var(--border)}
+.prompt-head{display:grid;grid-template-columns:minmax(0,1fr) 106px 60px 60px 112px;gap:8px;align-items:center;padding:10px 20px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-muted);background:color-mix(in oklab,var(--bg-muted) 60%,transparent);border-bottom:1px solid var(--border)}
 .prompt-record{border-bottom:1px solid var(--border)}
 .prompt-record:last-child{border-bottom:0}
 .prompt-row>span,.prompt-head>span{min-width:0}
-.prompt-row{display:grid;grid-template-columns:minmax(0,1fr) 106px 60px 60px 54px 112px;gap:8px;align-items:center;padding:13px 20px;width:100%;border:0;background:none;text-align:left;cursor:pointer;transition:background var(--dur)}
+.prompt-row{display:grid;grid-template-columns:minmax(0,1fr) 106px 60px 60px 112px;gap:8px;align-items:center;padding:13px 20px;width:100%;border:0;background:none;text-align:left;cursor:pointer;transition:background var(--dur)}
 .prompt-row:hover{background:color-mix(in oklab,var(--bg-muted) 40%,transparent)}
 .prompt-record.open .prompt-row{background:color-mix(in oklab,var(--primary) 4%,transparent)}
 .prompt-text{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg);min-width:0;font-weight:500}
@@ -328,7 +328,18 @@ button,input,select,textarea{font:inherit;color:inherit}
 .cell-center{display:flex;justify-content:flex-start}
 
 /* prompt details */
-.prompt-details{padding:4px 20px 20px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;background:color-mix(in oklab,var(--bg-muted) 40%,transparent)}
+.prompt-details{padding:4px 20px 20px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start;background:color-mix(in oklab,var(--bg-muted) 40%,transparent)}
+/* Per-platform column: response -> why-not-recommended -> cited sources */
+.platform-col{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.pcol-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:color-mix(in oklab,var(--bg-muted) 45%,transparent)}
+.pcol-block{padding:13px 16px;display:flex;flex-direction:column;gap:8px}
+.pcol-block+.pcol-block{border-top:1px solid var(--border)}
+.pcol-insight{background:color-mix(in oklab,var(--warning) 6%,transparent)}
+.pcol-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--fg-muted)}
+.pcol-rank{text-transform:none;letter-spacing:0;font-weight:600;color:var(--fg)}
+.platform-col ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.platform-col ol li{font-size:13px;color:var(--fg)}
+.platform-col ol li.you{font-weight:600;color:var(--primary)}
 .answer-card{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .answer-card.full{grid-column:1/-1}
 .answer-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -447,6 +458,7 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 .nav-toggle{display:none;align-items:center;justify-content:center;width:36px;height:36px;margin-left:-6px;border:0;background:none;color:var(--fg);border-radius:var(--radius-md);cursor:pointer;flex:0 0 auto}
 .nav-toggle:hover{background:var(--bg-muted)}
 .nav-overlay{display:none}
+.mobile-banner{display:none}
 
 /* ── Responsive ── */
 @media(max-width:1100px){
@@ -491,8 +503,8 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .coverage-row{grid-template-columns:96px 1fr max-content;gap:10px}
   /* prompt table: trim to Prompt + Gemini + ChatGPT ranks (hide Intent/Best/#1-competitor), no scroll */
   .prompt-head,.prompt-row{grid-template-columns:minmax(0,1fr) 50px 50px;min-width:0}
-  .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),.prompt-head>:nth-child(6),
-  .prompt-row>:nth-child(2),.prompt-row>:nth-child(5),.prompt-row>:nth-child(6){display:none}
+    .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),
+  .prompt-row>:nth-child(2),.prompt-row>:nth-child(5){display:none}
   /* citations table -> horizontal scroll */
   .src-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .src-head,.dom-row{min-width:520px}
@@ -500,6 +512,11 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .prompt-tools{flex-wrap:wrap;gap:8px}
   .search{min-width:0;max-width:none;width:100%}
   .segmented{flex-wrap:wrap}
+  .mobile-banner{display:flex;align-items:center;gap:10px;position:fixed;left:0;right:0;bottom:0;z-index:90;background:var(--primary);color:#fff;padding:12px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 -3px 14px rgba(0,0,0,.2)}
+  .mobile-banner svg{flex:0 0 auto;opacity:.92}
+  .mobile-banner span{flex:1}
+  .mobile-banner button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:6px;padding:5px;cursor:pointer}
+  .main{padding-bottom:92px}
 }
 
 /* ── Print / PDF (Download PDF -> browser "Save as PDF") ── */
