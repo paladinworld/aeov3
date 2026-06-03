@@ -15,7 +15,7 @@ const REVENUE: Revenue[] = [
   { id: "100M+", label: "$100M+", note: "" },
 ];
 
-const INDUSTRY = ["HVAC", "Plumbing", "Electrical", "Roofing", "Landscaping", "Pest control", "Other home services"];
+const INDUSTRY = ["Home Services", "Wellness & Fitness", "Automotive", "Healthcare", "Pet Services", "Insurance", "Other"];
 
 function Check() {
   return (
@@ -346,14 +346,14 @@ function Signup() {
               <div className="fld">
                 <label htmlFor="rev">Annual revenue<span className="req">*</span></label>
                 <select id="rev" value={size} className={touched && !size ? "err" : ""} onChange={(e) => setSize(e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">Select one…</option>
                   {REVENUE.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
               </div>
               <div className="fld">
                 <label htmlFor="ind">Industry</label>
                 <select id="ind" value={industry} onChange={(e) => setIndustry(e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">Select one…</option>
                   {INDUSTRY.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
