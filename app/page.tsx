@@ -747,7 +747,6 @@ function PromptDetails({ row }: { row: PromptRow }) {
           <div key={pf.key} className="platform-col">
             <div className="pcol-head">
               <span className={"isrc-badge isrc-" + pf.surface}>{src.label}</span>
-              {src.basis ? <span className="isrc-note">{src.basis}</span> : null}
             </div>
 
             <div className="pcol-block">
