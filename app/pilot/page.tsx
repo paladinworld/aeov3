@@ -112,7 +112,6 @@ function Hero() {
       <div className="hero-content">
         <h1>When a homeowner asks AI who to recommend, <em>are you the answer?</em></h1>
         <p className="lede">The first AI visibility tool built for home service companies.</p>
-        <p className="lede-src">Pulled straight from ChatGPT and Gemini.</p>
 
         <a href="#signup" className="hero-cta">Request my free report <Arrow /></a>
 
