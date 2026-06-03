@@ -126,7 +126,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .panel-head .info-dot em,.controls-head .info-dot em{bottom:auto;top:calc(100% + 7px)}
 .panel-head .sub,.controls-head .sub{font-size:12px;color:var(--fg-muted)}
 .ph-title{display:flex;flex-direction:column;gap:2px;min-width:0}
-.takeaways .ta-list{list-style:none;margin:0;padding:14px 20px 16px;display:flex;flex-direction:column;gap:12px}
+.key-insights{background:color-mix(in oklab,var(--primary) 5%,var(--bg));border-color:color-mix(in oklab,var(--primary) 22%,var(--border));border-left:3px solid var(--primary)}
+.ki-head{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid color-mix(in oklab,var(--primary) 12%,var(--border))}
+.ki-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:color-mix(in oklab,var(--primary) 14%,transparent);color:var(--primary);flex:0 0 auto}
+.ki-head h2{font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em}
+.ki-sub{font-size:12px;color:var(--fg-muted)}
+.ta-list{list-style:none;margin:0;padding:14px 20px 16px;display:flex;flex-direction:column;gap:12px}
 .ta-item{display:flex;gap:11px;font-size:13.5px;line-height:1.5;color:var(--fg)}
 .ta-dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--fg-placeholder)}
 .ta-item.good .ta-dot{background:var(--success)}

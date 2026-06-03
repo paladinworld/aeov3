@@ -68,7 +68,8 @@ const ICONS: Record<string, string> = {
   chevdown: "M6 9l6 6 6-6",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
-  menu: "M3 6h18M3 12h18M3 18h18"
+  menu: "M3 6h18M3 12h18M3 18h18",
+  spark: "M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"
 };
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -369,19 +370,22 @@ function buildTakeaways(input: {
   total: number;
   geminiRate: number;
   chatgptRate: number;
+  sov: number;
+  sovRank: number;
+  sovCount: number;
   topRival?: string;
 }): Takeaway[] {
-  const { score100, gband, visRank, total, geminiRate, chatgptRate, topRival } = input;
+  const { score100, gband, visRank, total, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival } = input;
   const out: Takeaway[] = [];
   const rankStr = visRank > 0 && total > 0 ? ` You rank #${visRank} of ${total} companies tracked in your market.` : "";
 
   // 1) Overall standing
   if (gband === "High") {
-    out.push({ tone: "good", text: `Strong AI visibility (${score100}%). AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
+    out.push({ tone: "good", text: `Strong overall AI visibility (${score100}%). AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
   } else if (gband === "Medium") {
-    out.push({ tone: "warn", text: `Moderate AI visibility (${score100}%). AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
+    out.push({ tone: "warn", text: `Moderate overall AI visibility (${score100}%). AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
   } else {
-    out.push({ tone: "warn", text: `Low AI visibility (${score100}%). AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
+    out.push({ tone: "warn", text: `Low overall AI visibility (${score100}%). AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
   }
 
   // 2) Platform gap (ChatGPT vs Gemini)
@@ -393,7 +397,13 @@ function buildTakeaways(input: {
     out.push({ tone: "neutral", text: `Consistent across platforms — ${pct(geminiRate)} on Gemini and ${pct(chatgptRate)} on ChatGPT.` });
   }
 
-  // 3) Who to overtake
+  // 3) Share of voice
+  if (sovCount > 0) {
+    const sovRankStr = sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : "";
+    out.push({ tone: sov >= 0.15 ? "good" : "neutral", text: `Share of voice is ${pct(sov)}${sovRankStr} — of every brand AI names in your market, that share is you.` });
+  }
+
+  // 4) Who to overtake
   if (visRank > 1 && topRival) {
     out.push({ tone: "neutral", text: `${topRival} is the most-recommended company in your market right now — the one to overtake.` });
   }
@@ -454,7 +464,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const visRanked = [...lb].sort((a, b) => (b.visibilityScore ?? b.visibilityRate) - (a.visibilityScore ?? a.visibilityRate));
   const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
   const topRival = visRanked.find((row) => !row.isTarget)?.name;
-  const takeaways = buildTakeaways({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, topRival });
+  const takeaways = buildTakeaways({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival });
 
   return (
     <div className="view-stack">
@@ -465,9 +475,29 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         Based on tracked high-intent prompts with multiple queries for accuracy. AI results can vary by platform, session, model, location, and timing. For reference only; not an exact view of what every consumer sees.
       </p>
 
+      {takeaways.length ? (
+        <div className="panel key-insights">
+          <div className="ki-head">
+            <span className="ki-icon"><Icon name="spark" size={15} /></span>
+            <div>
+              <h2>Key Insights</h2>
+              <span className="ki-sub">The at-a-glance read across your metrics</span>
+            </div>
+          </div>
+          <ul className="ta-list">
+            {takeaways.map((item, index) => (
+              <li key={index} className={"ta-item " + item.tone}>
+                <span className="ta-dot" />
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="panel score-panel">
         <PanelHead
-          title="AI visibility score"
+          title="AI Visibility Score"
           subtitle="How often does AI recommend you overall?"
           tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
@@ -515,34 +545,20 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         </div>
       </div>
 
-      {takeaways.length ? (
-        <div className="panel takeaways">
-          <PanelHead title="What this means" subtitle="Your standing at a glance" />
-          <ul className="ta-list">
-            {takeaways.map((item, index) => (
-              <li key={index} className={"ta-item " + item.tone}>
-                <span className="ta-dot" />
-                <span>{item.text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       <section className="metric-grid four">
         <MetricCard
-          label="Share of voice"
+          label="Share of Voice"
           value={pct(sov)}
           helper={sovRank ? `${ordinal(sovRank)} of ${sovCount} in your market` : `of ${sovCount} in your market`}
           tooltip="When an AI answer names you or a competitor, how often it names you."
         />
-        <MetricCard label="Citation rate" value={pct(citRate)} helper={`${brandCited.size}/${allCited.size} cited answers`} tooltip="Of the AI answers that cite sources, how often your site or brand is one of them." />
-        <MetricCard label="Top-position rate" value={pct(summary.topThreeRate)} helper="ranked top 3" tooltip="How often you appear in the top 3 companies named in an AI answer." />
-        <MetricCard label="First mention rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
+        <MetricCard label="Citation Rate" value={pct(citRate)} helper={`${brandCited.size}/${allCited.size} cited answers`} tooltip="Of the AI answers that cite sources, how often your site or brand is one of them." />
+        <MetricCard label="Top-Position Rate" value={pct(summary.topThreeRate)} helper="ranked top 3" tooltip="How often you appear in the top 3 companies named in an AI answer." />
+        <MetricCard label="First Mention Rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
       </section>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
         <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
       </section>
 
@@ -622,11 +638,11 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
   return (
     <div className="view-stack">
       <section className="metric-grid five">
-        <MetricCard label="Total prompts" value={String(stats.totalQueries)} helper={`${payload.report.runs.length} AI checks`} />
-        <MetricCard label="You rank in" value={String(stats.mentionedQueries)} helper="prompts with a mention" />
+        <MetricCard label="Total Prompts" value={String(stats.totalQueries)} helper={`${payload.report.runs.length} AI checks`} />
+        <MetricCard label="You Rank In" value={String(stats.mentionedQueries)} helper="prompts with a mention" />
         <MetricCard label="Missing" value={String(stats.missingQueries)} helper="not ranked anywhere" />
-        <MetricCard label="#1 position %" value={pct(topOneRate)} helper="ranked #1" />
-        <MetricCard label="Top competitor" value={topCompetitor ? topCompetitor.name : "—"} valueSm helper={topCompetitor ? pct(topCompetitor.visibilityRate) + " visibility" : ""} />
+        <MetricCard label="#1 Position %" value={pct(topOneRate)} helper="ranked #1" />
+        <MetricCard label="Top Competitor" value={topCompetitor ? topCompetitor.name : "—"} valueSm helper={topCompetitor ? pct(topCompetitor.visibilityRate) + " visibility" : ""} />
       </section>
 
       <CategoryCoveragePanel payload={payload} />
@@ -835,14 +851,14 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       ) : null}
 
       <section className="metric-grid four">
-        <MetricCard label="Unique sources" value={String(cit.uniqueSources)} helper="real citation domains" />
-        <MetricCard label="Total citations" value={String(cit.totalCitations)} helper="counted once per run" />
-        <MetricCard label="Your citation share" value={pct(cit.ownedShare)} helper={`${cit.ownedCitations} owned citations`} />
-        <MetricCard label="Platform source share" value={pct(cit.platformShare)} helper="directories, reviews, editorial" />
+        <MetricCard label="Unique Sources" value={String(cit.uniqueSources)} helper="real citation domains" />
+        <MetricCard label="Total Citations" value={String(cit.totalCitations)} helper="counted once per run" />
+        <MetricCard label="Your Citation Share" value={pct(cit.ownedShare)} helper={`${cit.ownedCitations} owned citations`} />
+        <MetricCard label="Platform Source Share" value={pct(cit.platformShare)} helper="directories, reviews, editorial" />
       </section>
 
       <section className="panel">
-        <PanelHead title="Where AI gets its answers" subtitle="Citation volume by source type" />
+        <PanelHead title="Where AI Gets Its Answers" subtitle="Citation volume by source type" />
         <div className="panel-body">
           <div className="coverage">
             {cit.typeRows.map((row) => (
@@ -860,7 +876,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       </section>
 
       <section className="panel">
-        <PanelHead title="Top cited domains" subtitle="Expand a domain to see the exact cited pages" />
+        <PanelHead title="Top Cited Domains" subtitle="Expand a domain to see the exact cited pages" />
         <div className="src-table">
           <div className="src-head">
             <span>Domain</span>
@@ -929,7 +945,7 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       <p className="bench-note">Ranked by how often each company is named across ChatGPT and Gemini. Switch a list to a single platform with the toggle.</p>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
+        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
         <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
       </section>
     </div>
@@ -969,12 +985,12 @@ function SentimentView({ payload, stats }: { payload: ReportPayload; stats: Repo
       </section>
 
       <section className="dashboard-grid">
-        <ThemePanel title="What AI says that's working" subtitle="Recurring positive themes in mentions" rows={s.working} positive />
-        <ThemePanel title="What AI says that's hurting" subtitle="Recurring negative themes in AI language" rows={s.hurting} />
+        <ThemePanel title="What AI Says That's Working" subtitle="Recurring positive themes in mentions" rows={s.working} positive />
+        <ThemePanel title="What AI Says That's Hurting" subtitle="Recurring negative themes in AI language" rows={s.hurting} />
       </section>
 
       <section className="panel">
-        <PanelHead title="Competitor language to beat" subtitle="Most repeated proof points from top competitors" />
+        <PanelHead title="Competitor Language to Beat" subtitle="Most repeated proof points from top competitors" />
         <div className="comp-quote-grid">
           {s.competitorThemes.map((competitor) => (
             <div key={competitor.name} className="comp-quote-card">
