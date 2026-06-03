@@ -426,6 +426,11 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 .empty-state h2{font-size:18px;font-weight:600;margin:0}
 .empty-state p{font-size:13px;color:var(--fg-muted);margin:0 0 8px;max-width:420px}
 
+/* ── Mobile nav (drawer) — hidden on desktop ── */
+.nav-toggle{display:none;align-items:center;justify-content:center;width:36px;height:36px;margin-left:-6px;border:0;background:none;color:var(--fg);border-radius:var(--radius-md);cursor:pointer;flex:0 0 auto}
+.nav-toggle:hover{background:var(--bg-muted)}
+.nav-overlay{display:none}
+
 /* ── Responsive ── */
 @media(max-width:1100px){
   .metric-grid.five{grid-template-columns:repeat(3,1fr)}
@@ -439,6 +444,45 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .prompt-details{grid-template-columns:1fr}
   .comp-quote-grid{grid-template-columns:1fr}
   .setup-grid{grid-template-columns:1fr}
+}
+
+/* ── Phone ── */
+@media(max-width:640px){
+  .aeo3{zoom:1}
+  /* off-canvas drawer */
+  .nav-toggle{display:inline-flex}
+  .side{position:fixed;left:0;top:0;height:100dvh;width:280px;max-width:84vw;z-index:70;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-md)}
+  .side.open{transform:translateX(0)}
+  .nav-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;opacity:0;visibility:hidden;transition:opacity .2s}
+  .nav-overlay.show{opacity:1;visibility:visible}
+  /* topbar + main padding */
+  .topbar{height:54px}
+  .topbar-inner{padding:0 14px;gap:10px}
+  .crumb{font-size:0;gap:0}
+  .crumb b{font-size:14px}
+  .crumb svg{display:none}
+  .crumb>:first-child{display:none}
+  .main{padding:16px 14px 44px}
+  .top-actions{gap:8px}
+  .last-run{font-size:11px}
+  .last-run>:first-child{display:none}
+  .btn{padding:7px 10px}
+  /* stack panels */
+  .metric-grid.four,.metric-grid.five,.metric-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two-col,.dashboard-grid,.score-body,.prompt-details,.comp-quote-grid,.setup-grid,.radar-layout,.hero-score{grid-template-columns:1fr}
+  .score-platforms{border-left:0;border-top:1px solid var(--border)}
+  .coverage-row{grid-template-columns:104px 1fr 46px;gap:8px}
+  /* prompt table: trim to Prompt + Gemini + ChatGPT ranks (hide Intent/Best/#1-competitor), no scroll */
+  .prompt-head,.prompt-row{grid-template-columns:minmax(0,1fr) 50px 50px;min-width:0}
+  .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),.prompt-head>:nth-child(6),
+  .prompt-row>:nth-child(2),.prompt-row>:nth-child(5),.prompt-row>:nth-child(6){display:none}
+  /* citations table -> horizontal scroll */
+  .src-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .src-head,.dom-row{min-width:520px}
+  .panel-body,.panel{overflow-x:hidden}
+  .prompt-tools{flex-wrap:wrap;gap:8px}
+  .search{min-width:0;max-width:none;width:100%}
+  .segmented{flex-wrap:wrap}
 }
 
 /* ── Print / PDF (Download PDF -> browser "Save as PDF") ── */

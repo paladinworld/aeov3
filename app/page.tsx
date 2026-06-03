@@ -67,7 +67,8 @@ const ICONS: Record<string, string> = {
   chevron: "M9 18l6-6-6-6",
   chevdown: "M6 9l6 6 6-6",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
-  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"
+  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
+  menu: "M3 6h18M3 12h18M3 18h18"
 };
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -93,6 +94,12 @@ export default function Home() {
   const [view, setView] = useState<View>("home");
   const [shareCopied, setShareCopied] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  // Navigate + close the mobile drawer in one go.
+  const goView = (next: View) => {
+    setView(next);
+    setNavOpen(false);
+  };
 
   useEffect(() => {
     refresh();
@@ -210,7 +217,8 @@ export default function Home() {
       <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
       <div className="aeo3">
         <div className="app">
-          <aside className="side">
+          <div className={"nav-overlay" + (navOpen ? " show" : "")} onClick={() => setNavOpen(false)} />
+          <aside className={"side" + (navOpen ? " open" : "")}>
             <div className="brand">
               <img src="/netic/netic-wordmark-green.svg" alt="Netic" />
             </div>
@@ -234,21 +242,21 @@ export default function Home() {
             </div>
 
             <NavGroup label="Overview">
-              <Navi icon="home" active={view === "home"} count={total} onClick={() => setView("home")}>
+              <Navi icon="home" active={view === "home"} count={total} onClick={() => goView("home")}>
                 Home
               </Navi>
             </NavGroup>
             <NavGroup label="Visibility">
-              <Navi icon="prompts" active={view === "prompts"} count={total} onClick={() => setView("prompts")}>
+              <Navi icon="prompts" active={view === "prompts"} count={total} onClick={() => goView("prompts")}>
                 Prompts
               </Navi>
-              <Navi icon="citations" active={view === "citations"} onClick={() => setView("citations")}>
+              <Navi icon="citations" active={view === "citations"} onClick={() => goView("citations")}>
                 Citations
               </Navi>
-              <Navi icon="competitors" active={view === "competitors"} onClick={() => setView("competitors")}>
+              <Navi icon="competitors" active={view === "competitors"} onClick={() => goView("competitors")}>
                 Competitors
               </Navi>
-              <Navi icon="sentiment" active={view === "sentiment"} onClick={() => setView("sentiment")}>
+              <Navi icon="sentiment" active={view === "sentiment"} onClick={() => goView("sentiment")}>
                 Sentiment
               </Navi>
             </NavGroup>
@@ -265,6 +273,9 @@ export default function Home() {
           <section className="workspace">
             <header className="topbar">
               <div className="topbar-inner">
+                <button className="nav-toggle" aria-label="Open menu" onClick={() => setNavOpen(true)}>
+                  <Icon name="menu" size={18} />
+                </button>
                 <div className="crumb">
                   {company?.name ?? "HVAC account"} <Icon name="chevron" size={13} /> AI Visibility <Icon name="chevron" size={13} /> <b>{NAV[view]}</b>
                 </div>
