@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runSurface, runTargetedSentimentTask } from "@/lib/runner";
+import { citationDomain, classifyDomains } from "@/lib/domain-classifier";
 import { id as createId, readDb, writeDb } from "@/lib/store";
 import { Location, Query, Surface } from "@/lib/types";
 
@@ -120,6 +121,23 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       });
     }
   });
+
+  // Classify the cited domains (platform/contractor/manufacturer/other) so the
+  // dashboard can tag sources correctly. Learned mappings persist + reused across runs.
+  try {
+    const domains = new Set<string>();
+    for (const run of report.runs) {
+      for (const mention of run.mentions) {
+        for (const citation of mention.citations) {
+          const domain = citationDomain(citation);
+          if (domain) domains.add(domain);
+        }
+      }
+    }
+    report.domainTypes = await classifyDomains([...domains]);
+  } catch {
+    // Non-fatal: the dashboard falls back to its built-in heuristic.
+  }
 
   report.status = "complete";
   report.completedAt = new Date().toISOString();

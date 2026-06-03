@@ -1717,7 +1717,7 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
   const totalCitations = Array.from(domainRuns.values()).reduce((sum, set) => sum + set.size, 0);
   const domainRows: CitationDomainRow[] = Array.from(domainRuns.entries())
     .map(([domain, runs]) => {
-      const type = classifyCitationDomain(domain, ownedDomain);
+      const type = classifyCitationDomain(domain, ownedDomain, payload.report.domainTypes);
       const count = runs.size;
       return { name: domain, domain, type, count, share: totalCitations ? count / totalCitations : 0, owned: domain === ownedDomain };
     })
@@ -1918,8 +1918,14 @@ function isInfrastructureDomain(domain: string) {
   return ["vertexaisearch.cloud.google.com", "google-maps-place", "maps.google.com", "google.com"].includes(domain);
 }
 
-function classifyCitationDomain(domain: string, ownedDomain: string): SourceType {
+function classifyCitationDomain(domain: string, ownedDomain: string, types?: Record<string, string>): SourceType {
   if (domain === ownedDomain) return "Owned";
+  // Prefer the audit-time classification (learned + AI), keyed by normalized domain.
+  const kind = types?.[domain.toLowerCase().replace(/^www\./, "")];
+  if (kind === "platform") return "Platform";
+  if (kind === "contractor") return "Competitor";
+  if (kind === "manufacturer" || kind === "other") return "Others";
+  // Legacy fallback for reports created before domain typing existed.
   if (isOtherCitationDomain(domain)) return "Others";
   if (isPlatformDomain(domain)) return "Platform";
   return "Competitor";

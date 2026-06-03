@@ -118,6 +118,7 @@ export type Report = {
   queries: Query[];
   runs: SurfaceRun[];
   runCount?: number; // set on the lightweight GET /api/reports list (runs are stripped there)
+  domainTypes?: Record<string, string>; // citation domain -> kind (platform|contractor|manufacturer|other), classified at audit time
   targetedSentiment?: TargetedSentimentRun[];
   status: "draft" | "running" | "complete" | "failed";
   createdAt: string;
