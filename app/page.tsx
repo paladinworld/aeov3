@@ -543,7 +543,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
 
       <section className="dashboard-grid">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
-        <Leaderboard title="Share of Voice" subtitle="When AI names companies, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
       </section>
 
       <section className="dashboard-grid">
@@ -930,7 +930,7 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
 
       <section className="dashboard-grid">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
-        <Leaderboard title="Share of Voice" subtitle="When AI names companies, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
+        <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
       </section>
     </div>
   );
