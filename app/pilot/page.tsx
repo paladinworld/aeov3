@@ -275,7 +275,7 @@ function Signup() {
 
         <ul className="whatsin">
           <li><Check /><span>Where you rank against local competitors</span></li>
-          <li><Check /><span>What prompts and what citation sources are impacting your rank?</span></li>
+          <li><Check /><span>The prompts and sources behind your rank</span></li>
         </ul>
 
         <div className="steps">
