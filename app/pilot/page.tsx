@@ -15,6 +15,8 @@ const REVENUE: Revenue[] = [
   { id: "100M+", label: "$100M+", note: "" },
 ];
 
+const INDUSTRY = ["HVAC", "Plumbing", "Electrical", "Roofing", "Landscaping", "Pest control", "Other home services"];
+
 function Check() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -182,25 +184,29 @@ function Hero() {
 /* ── Signup flow (left) ── */
 function Signup() {
   const [isClient, setIsClient] = useState<"" | "yes" | "no">("");
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
   const [company, setCompany] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [size, setSize] = useState<string>("");
+  const [industry, setIndustry] = useState<string>("");
   const [touched, setTouched] = useState<boolean>(false);
   const [view, setView] = useState<"form" | "ok" | "wait">("form");
 
   const reset = () => {
-    setView("form"); setIsClient(""); setCompany(""); setEmail(""); setSize(""); setTouched(false);
+    setView("form"); setIsClient(""); setFirstName(""); setLastName(""); setCompany(""); setEmail(""); setSize(""); setIndustry(""); setTouched(false);
   };
+  const nameOk = firstName.trim() !== "" && lastName.trim() !== "";
 
   const submit = () => {
     setTouched(true);
     if (isClient === "yes") {
-      if (!emailOk(email)) return;
+      if (!nameOk || !emailOk(email)) return;
       setView("ok");
       return;
     }
     if (isClient === "no") {
-      if (!company.trim() || !emailOk(email) || !size) return;
+      if (!nameOk || !company.trim() || !emailOk(email) || !size) return;
       setView(size === "<15M" ? "wait" : "ok");
     }
   };
@@ -294,48 +300,69 @@ function Signup() {
           </div>
         </div>
 
+        {stepTwo ?
+          <div className="fld-row">
+            <div className="fld">
+              <label htmlFor="fn">First name<span className="req">*</span></label>
+              <input id="fn" type="text" placeholder="Jane" value={firstName}
+                className={touched && !firstName.trim() ? "err" : ""}
+                onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div className="fld">
+              <label htmlFor="ln">Last name<span className="req">*</span></label>
+              <input id="ln" type="text" placeholder="Doe" value={lastName}
+                className={touched && !lastName.trim() ? "err" : ""}
+                onChange={(e) => setLastName(e.target.value)} />
+            </div>
+          </div> :
+          null}
+
         {isClient === "yes" ?
           <div className="fld">
-            <label htmlFor="email-y">Company email</label>
+            <label htmlFor="email-y">Company email<span className="req">*</span></label>
             <input id="email-y" type="email" placeholder="you@company.com" value={email}
               className={touched && !emailOk(email) ? "err" : ""}
               onChange={(e) => setEmail(e.target.value)} />
-            {touched && !emailOk(email) ? <span className="msg-err">Enter a valid company email.</span> : null}
           </div> :
           null}
 
         {showDetails ?
           <>
-            <div className="fld">
-              <label htmlFor="company">Company name</label>
-              <input id="company" type="text" placeholder="e.g. AllTech Services" value={company}
-                className={touched && !company.trim() ? "err" : ""}
-                onChange={(e) => setCompany(e.target.value)} />
-              {touched && !company.trim() ? <span className="msg-err">Company name is required.</span> : null}
-            </div>
-            <div className="fld">
-              <label htmlFor="email-n">Company email</label>
-              <input id="email-n" type="email" placeholder="you@company.com" value={email}
-                className={touched && !emailOk(email) ? "err" : ""}
-                onChange={(e) => setEmail(e.target.value)} />
-              {touched && !emailOk(email) ? <span className="msg-err">Enter a valid company email.</span> : null}
-            </div>
-            <div className="field-group">
-              <span>Annual revenue</span>
-              <div className="radio-list">
-                {REVENUE.map((r) => (
-                  <div key={r.id} className={"radio-opt" + (size === r.id ? " sel" : "")}
-                    role="radio" aria-checked={size === r.id} tabIndex={0}
-                    onClick={() => setSize(r.id)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSize(r.id); } }}>
-                    <span className="dot" />
-                    <span className="lbl">{r.label}</span>
-                  </div>
-                ))}
+            <div className="fld-row">
+              <div className="fld">
+                <label htmlFor="company">Company name<span className="req">*</span></label>
+                <input id="company" type="text" placeholder="e.g. AllTech Services" value={company}
+                  className={touched && !company.trim() ? "err" : ""}
+                  onChange={(e) => setCompany(e.target.value)} />
               </div>
-              {touched && !size ? <span className="msg-err" style={{ marginTop: 8, display: "block" }}>Select your revenue band.</span> : null}
+              <div className="fld">
+                <label htmlFor="email-n">Company email<span className="req">*</span></label>
+                <input id="email-n" type="email" placeholder="you@company.com" value={email}
+                  className={touched && !emailOk(email) ? "err" : ""}
+                  onChange={(e) => setEmail(e.target.value)} />
+              </div>
+            </div>
+            <div className="fld-row">
+              <div className="fld">
+                <label htmlFor="rev">Annual revenue<span className="req">*</span></label>
+                <select id="rev" value={size} className={touched && !size ? "err" : ""} onChange={(e) => setSize(e.target.value)}>
+                  <option value="">Select…</option>
+                  {REVENUE.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+              </div>
+              <div className="fld">
+                <label htmlFor="ind">Industry</label>
+                <select id="ind" value={industry} onChange={(e) => setIndustry(e.target.value)}>
+                  <option value="">Select…</option>
+                  {INDUSTRY.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
             </div>
           </> :
+          null}
+
+        {touched && stepTwo && (!nameOk || !emailOk(email) || (showDetails && (!company.trim() || !size))) ?
+          <span className="msg-err" style={{ display: "block", marginTop: -8, marginBottom: 16 }}>Please complete the required fields with a valid email.</span> :
           null}
 
         {stepTwo ?

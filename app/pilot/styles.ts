@@ -144,6 +144,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .fld input::placeholder{color:var(--fg-placeholder)}
 .fld input:focus,.fld select:focus{border-color:var(--primary-hover);box-shadow:0 0 0 3px color-mix(in oklab,var(--primary-hover) 18%,transparent)}
 .fld input.err,.fld select.err{border-color:var(--destructive)}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.fld-row .fld{margin-bottom:0}
+.req{color:var(--destructive);margin-left:2px;font-weight:600}
 .fld .msg-err{font-size:11px;color:var(--destructive);font-weight:500}
 
 /* submit */
@@ -189,7 +192,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* ── RIGHT: ink-green brand hero ── */
-.hero{position:relative;background:var(--netic-green-ink);color:var(--netic-cream);display:flex;flex-direction:column;justify-content:center;padding:64px 64px 64px 60px;overflow:hidden}
+.hero{position:sticky;top:0;align-self:start;height:100vh;background:var(--netic-green-ink);color:var(--netic-cream);display:flex;flex-direction:column;justify-content:center;padding:64px 64px 64px 60px;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 100% 0%,color-mix(in oklab,var(--netic-green) 26%,transparent),transparent 60%);pointer-events:none}
 .hero-content{position:relative;z-index:1;max-width:520px;width:100%;margin:0 auto}
 .hero .over{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in oklab,var(--netic-cream) 64%,transparent);margin-bottom:18px}
@@ -272,7 +275,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 @media(max-width:880px){
   .land{grid-template-columns:1fr}
-  .hero{order:-1;min-height:auto;padding:40px 32px 44px}
+  .hero{order:-1;position:static;height:auto;min-height:auto;padding:40px 32px 44px}
   .hero h1{font-size:32px}
   .hero-cta{display:inline-flex}
   .bento{margin-top:30px}
@@ -288,5 +291,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   .signup-foot{padding-left:22px;padding-right:22px}
   .s-head{font-size:34px}
   .hero h1{font-size:27px}
+  .fld-row{grid-template-columns:1fr;gap:0;margin-bottom:0}
+  .fld-row .fld{margin-bottom:22px}
 }
 `;
