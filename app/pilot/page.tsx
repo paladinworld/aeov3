@@ -274,10 +274,8 @@ function Signup() {
         <p className="s-sub">A dashboard of how your company shows up across ChatGPT and Gemini.</p>
 
         <ul className="whatsin">
-          <li><Check /><span>The key prompts homeowners ask, and who AI recommends</span></li>
           <li><Check /><span>Where you rank against local competitors</span></li>
-          <li><Check /><span>How AI describes your business</span></li>
-          <li><Check /><span>The exact sources AI cites about you</span></li>
+          <li><Check /><span>What prompts and what citation sources are impacting your rank?</span></li>
         </ul>
 
         <div className="steps">
