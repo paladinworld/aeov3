@@ -212,7 +212,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .cov-list{display:flex;flex-direction:column}
 .cov-list .coverage-row{padding:12px 20px;border-bottom:1px solid var(--border)}
 .cov-list .coverage-row:last-child{border-bottom:0}
-.coverage-row{display:grid;grid-template-columns:170px 1fr 76px;align-items:center;gap:14px}
+.coverage-row{display:grid;grid-template-columns:170px 1fr max-content;align-items:center;gap:14px}
 .coverage-row>span{font-size:13px;font-weight:500}
 .coverage-row .track{height:8px}
 .coverage-row>strong{display:flex;align-items:baseline;gap:6px;justify-content:flex-end;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -471,7 +471,7 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .metric-grid.four,.metric-grid.five,.metric-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
   .two-col,.dashboard-grid,.score-body,.prompt-details,.comp-quote-grid,.setup-grid,.radar-layout,.hero-score{grid-template-columns:1fr}
   .score-platforms{border-left:0;border-top:1px solid var(--border)}
-  .coverage-row{grid-template-columns:104px 1fr 46px;gap:8px}
+  .coverage-row{grid-template-columns:96px 1fr max-content;gap:10px}
   /* prompt table: trim to Prompt + Gemini + ChatGPT ranks (hide Intent/Best/#1-competitor), no scroll */
   .prompt-head,.prompt-row{grid-template-columns:minmax(0,1fr) 50px 50px;min-width:0}
   .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),.prompt-head>:nth-child(6),
