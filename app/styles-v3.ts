@@ -57,7 +57,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .crumb{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--fg-muted)}
 .crumb svg{width:13px;height:13px;color:var(--fg-placeholder)}
 .crumb b{color:var(--fg);font-weight:600}
-.top-actions{display:flex;align-items:center;gap:10px}
+.top-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
 .last-run{font-size:12px;color:var(--fg-muted);display:flex;align-items:center;gap:10px}
 .access-left{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--primary);background:rgba(19,122,74,.08);border:1px solid rgba(19,122,74,.18);padding:3px 9px;border-radius:999px;white-space:nowrap}
 .access-left.soon{color:#9a6a00;background:rgba(176,122,0,.10);border-color:rgba(176,122,0,.22)}
@@ -124,7 +124,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 .panel-head h2{font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em}
 .panel-head h2 .info-dot,.controls-head h2 .info-dot{margin-left:7px;vertical-align:middle}
 .panel-head .info-dot em,.controls-head .info-dot em{bottom:auto;top:calc(100% + 7px)}
-.panel-head .sub{font-size:12px;color:var(--fg-muted)}
+.panel-head .sub,.controls-head .sub{font-size:12px;color:var(--fg-muted)}
+.ph-title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.takeaways .ta-list{list-style:none;margin:0;padding:14px 20px 16px;display:flex;flex-direction:column;gap:12px}
+.ta-item{display:flex;gap:11px;font-size:13.5px;line-height:1.5;color:var(--fg)}
+.ta-dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--fg-placeholder)}
+.ta-item.good .ta-dot{background:var(--success)}
+.ta-item.warn .ta-dot{background:var(--warning)}
+.ta-item.neutral .ta-dot{background:var(--primary)}
 .panel-body{padding:18px 20px}
 
 /* ── Barometer (gauge) ── */

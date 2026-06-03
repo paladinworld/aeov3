@@ -276,9 +276,6 @@ export default function Home() {
                 <button className="nav-toggle" aria-label="Open menu" onClick={() => setNavOpen(true)}>
                   <Icon name="menu" size={18} />
                 </button>
-                <div className="crumb">
-                  {company?.name ?? "HVAC account"} <Icon name="chevron" size={13} /> AI Visibility <Icon name="chevron" size={13} /> <b>{NAV[view]}</b>
-                </div>
                 <div className="top-actions">
                   <span className="last-run">
                     {lastRun}
@@ -363,6 +360,47 @@ export default function Home() {
 /* ──────────────────────────────────────────────────────────────
    Overview
    ──────────────────────────────────────────────────────────── */
+type Takeaway = { tone: "good" | "warn" | "neutral"; text: string };
+
+function buildTakeaways(input: {
+  score100: number;
+  gband: string;
+  visRank: number;
+  total: number;
+  geminiRate: number;
+  chatgptRate: number;
+  topRival?: string;
+}): Takeaway[] {
+  const { score100, gband, visRank, total, geminiRate, chatgptRate, topRival } = input;
+  const out: Takeaway[] = [];
+  const rankStr = visRank > 0 && total > 0 ? ` You rank #${visRank} of ${total} companies tracked in your market.` : "";
+
+  // 1) Overall standing
+  if (gband === "High") {
+    out.push({ tone: "good", text: `Strong AI visibility (${score100}%). AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
+  } else if (gband === "Medium") {
+    out.push({ tone: "warn", text: `Moderate AI visibility (${score100}%). AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
+  } else {
+    out.push({ tone: "warn", text: `Low AI visibility (${score100}%). AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
+  }
+
+  // 2) Platform gap (ChatGPT vs Gemini)
+  const hi = geminiRate >= chatgptRate ? { n: "Gemini", v: geminiRate } : { n: "ChatGPT", v: chatgptRate };
+  const lo = geminiRate >= chatgptRate ? { n: "ChatGPT", v: chatgptRate } : { n: "Gemini", v: geminiRate };
+  if (hi.v - lo.v >= 0.2) {
+    out.push({ tone: "warn", text: `Uneven across platforms: you appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is your biggest opportunity.` });
+  } else {
+    out.push({ tone: "neutral", text: `Consistent across platforms — ${pct(geminiRate)} on Gemini and ${pct(chatgptRate)} on ChatGPT.` });
+  }
+
+  // 3) Who to overtake
+  if (visRank > 1 && topRival) {
+    out.push({ tone: "neutral", text: `${topRival} is the most-recommended company in your market right now — the one to overtake.` });
+  }
+
+  return out;
+}
+
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
   const [visFilter, setVisFilter] = useState<SurfaceFilter>("all");
   const [sovFilter, setSovFilter] = useState<SurfaceFilter>("all");
@@ -410,6 +448,14 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const topOneRate = topOneRateOf(payload);
   const topDomains = citRank.domainRows.slice(0, 6);
 
+  // Plain-language "what this means" summary (starting point — COO will expand the checklist).
+  const geminiRate = surfaceShow.find((item) => item.surface === "gemini_maps")?.rate ?? 0;
+  const chatgptRate = surfaceShow.find((item) => item.surface === "chatgpt_search")?.rate ?? 0;
+  const visRanked = [...lb].sort((a, b) => (b.visibilityScore ?? b.visibilityRate) - (a.visibilityScore ?? a.visibilityRate));
+  const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
+  const topRival = visRanked.find((row) => !row.isTarget)?.name;
+  const takeaways = buildTakeaways({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, topRival });
+
   return (
     <div className="view-stack">
       <p className="page-note">
@@ -422,7 +468,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       <div className="panel score-panel">
         <PanelHead
           title="AI visibility score"
-          subtitle="How often AI recommends you, overall"
+          subtitle="How often does AI recommend you overall?"
           tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
         <div className="score-body">
@@ -469,6 +515,20 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         </div>
       </div>
 
+      {takeaways.length ? (
+        <div className="panel takeaways">
+          <PanelHead title="What this means" subtitle="Your standing at a glance" />
+          <ul className="ta-list">
+            {takeaways.map((item, index) => (
+              <li key={index} className={"ta-item " + item.tone}>
+                <span className="ta-dot" />
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <section className="metric-grid four">
         <MetricCard
           label="Share of voice"
@@ -482,14 +542,15 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </section>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Visibility score rank" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
-        <Leaderboard title="Share of voice rank" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Share of Voice" subtitle="When AI names companies, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
       </section>
 
       <section className="dashboard-grid">
         <div className="panel">
           <PanelHead
-            title="Citation domain rank"
+            title="Citation Sources"
+            subtitle="Which websites does AI rely on to answer?"
             right={
               <div className="segmented">
                 {(["all", "gemini", "chatgpt"] as const).map((option) => (
@@ -868,8 +929,8 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       <p className="bench-note">Ranked by how often each company is named across ChatGPT and Gemini. Switch a list to a single platform with the toggle.</p>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Visibility score rank" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
-        <Leaderboard title="Share of voice rank" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
+        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search vs competitors?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
+        <Leaderboard title="Share of Voice" subtitle="When AI names companies, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
       </section>
     </div>
   );
@@ -1171,15 +1232,17 @@ function Navi({ icon, active, count, onClick, children }: { icon: string; active
 function PanelHead({ title, subtitle, right, tooltip }: { title: string; subtitle?: string; right?: React.ReactNode; tooltip?: string }) {
   return (
     <div className={right ? "controls-head" : "panel-head"}>
-      <h2>
-        {title}
-        {tooltip ? (
-          <i className="info-dot" tabIndex={0}>
-            i<em>{tooltip}</em>
-          </i>
-        ) : null}
-      </h2>
-      {subtitle ? <span className="sub">{subtitle}</span> : null}
+      <div className="ph-title">
+        <h2>
+          {title}
+          {tooltip ? (
+            <i className="info-dot" tabIndex={0}>
+              i<em>{tooltip}</em>
+            </i>
+          ) : null}
+        </h2>
+        {subtitle ? <span className="sub">{subtitle}</span> : null}
+      </div>
       {right || null}
     </div>
   );
@@ -1231,6 +1294,7 @@ function BestBadge({ rank }: { rank: number | null }) {
 /* ── Leaderboard ── */
 function Leaderboard({
   title,
+  subtitle,
   data,
   filter,
   setFilter,
@@ -1240,6 +1304,7 @@ function Leaderboard({
   moreLabel
 }: {
   title: string;
+  subtitle?: string;
   data: Record<SurfaceFilter, MentionShareRow[]>;
   filter: SurfaceFilter;
   setFilter: (filter: SurfaceFilter) => void;
@@ -1268,6 +1333,7 @@ function Leaderboard({
     <div className="panel">
       <PanelHead
         title={title}
+        subtitle={subtitle}
         right={
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
@@ -1306,7 +1372,8 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
   return (
     <div className="panel">
       <PanelHead
-        title="AI visibility score by prompt type"
+        title="Visibility by Question Type"
+        subtitle="Which kinds of questions do you show up for?"
         right={
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
