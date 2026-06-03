@@ -260,6 +260,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .b-rank .rrow.you .nm{color:var(--primary);font-weight:600}
 .b-rank .rrow .vv{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 
+/* CTA in the hero — only shown on mobile, where the hero sits above the form. */
+.hero-cta{display:none;align-items:center;gap:8px;margin-top:24px;background:#fff;color:var(--primary);font-weight:600;font-size:15px;line-height:1;padding:15px 26px;border-radius:var(--radius-full);text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.hero-cta:active{transform:translateY(1px)}
+.hero-cta svg{width:16px;height:16px}
+
 /* ── Responsive ── */
 @media(max-width:1080px){
   .hero{padding:56px 48px}
@@ -267,10 +272,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 @media(max-width:880px){
   .land{grid-template-columns:1fr}
-  .hero{order:-1;min-height:auto;padding:48px 32px 52px}
+  .hero{order:-1;min-height:auto;padding:40px 32px 44px}
   .hero h1{font-size:32px}
-  .signup-inner{padding:44px 32px;min-height:auto}
+  .hero-cta{display:inline-flex}
+  .bento{margin-top:30px}
+  .signup-inner{padding:40px 32px;min-height:auto}
   .signup-foot{padding:0 32px 28px}
+  #signup{scroll-margin-top:12px}
 }
 @media(max-width:620px){
   .bento{grid-template-columns:1fr;grid-template-areas:"vis" "sent" "cit" "rank"}

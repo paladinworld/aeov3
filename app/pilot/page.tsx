@@ -112,6 +112,8 @@ function Hero() {
         <p className="lede">The first AI visibility tool built for home service companies.</p>
         <p className="lede-src">Pulled straight from ChatGPT and Gemini.</p>
 
+        <a href="#signup" className="hero-cta">Request my free report <Arrow /></a>
+
         <div className="bento" aria-hidden="true">
           {/* AI visibility score */}
           <div className="bcard b-vis">
@@ -259,7 +261,7 @@ function Signup() {
   const stepTwo = isClient !== "";
 
   return (
-    <div className="signup">
+    <div className="signup" id="signup">
       <div className="signup-inner">
         <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
         <h1 className="s-head">Request your AI visibility deep dive</h1>
