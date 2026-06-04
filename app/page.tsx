@@ -735,26 +735,31 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 // Grouping by platform makes each engine's story self-contained (and makes clear
 // that, e.g., a ChatGPT "few reviews" note is about the open web, not Google reviews).
 const PROMPT_PLATFORMS = [
-  { key: "gemini", surface: "gemini_maps", citeSurfaces: ["gemini_maps", "gemini_search"] },
-  { key: "chatgpt", surface: "chatgpt_search", citeSurfaces: ["chatgpt_search"] }
+  // Google = Maps (local pack) + AI Overview (Search). Show whichever response the
+  // prompt actually triggered, preferring the local pack when both exist; research
+  // prompts only run on AI Overview, so the response falls back to it.
+  { key: "gemini", responseSurfaces: ["gemini_maps", "gemini_search"], citeSurfaces: ["gemini_maps", "gemini_search"] },
+  { key: "chatgpt", responseSurfaces: ["chatgpt_search"], citeSurfaces: ["chatgpt_search"] }
 ] as const;
 
 function PromptDetails({ row }: { row: PromptRow }) {
   return (
     <div className="prompt-details">
       {PROMPT_PLATFORMS.map((pf) => {
-        const run = row.bySurface[pf.surface];
+        const surfaces = pf.responseSurfaces as readonly string[];
+        const responseSurface = pf.responseSurfaces.find((surface) => row.bySurface[surface]) ?? pf.responseSurfaces[0];
+        const run = row.bySurface[responseSurface];
         const rank = targetRank(run);
-        // Insight is only computed on run #1 — look across repeats for the carrier.
-        const insightRun = row.runs.find((item) => item.surface === pf.surface && item.missingInsight);
+        // Insight is only computed on run #1 — look across repeats/surfaces for the carrier.
+        const insightRun = row.runs.find((item) => surfaces.includes(item.surface) && item.missingInsight);
         const insight = insightRun?.missingInsight ? parseInsight(insightRun.missingInsight.answer) : null;
         const citations = buildPromptCitationRows(row, pf.citeSurfaces);
-        const src = surfaceSource(pf.surface);
+        const src = surfaceSource(responseSurface);
 
         return (
           <div key={pf.key} className="platform-col">
             <div className="pcol-head">
-              <span className={"isrc-badge isrc-" + pf.surface}>{src.label}</span>
+              <span className={"isrc-badge isrc-" + responseSurface}>{src.label}</span>
             </div>
 
             <div className="pcol-block">
@@ -808,7 +813,7 @@ function PromptDetails({ row }: { row: PromptRow }) {
                   ))}
                 </div>
               ) : (
-                <p className="muted">{pf.key === "gemini" ? "No web sources cited — Gemini answers from Maps often cite none." : "No sources cited for this prompt."}</p>
+                <p className="muted">{pf.key === "gemini" ? "No web sources cited — Google answers from the local pack often cite none." : "No sources cited for this prompt."}</p>
               )}
             </div>
           </div>
