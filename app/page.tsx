@@ -765,9 +765,11 @@ function PromptDetails({ row }: { row: PromptRow }) {
             {insight ? (
               <div className="pcol-block pcol-insight">
                 <div className="pcol-h">
-                  <span>Why you weren&rsquo;t recommended</span>
+                  <span>
+                    Why you weren&rsquo;t recommended
+                    <i className="info-dot" tabIndex={0}>i<em>What the AI said when we asked it directly why it didn&rsquo;t recommend you.</em></i>
+                  </span>
                 </div>
-                <p className="pcol-explain">What the AI said when we asked it directly why it didn&rsquo;t recommend you.</p>
                 {insight.intro ? <p className="insight-intro">{renderRich(insight.intro)}</p> : null}
                 {insight.bullets.length ? (
                   <ul className="insight-bullets">
