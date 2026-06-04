@@ -219,7 +219,7 @@ function Signup() {
           <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
           <div className="result ok">
             <div className="mark"><Check /></div>
-            <h2>You&apos;re on the list.</h2>
+            <h2>You&apos;re in.</h2>
             <p>
               We&apos;ve received your request and we&apos;ll email your access link the moment your report is ready.
               Running every query takes a couple of days, so hang tight while we put your numbers together.
