@@ -250,12 +250,12 @@ function Signup() {
             <div className="mark"><Clock /></div>
             <h2>We&apos;ve saved your spot.</h2>
             <p>
-              Right now the pilot is open to companies above $15M in revenue. We&apos;ve added you to the
-              waitlist and we&apos;ll reach out the moment we open it up to more companies — your spot is held.
+              Thanks for your interest! Due to high demand, we&apos;ve added you to the waitlist and we&apos;ll
+              reach out the moment we open it up to more companies.
             </p>
             <div className="recap">
               <div className="rr"><span>Company</span><b>{company.trim()}</b></div>
-              <div className="rr"><span>We&apos;ll notify</span><b>{email.trim()}</b></div>
+              <div className="rr"><span>Email</span><b>{email.trim()}</b></div>
             </div>
             <button className="backlink" onClick={reset}><Back />Submit another company</button>
           </div>
