@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runSurface, runTargetedSentimentTask } from "@/lib/runner";
+import { runSurface } from "@/lib/runner";
 import { citationDomain, classifyDomains } from "@/lib/domain-classifier";
 import { id as createId, readDb, writeDb } from "@/lib/store";
 import { Location, Query, Surface } from "@/lib/types";
@@ -100,27 +100,6 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     if (completed % CHECKPOINT_EVERY === 0) persist();
   });
   await writeChain;
-
-  // Targeted sentiment (once per location/surface) — also concurrent.
-  const sentimentTasks = locations.flatMap((location) =>
-    (["gemini_maps", "chatgpt_search"] as const).map((surface) => ({ location, surface }))
-  );
-  await runPool(sentimentTasks, CONCURRENCY, async ({ location, surface }) => {
-    try {
-      const sentimentRun = await withRetry(() => runTargetedSentimentTask({ company, location, surface }));
-      report.targetedSentiment?.push(sentimentRun);
-    } catch (error) {
-      report.targetedSentiment?.push({
-        id: createId("targeted_sentiment"),
-        surface,
-        prompt: "Targeted sentiment unavailable",
-        rawAnswer: `Provider error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        sentiment: "neutral",
-        summary: "Targeted sentiment task failed.",
-        createdAt: new Date().toISOString()
-      });
-    }
-  });
 
   // Classify the cited domains (platform/contractor/manufacturer/other) so the
   // dashboard can tag sources correctly. Learned mappings persist + reused across runs.

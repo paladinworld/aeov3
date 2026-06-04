@@ -260,9 +260,6 @@ export default function Home() {
               <Navi icon="competitors" active={view === "competitors"} onClick={() => goView("competitors")}>
                 Competitors
               </Navi>
-              <Navi icon="sentiment" active={view === "sentiment"} onClick={() => goView("sentiment")}>
-                Sentiment
-              </Navi>
             </NavGroup>
 
             <div className="side-foot">
@@ -348,8 +345,6 @@ export default function Home() {
                 <CitationsView payload={viewPayload} />
               ) : view === "competitors" ? (
                 <CompetitorsView payload={viewPayload} stats={reportStats} />
-              ) : view === "sentiment" ? (
-                <SentimentView payload={viewPayload} stats={reportStats} />
               ) : (
                 <OverviewView payload={viewPayload} stats={reportStats} onNav={setView} />
               )}
@@ -393,18 +388,18 @@ function buildTakeaways(input: {
 
   // 1) Overall standing
   if (gband === "High") {
-    out.push({ tone: "good", lead: `Strong overall AI visibility (${score100}%)`, body: `AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
+    out.push({ tone: "good", lead: `Strong overall AI visibility (${score100}%)`, body: `AI recommends you frequently.${rankStr}` });
   } else if (gband === "Medium") {
-    out.push({ tone: "warn", lead: `Moderate overall AI visibility (${score100}%)`, body: `AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
+    out.push({ tone: "warn", lead: `Moderate overall AI visibility (${score100}%)`, body: `AI recommends you selectively, with clear room to grow.${rankStr}` });
   } else {
-    out.push({ tone: "warn", lead: `Low overall AI visibility (${score100}%)`, body: `AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
+    out.push({ tone: "warn", lead: `Limited overall AI visibility (${score100}%)`, body: `AI rarely recommends you today, indicating significant room to improve.${rankStr}` });
   }
 
   // 2) Platform gap (ChatGPT vs Gemini)
   const hi = geminiRate >= chatgptRate ? { n: "Gemini", v: geminiRate } : { n: "ChatGPT", v: chatgptRate };
   const lo = geminiRate >= chatgptRate ? { n: "ChatGPT", v: chatgptRate } : { n: "Gemini", v: geminiRate };
   if (hi.v - lo.v >= 0.2) {
-    out.push({ tone: "warn", lead: `Uneven across platforms`, body: `You appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is your biggest opportunity.` });
+    out.push({ tone: "warn", lead: `Platform coverage is imbalanced`, body: `You appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is the primary opportunity.` });
   } else {
     out.push({ tone: "neutral", lead: `Consistent across platforms`, body: `You appear in ${pct(geminiRate)} of Gemini answers and ${pct(chatgptRate)} of ChatGPT answers.` });
   }
@@ -412,12 +407,12 @@ function buildTakeaways(input: {
   // 3) Share of voice
   if (sovCount > 0) {
     const sovRankStr = sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : "";
-    out.push({ tone: sov >= 0.15 ? "good" : "neutral", lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `Of every brand AI names in your market, that share is you.` });
+    out.push({ tone: sov >= 0.15 ? "good" : "neutral", lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `Of all company mentions AI makes in your market, this is the portion that names you.` });
   }
 
   // 4) Who to overtake
   if (visRank > 1 && topRival) {
-    out.push({ tone: "neutral", lead: `${topRival} leads your market`, body: `The most-recommended company right now — the one to overtake.` });
+    out.push({ tone: "neutral", lead: `${topRival} leads your market`, body: `Currently the most-recommended company in your market — the primary competitor to displace.` });
   }
 
   return out;
