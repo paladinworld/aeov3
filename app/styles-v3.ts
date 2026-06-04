@@ -334,7 +334,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pcol-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:color-mix(in oklab,var(--bg-muted) 45%,transparent)}
 .pcol-block{padding:13px 16px;display:flex;flex-direction:column;gap:8px}
 .pcol-block+.pcol-block{border-top:1px solid var(--border)}
-.pcol-insight{background:color-mix(in oklab,var(--warning) 6%,transparent)}
+.pcol-insight{background:color-mix(in oklab,var(--warning) 6%,transparent);padding:18px 16px}
 .pcol-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--fg-muted)}
 .pcol-rank{text-transform:none;letter-spacing:0;font-weight:600;color:var(--fg)}
 .pcol-explain{font-size:12px;color:var(--fg-muted);margin:0;line-height:1.45}
