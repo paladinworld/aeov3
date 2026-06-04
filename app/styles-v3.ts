@@ -455,6 +455,9 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 
 /* ── Empty state ── */
 .empty-state{padding:48px 32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.loading-state{padding:64px 32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--fg-muted)}
+.loading-state .spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--primary);animation:aeo-spin .7s linear infinite}
+@keyframes aeo-spin{to{transform:rotate(360deg)}}
 .empty-state h2{font-size:18px;font-weight:600;margin:0}
 .empty-state p{font-size:13px;color:var(--fg-muted);margin:0 0 8px;max-width:420px}
 

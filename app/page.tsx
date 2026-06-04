@@ -112,6 +112,7 @@ export default function Home() {
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
   // Navigate + close the mobile drawer in one go.
   const goView = (next: View) => {
     setView(next);
@@ -214,14 +215,19 @@ export default function Home() {
   }
 
   async function loadReport(reportId: string) {
-    const response = await fetch(`/api/reports/${reportId}`);
-    const payload = (await response.json()) as ReportPayload;
-    if (!response.ok || !payload.report?.queries || !payload.company) {
-      console.error("Invalid report payload", payload);
-      return;
+    setLoadingReport(true);
+    try {
+      const response = await fetch(`/api/reports/${reportId}`);
+      const payload = (await response.json()) as ReportPayload;
+      if (!response.ok || !payload.report?.queries || !payload.company) {
+        console.error("Invalid report payload", payload);
+        return;
+      }
+      setActiveReport(payload);
+      setSelectedCompanyId(payload.company.id);
+    } finally {
+      setLoadingReport(false);
     }
-    setActiveReport(payload);
-    setSelectedCompanyId(payload.company.id);
   }
 
   async function createReport() {
@@ -395,6 +401,8 @@ export default function Home() {
                   loadReport={loadReport}
                   refresh={refresh}
                 />
+              ) : loadingReport ? (
+                <LoadingState />
               ) : !viewPayload || !reportStats ? (
                 <EmptyState onSetup={() => setView("setup")} />
               ) : view === "prompts" ? (
@@ -1276,6 +1284,15 @@ function CompanyForm({ onCreated }: { onCreated: () => Promise<void> }) {
         Save company
       </button>
     </form>
+  );
+}
+
+function LoadingState() {
+  return (
+    <section className="panel loading-state">
+      <span className="spinner" />
+      <p>Loading report…</p>
+    </section>
   );
 }
 
