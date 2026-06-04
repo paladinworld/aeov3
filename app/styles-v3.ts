@@ -465,6 +465,8 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 
 /* ── Empty state ── */
 .empty-state{padding:48px 32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.empty-state .es-icon{width:46px;height:46px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--primary) 12%,transparent);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.empty-state p{max-width:42ch}
 .loading-state{padding:64px 32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--fg-muted)}
 .loading-state .spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--primary);animation:aeo-spin .7s linear infinite}
 @keyframes aeo-spin{to{transform:rotate(360deg)}}

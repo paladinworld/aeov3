@@ -397,7 +397,7 @@ export default function Home() {
               ) : loadingReport ? (
                 <LoadingState />
               ) : !viewPayload || !reportStats ? (
-                <EmptyState onSetup={() => setView("setup")} />
+                <EmptyState />
               ) : view === "prompts" ? (
                 <PromptsView payload={viewPayload} stats={reportStats} />
               ) : view === "citations" ? (
@@ -1388,14 +1388,12 @@ function LoadingState() {
   );
 }
 
-function EmptyState({ onSetup }: { onSetup: () => void }) {
+function EmptyState() {
   return (
     <section className="panel empty-state">
-      <h2>No report loaded</h2>
-      <p>Create or select a company, generate a query set, then run the audit.</p>
-      <button className="btn primary" type="button" onClick={onSetup}>
-        Open setup
-      </button>
+      <span className="es-icon"><Icon name="clock" size={20} /></span>
+      <h2>Your report isn&apos;t ready yet</h2>
+      <p>We&apos;re still putting your numbers together — this can take a couple of minutes. Please check back shortly.</p>
     </section>
   );
 }
