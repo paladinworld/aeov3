@@ -277,12 +277,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 @media(max-width:880px){
   .land{grid-template-columns:1fr}
-  .hero{order:-1;position:static;height:auto;min-height:auto;padding:40px 32px 44px}
+  /* Sign-up form leads on mobile (Netic logo + CTA upfront); brand panel follows */
+  .hero{position:static;height:auto;min-height:auto;padding:40px 32px 44px}
   .hero h1{font-size:32px}
-  .hero-cta{display:inline-flex}
   .bento{margin-top:30px}
-  /* On mobile, show only the visibility-score card so the form is quick to reach */
+  /* On mobile, show only the visibility-score card, and keep the barometer compact */
   .b-sent,.b-cit,.b-rank{display:none}
+  .b-vis{max-width:360px;margin-left:auto;margin-right:auto}
+  .gauge-wrap{max-width:240px;margin-left:auto;margin-right:auto}
   .signup-inner{padding:40px 32px;min-height:auto}
   .signup-foot{padding:0 32px 28px}
   #signup{scroll-margin-top:12px}
