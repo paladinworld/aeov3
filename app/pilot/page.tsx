@@ -219,10 +219,10 @@ function Signup() {
           <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
           <div className="result ok">
             <div className="mark"><Check /></div>
-            <h2>You&apos;re in.</h2>
+            <h2>Your report is on the way.</h2>
             <p>
-              We&apos;ve received your request and we&apos;ll email your access link the moment your report is ready.
-              Running every query takes a couple of days, so hang tight while we put your numbers together.
+              We&apos;re preparing your report, which can take a few hours. We&apos;ll email you a link and access
+              code once it&apos;s ready.
             </p>
             <div className="recap">
               {isClient === "no" && company.trim() ?
@@ -231,7 +231,7 @@ function Signup() {
               {serviceArea.trim() ?
                 <div className="rr"><span>Service area</span><b>{serviceArea.trim()}</b></div> :
                 null}
-              <div className="rr"><span>Access link to</span><b>{email.trim()}</b></div>
+              <div className="rr"><span>Email</span><b>{email.trim()}</b></div>
             </div>
             <button className="backlink" onClick={reset}><Back />Submit another company</button>
           </div>
