@@ -828,15 +828,17 @@ function PromptDetails({ row }: { row: PromptRow }) {
    ──────────────────────────────────────────────────────────── */
 function CitationsView({ payload }: { payload: ReportPayload }) {
   const [cFilter, setCFilter] = useState<SurfaceFilter>("all");
-  const [pType, setPType] = useState<PromptTypeFilter>("all");
-  // The intent split only applies to Gemini (it's about Google AI Overview vs local pack).
-  const effectivePType = cFilter === "gemini" ? pType : "all";
-  const cit = useMemo(() => buildCitationStats(payload, cFilter, effectivePType), [payload, cFilter, effectivePType]);
+  const [domType, setDomType] = useState<"all" | SourceType>("all");
+  const cit = useMemo(() => buildCitationStats(payload, cFilter), [payload, cFilter]);
+  const filteredDomains = useMemo(
+    () => (domType === "all" ? cit.domainDetails : cit.domainDetails.filter((row) => row.type === domType)),
+    [cit, domType]
+  );
   const [expanded, setExpanded] = useState("");
 
   useEffect(() => {
-    setExpanded(cit.domainDetails[0]?.domain ?? "");
-  }, [cit]);
+    setExpanded(filteredDomains[0]?.domain ?? "");
+  }, [filteredDomains]);
 
   return (
     <div className="view-stack">
@@ -852,24 +854,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
             </button>
           ))}
         </div>
-        {cFilter === "gemini" ? (
-          <div className="segmented">
-            {([["all", "All prompts"], ["intention", "Intention-driven"], ["informational", "Informational"]] as const).map(([key, label]) => (
-              <button key={key} className={pType === key ? "active" : ""} onClick={() => setPType(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
-
-      {cFilter === "gemini" && pType !== "all" ? (
-        <p className="cit-note">
-          {pType === "intention"
-            ? "Intention-driven: local, ready-to-hire prompts (e.g. “HVAC companies near me”) where Google shows the local pack instead of an AI Overview. Competitor company sites tend to dominate these citations."
-            : "Informational: research-style, longer-tail prompts where Google surfaces an AI Overview. Citations skew toward guides, directories, and editorial lists rather than competitor sites."}
-        </p>
-      ) : null}
 
       <section className="metric-grid four">
         <MetricCard label="Unique Sources" value={String(cit.uniqueSources)} helper="real citation domains" />
@@ -897,7 +882,19 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       </section>
 
       <section className="panel">
-        <PanelHead title="Top Cited Domains" subtitle="Expand a domain to see the exact cited pages" />
+        <PanelHead
+          title="Top Cited Domains"
+          subtitle="Expand a domain to see the exact cited pages"
+          right={
+            <div className="segmented">
+              {([["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const).map(([key, label]) => (
+                <button key={key} className={domType === key ? "active" : ""} onClick={() => setDomType(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          }
+        />
         <div className="src-table">
           <div className="src-head">
             <span>Domain</span>
@@ -905,7 +902,12 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
             <span>Citations</span>
             <span>Share</span>
           </div>
-          {cit.domainDetails.map((row) => {
+          {!filteredDomains.length ? (
+            <p className="muted" style={{ padding: "12px 0" }}>
+              No {domType === "all" ? "" : domType.toLowerCase() + " "}sources cited for this selection.
+            </p>
+          ) : null}
+          {filteredDomains.map((row) => {
             const open = expanded === row.domain;
             return (
               <div key={row.domain} className="dom-group">
