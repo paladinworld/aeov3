@@ -263,7 +263,7 @@ function Signup() {
       <div className="signup-inner">
         <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
         <h1 className="s-head">Request your AI visibility deep dive</h1>
-        <p className="s-sub">A dashboard for home service companies to track ranking across Google Gemini and ChatGPT.</p>
+        <p className="s-sub">A dashboard for home service companies to track AI ranking across Google Gemini and ChatGPT.</p>
 
         <ul className="whatsin">
           <li><Check /><span>Check hundreds of AI queries at local level</span></li>
