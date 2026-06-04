@@ -435,9 +435,17 @@ export default function Home() {
 /* ──────────────────────────────────────────────────────────────
    Overview
    ──────────────────────────────────────────────────────────── */
-type Takeaway = { tone: "good" | "warn" | "neutral"; lead: string; body: string };
+// Home advice: Key Insights split into Strengths (positive, no action) and
+// Improvements (each with one next-step action that deep-links to the relevant
+// view), plus shortened general Tips. Defensive so thin data never breaks it.
+type AdviceAction = { text: string; nav?: View };
+type Advice = {
+  strengths: Array<{ lead: string; body: string }>;
+  improvements: Array<{ lead: string; body: string; action: AdviceAction }>;
+  tips: Array<{ text: string; nav?: View }>;
+};
 
-function buildTakeaways(input: {
+function buildHomeAdvice(input: {
   score100: number;
   gband: string;
   visRank: number;
@@ -448,105 +456,105 @@ function buildTakeaways(input: {
   sovRank: number;
   sovCount: number;
   topRival?: string;
-}): Takeaway[] {
-  const { score100, gband, visRank, total, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival } = input;
-  const out: Takeaway[] = [];
-  const rankStr = visRank > 0 && total > 0 ? ` You rank #${visRank} of ${total} companies tracked in your market.` : "";
+  topDirectories: string[];
+  distinctOwned: number;
+  weakestCategory?: { category: string; rate: number };
+}): Advice {
+  const { score100, gband, visRank, total, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory } = input;
+  const strengths: Advice["strengths"] = [];
+  const improvements: Advice["improvements"] = [];
+  const rankStr = visRank === 1 ? ` — #1 of ${total} in your market` : visRank > 0 && total > 0 ? ` (#${visRank} of ${total})` : "";
+  const gi = Math.round(geminiRate * 100);
+  const gp = Math.round(chatgptRate * 100);
 
-  // 1) Overall standing
+  // Overall standing
   if (gband === "High") {
-    out.push({ tone: "good", lead: `Strong overall AI visibility (${score100}%)`, body: `AI recommends you frequently.${rankStr}` });
-  } else if (gband === "Medium") {
-    out.push({ tone: "warn", lead: `Moderate overall AI visibility (${score100}%)`, body: `AI recommends you selectively, with clear room to grow.${rankStr}` });
+    strengths.push({ lead: `Strong overall AI visibility (${score100}%)`, body: `AI recommends you frequently${rankStr}.` });
   } else {
-    out.push({ tone: "warn", lead: `Limited overall AI visibility (${score100}%)`, body: `AI rarely recommends you today, indicating significant room to improve.${rankStr}` });
+    improvements.push({
+      lead: `${gband} overall AI visibility (${score100}%)`,
+      body: gband === "Medium" ? `AI recommends you selectively — clear room to grow${rankStr}.` : `AI rarely recommends you today${rankStr}.`,
+      action: { text: "Target your weakest prompts and sources", nav: "prompts" }
+    });
   }
 
-  // 2) Platform gap (ChatGPT vs Gemini)
-  const hi = geminiRate >= chatgptRate ? { n: "Gemini", v: geminiRate } : { n: "ChatGPT", v: chatgptRate };
-  const lo = geminiRate >= chatgptRate ? { n: "ChatGPT", v: chatgptRate } : { n: "Gemini", v: geminiRate };
-  if (hi.v - lo.v >= 0.2) {
-    out.push({ tone: "warn", lead: `Platform coverage is imbalanced`, body: `You appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is the primary opportunity.` });
-  } else {
-    out.push({ tone: "neutral", lead: `Consistent across platforms`, body: `You appear in ${pct(geminiRate)} of Gemini answers and ${pct(chatgptRate)} of ChatGPT answers.` });
+  // Platform balance
+  if (Math.abs(gi - gp) >= 12) {
+    const weak = gp < gi ? "ChatGPT" : "Google";
+    improvements.push({
+      lead: "Platform coverage is imbalanced",
+      body: `${gi}% on Google vs ${gp}% on ChatGPT — ${weak} is the gap.`,
+      action: { text: "Compare citation sources between engines for gaps vs competitors", nav: "citations" }
+    });
+  } else if (gi > 0 || gp > 0) {
+    strengths.push({ lead: "Consistent across engines", body: `${gi}% on Google and ${gp}% on ChatGPT.` });
   }
 
-  // 3) Share of voice
+  // Share of voice
   if (sovCount > 0) {
     const sovRankStr = sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : "";
-    out.push({ tone: sov >= 0.15 ? "good" : "neutral", lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `Of all company mentions AI makes in your market, this is the portion that names you.` });
+    if (sov >= 0.15) {
+      strengths.push({ lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `You win a healthy slice of the mentions AI makes in your market.` });
+    } else {
+      improvements.push({
+        lead: `Low share of voice (${pct(sov)}${sovRankStr})`,
+        body: `Competitors take most of the mentions AI makes in your market.`,
+        action: { text: "See who's taking your share", nav: "competitors" }
+      });
+    }
   }
 
-  // 4) Who to overtake
+  // Who leads
   if (visRank > 1 && topRival) {
-    out.push({ tone: "neutral", lead: `${topRival} leads your market`, body: `Currently the most-recommended company in your market — the primary competitor to displace.` });
+    improvements.push({
+      lead: `${topRival} leads your market`,
+      body: `The most-recommended company to displace.`,
+      action: { text: "See the prompts and sources they win", nav: "competitors" }
+    });
   }
 
-  return out;
-}
+  // Directories AI trusts most
+  if (topDirectories.length) {
+    improvements.push({
+      lead: "Key directories AI trusts",
+      body: `${topDirectories.join(", ")}.`,
+      action: { text: "Make sure your profile is strong on each", nav: "citations" }
+    });
+  }
 
-// Recommended Actions = static "general tips" (how to use the tool) + data-driven
-// "for you" actions derived from this location's audit. Placeholder angle set —
-// we expand the angles over time. Kept defensive so thin data never breaks it.
-function buildRecommendations(input: {
-  geminiRate: number;
-  chatgptRate: number;
-  topRival?: string;
-  visRank: number;
-  citation: CitationStats;
-  weakestCategory?: { category: string; rate: number };
-}): { general: string[]; forYou: string[] } {
-  const general = [
-    "Check which prompts and sources your top competitors win — and what they do well there.",
-    "Review the top cited sources for gaps: directories, review sites, and editorial lists you should appear on.",
-    "Read the “Why you weren’t recommended” notes on prompts you’re missing — those are the AI’s own reasons.",
-    "Track your score per engine — Google and ChatGPT pull from different sources, so each needs its own play."
+  // Thin owned content
+  if (distinctOwned <= 1) {
+    improvements.push({
+      lead: "Only your homepage is cited",
+      body: `AI has little of your own content to pull from.`,
+      action: { text: "Add dedicated location and service pages" }
+    });
+  }
+
+  // Weakest prompt category
+  if (weakestCategory && weakestCategory.rate < 0.5) {
+    improvements.push({
+      lead: `Weakest for “${weakestCategory.category}” prompts`,
+      body: `You appear in just ${pct(weakestCategory.rate)} of them.`,
+      action: { text: "Create content targeting that stage", nav: "prompts" }
+    });
+  }
+
+  const tips: Advice["tips"] = [
+    { text: "Check what your top competitors do well", nav: "competitors" },
+    { text: "Find gaps in your top cited sources", nav: "citations" },
+    { text: "Read the AI’s “why not recommended” notes", nav: "prompts" },
+    { text: "Track your score per engine" }
   ];
 
-  const forYou: string[] = [];
-  const gi = Math.round(input.geminiRate * 100);
-  const gp = Math.round(input.chatgptRate * 100);
-
-  // Angle: platform imbalance — name the weaker engine + why it differs.
-  if (Math.abs(gi - gp) >= 12) {
-    const weakerIsChatgpt = gp < gi;
-    const why = weakerIsChatgpt
-      ? "ChatGPT leans on open-web directories and review sites — get listed and well-rated on them."
-      : "Google leans on Maps, the local pack, and Google reviews — strengthen your Business Profile and local pages.";
-    forYou.push(`You appear in ${gi}% of Google answers vs ${gp}% on ChatGPT — your weaker engine is ${weakerIsChatgpt ? "ChatGPT" : "Google"}. ${why}`);
-  }
-
-  // Angle: the directories/review sites AI cites most in this market.
-  const platforms = input.citation.domainRows.filter((row) => row.type === "Platform").slice(0, 3).map((row) => row.domain);
-  if (platforms.length) {
-    forYou.push(`AI’s most-cited directories in your market are ${platforms.join(", ")} → make sure your profile is complete and strongly rated on each.`);
-  }
-
-  // Angle: who's ahead of you.
-  if (input.visRank > 1 && input.topRival) {
-    forYou.push(`${input.topRival} is recommended ahead of you → open Competitors to see the prompts and sources they win, and match them.`);
-  }
-
-  // Angle: thin owned content — only the homepage gets cited.
-  const distinctOwned = new Set(
-    input.citation.domainDetails.filter((domain) => domain.owned).flatMap((domain) => (domain.urls || []).map((url) => url.url))
-  ).size;
-  if (distinctOwned <= 1) {
-    forYou.push("AI rarely cites your site beyond the homepage → add dedicated location and service pages so there’s more of your content to cite.");
-  }
-
-  // Angle: weakest prompt category.
-  if (input.weakestCategory && input.weakestCategory.rate < 0.5) {
-    forYou.push(`You show up least for “${input.weakestCategory.category}” prompts (${pct(input.weakestCategory.rate)}) → create content targeting that stage.`);
-  }
-
-  return { general, forYou };
+  return { strengths, improvements, tips };
 }
 
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
   const [visFilter, setVisFilter] = useState<SurfaceFilter>("all");
   const [sovFilter, setSovFilter] = useState<SurfaceFilter>("all");
   const [citFilter, setCitFilter] = useState<SurfaceFilter>("all");
+  const [advExpanded, setAdvExpanded] = useState(false);
 
   const summary = payload.summary;
   const leaderboard = useMemo(() => buildLeaderboardData(payload), [payload]);
@@ -598,9 +606,15 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const visRanked = [...lb].sort((a, b) => (b.visibilityScore ?? b.visibilityRate) - (a.visibilityScore ?? a.visibilityRate));
   const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
   const topRival = visRanked.find((row) => !row.isTarget)?.name;
-  const takeaways = buildTakeaways({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival });
   const weakestCategory = [...stats.categoryCoverage].sort((a, b) => a.rate - b.rate)[0];
-  const recommendations = buildRecommendations({ geminiRate, chatgptRate, topRival, visRank, citation: citationStats, weakestCategory });
+  const topDirectories = citationStats.domainRows.filter((row) => row.type === "Platform").slice(0, 3).map((row) => row.domain);
+  const distinctOwned = new Set(
+    citationStats.domainDetails.filter((domain) => domain.owned).flatMap((domain) => (domain.urls || []).map((url) => url.url))
+  ).size;
+  const advice = buildHomeAdvice({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory });
+  const VISIBLE_IMPROVEMENTS = 3;
+  const canCollapse = advice.improvements.length > VISIBLE_IMPROVEMENTS;
+  const shownImprovements = canCollapse && !advExpanded ? advice.improvements.slice(0, VISIBLE_IMPROVEMENTS) : advice.improvements;
 
   return (
     <div className="view-stack">
@@ -612,54 +626,73 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </p>
 
       <div className="insight-row">
-        {takeaways.length ? (
-          <div className="panel key-insights">
-            <div className="ki-head">
-              <span className="ki-icon"><Icon name="spark" size={15} /></span>
-              <h2>Key Insights</h2>
-            </div>
-            <ul className="ta-list">
-              {takeaways.map((item, index) => (
-                <li key={index} className={"ta-item " + item.tone}>
-                  <span className="ta-dot" />
-                  <span>
-                    <strong>{item.lead}:</strong> {item.body}
-                  </span>
-                </li>
-              ))}
-            </ul>
+        <div className="panel key-insights">
+          <div className="ki-head">
+            <span className="ki-icon"><Icon name="spark" size={15} /></span>
+            <h2>Key Insights</h2>
           </div>
-        ) : null}
+          {advice.strengths.length ? (
+            <div className="ins-group">
+              <span className="ins-sub">Strengths</span>
+              <ul className="ta-list">
+                {advice.strengths.map((item, index) => (
+                  <li key={"s" + index} className="ta-item good">
+                    <span className="ta-dot" />
+                    <span><strong>{item.lead}:</strong> {item.body}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {advice.improvements.length ? (
+            <div className="ins-group">
+              <span className="ins-sub">Improvements</span>
+              <ul className="ta-list">
+                {shownImprovements.map((item, index) => (
+                  <li key={"m" + index} className="ta-item warn">
+                    <span className="ta-dot" />
+                    <div className="ins-body">
+                      <span><strong>{item.lead}:</strong> {item.body}</span>
+                      {item.action.nav ? (
+                        <button className="ins-action" onClick={() => onNav(item.action.nav!)}>
+                          {item.action.text} <Icon name="arrow" size={12} />
+                        </button>
+                      ) : (
+                        <span className="ins-action plain">{item.action.text}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {canCollapse ? (
+                <button className="ins-more" onClick={() => setAdvExpanded((open) => !open)}>
+                  {advExpanded ? "Show less" : `Show ${advice.improvements.length - VISIBLE_IMPROVEMENTS} more`}
+                  <Icon name={advExpanded ? "chevron" : "chevdown"} size={13} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
         <div className="panel key-insights reco-panel">
           <div className="ki-head">
             <span className="ki-icon reco-icon"><Icon name="target" size={15} /></span>
             <h2>Recommended Actions</h2>
           </div>
-          <div className="reco-group">
-            <span className="reco-sub">General tips</span>
-            <ul className="ta-list">
-              {recommendations.general.map((text, index) => (
-                <li key={"g" + index} className="ta-item neutral">
-                  <span className="ta-dot" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          {recommendations.forYou.length ? (
-            <div className="reco-group">
-              <span className="reco-sub">For you</span>
-              <ul className="ta-list">
-                {recommendations.forYou.map((text, index) => (
-                  <li key={"f" + index} className="ta-item good">
-                    <span className="ta-dot" />
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <ul className="ta-list reco-tips">
+            {advice.tips.map((tip, index) => (
+              <li key={"t" + index} className="ta-item neutral">
+                <span className="ta-dot" />
+                {tip.nav ? (
+                  <button className="ins-action" onClick={() => onNav(tip.nav!)}>
+                    {tip.text} <Icon name="arrow" size={12} />
+                  </button>
+                ) : (
+                  <span>{tip.text}</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
