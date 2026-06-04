@@ -147,6 +147,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .fld-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
 .fld-row .fld{margin-bottom:0}
 .req{color:var(--destructive);margin-left:2px;font-weight:600}
+.opt{color:var(--fg-placeholder);margin-left:6px;font-weight:400;font-size:12px;text-transform:none;letter-spacing:0}
+.fld-hint{display:block;font-size:12px;color:var(--fg-placeholder);margin-top:6px;line-height:1.4}
 .fld .msg-err{font-size:11px;color:var(--destructive);font-weight:500}
 
 /* submit */

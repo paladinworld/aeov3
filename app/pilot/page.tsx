@@ -189,11 +189,12 @@ function Signup() {
   const [email, setEmail] = useState<string>("");
   const [size, setSize] = useState<string>("");
   const [industry, setIndustry] = useState<string>("");
+  const [serviceArea, setServiceArea] = useState<string>("");
   const [touched, setTouched] = useState<boolean>(false);
   const [view, setView] = useState<"form" | "ok" | "wait">("form");
 
   const reset = () => {
-    setView("form"); setIsClient(""); setFirstName(""); setLastName(""); setCompany(""); setEmail(""); setSize(""); setIndustry(""); setTouched(false);
+    setView("form"); setIsClient(""); setFirstName(""); setLastName(""); setCompany(""); setEmail(""); setSize(""); setIndustry(""); setServiceArea(""); setTouched(false);
   };
   const nameOk = firstName.trim() !== "" && lastName.trim() !== "";
 
@@ -226,6 +227,9 @@ function Signup() {
             <div className="recap">
               {isClient === "no" && company.trim() ?
                 <div className="rr"><span>Company</span><b>{company.trim()}</b></div> :
+                null}
+              {serviceArea.trim() ?
+                <div className="rr"><span>Service area</span><b>{serviceArea.trim()}</b></div> :
                 null}
               <div className="rr"><span>Access link to</span><b>{email.trim()}</b></div>
             </div>
@@ -356,6 +360,15 @@ function Signup() {
               </div>
             </div>
           </> :
+          null}
+
+        {stepTwo ?
+          <div className="fld">
+            <label htmlFor="area">Primary service area <span className="opt">optional</span></label>
+            <input id="area" type="text" placeholder="e.g. Cleveland, OH" value={serviceArea}
+              onChange={(e) => setServiceArea(e.target.value)} />
+            <span className="fld-hint">The #1 city your customers are in — not necessarily where your office is.</span>
+          </div> :
           null}
 
         {touched && stepTwo && (!nameOk || !emailOk(email) || (showDetails && (!company.trim() || !size))) ?
