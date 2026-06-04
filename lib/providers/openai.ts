@@ -15,6 +15,14 @@ type OpenAIResponse = {
         title?: string;
       }>;
     }>;
+    // web_search_call items carry the full list of pages the search opened — ChatGPT
+    // shows these in its "Sources" panel. Requested via include: web_search_call.action.sources.
+    action?: {
+      sources?: Array<{
+        url?: string;
+        title?: string;
+      }>;
+    };
   }>;
 };
 
@@ -284,18 +292,25 @@ function extractText(response: OpenAIResponse) {
 }
 
 function extractCitations(response: OpenAIResponse): Citation[] {
-  const annotations =
-    response.output
-      ?.flatMap((item) => item.content ?? [])
-      .flatMap((content) => content.annotations ?? []) ?? [];
+  const items = response.output ?? [];
+  // Inline footnotes the model tied to specific sentences...
+  const fromAnnotations = items
+    .flatMap((item) => item.content ?? [])
+    .flatMap((content) => content.annotations ?? [])
+    .map((annotation) => ({ url: annotation.url, title: annotation.title }));
+  // ...plus every page the web_search actually opened (ChatGPT's "Sources" panel).
+  // Capturing only annotations dropped ~⅔ of sources — notably directories/aggregators
+  // (serviceagent, bestprosintown, expertise, etc.) the model consulted but didn't inline-cite.
+  const fromSources = items.flatMap((item) => item.action?.sources ?? []).map((source) => ({ url: source.url, title: source.title }));
 
-  return annotations
-    .filter((annotation) => annotation.url)
-    .map((annotation) => ({
-      title: annotation.title ?? annotation.url ?? "",
-      url: annotation.url ?? "",
-      domain: domainFromUrl(annotation.url ?? "")
-    }));
+  const seen = new Set<string>();
+  const citations: Citation[] = [];
+  for (const ref of [...fromAnnotations, ...fromSources]) {
+    if (!ref.url || seen.has(ref.url)) continue;
+    seen.add(ref.url);
+    citations.push({ title: ref.title ?? ref.url, url: ref.url, domain: domainFromUrl(ref.url) });
+  }
+  return citations;
 }
 
 function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[]): CompanyMention[] {
