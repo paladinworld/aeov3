@@ -203,13 +203,13 @@ export default function Home() {
     const nextReports = (await reportResponse.json()) as Report[];
     setCompanies(nextCompanies);
     setReports(nextReports);
-    // Optional ?report=<id> override (per-client links); otherwise the demo default.
+    // A report loads ONLY when explicitly requested via ?report=<id> (per-client links).
+    // With no report param we intentionally show a blank state — no demo default.
     const requestedId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("report") : null;
     const requested = requestedId ? nextReports.find((report) => report.id === requestedId) : null;
-    const preferredReport = requested ?? selectDefaultReport(nextReports, nextCompanies);
-    setSelectedCompanyId((current) => current || preferredReport?.companyId || nextCompanies[0]?.id || "");
-    if (!activeReport && preferredReport) {
-      await loadReport(preferredReport.id);
+    setSelectedCompanyId((current) => current || requested?.companyId || nextCompanies[0]?.id || "");
+    if (!activeReport && requested) {
+      await loadReport(requested.id);
     }
   }
 
@@ -2294,14 +2294,6 @@ function buildCompanyReportOptions(companies: Company[], reports: Report[]): Com
     })
     .filter((option): option is CompanyReportOption => Boolean(option))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-function selectDefaultReport(reports: Report[], companies: Company[]) {
-  const hoffmannCompanies = companies.filter((company) => canonicalCompanyName(company.name).includes("hoffmannbrothers"));
-  const hoffmannReports = reports.filter((report) => hoffmannCompanies.some((company) => company.id === report.companyId));
-  const hoffmannReport = selectPreferredReport(hoffmannReports);
-  if (hoffmannReport) return hoffmannReport;
-  return selectPreferredReport(reports);
 }
 
 function selectPreferredReport(reports: Report[]) {
