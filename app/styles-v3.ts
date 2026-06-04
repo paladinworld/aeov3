@@ -337,6 +337,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pcol-insight{background:color-mix(in oklab,var(--warning) 6%,transparent)}
 .pcol-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--fg-muted)}
 .pcol-rank{text-transform:none;letter-spacing:0;font-weight:600;color:var(--fg)}
+.pcol-explain{font-size:12px;color:var(--fg-muted);margin:0;line-height:1.45}
 .platform-col ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
 .platform-col ol li{font-size:13px;color:var(--fg)}
 .platform-col ol li.you{font-weight:600;color:var(--primary)}
