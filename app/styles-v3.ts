@@ -33,6 +33,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .acct select:focus{border-color:var(--primary-hover);box-shadow:0 0 0 2px color-mix(in oklab,var(--primary-hover) 22%,transparent)}
 .acct .sel svg{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--fg-muted);pointer-events:none}
 .acct .loc{display:block;font-size:11px;color:var(--fg-muted);margin-top:7px;padding-left:2px}
+.acct-hq{display:block;font-size:11px;color:var(--fg-muted);margin-top:8px;padding-left:2px;letter-spacing:.01em}
 
 /* ── Nav ── */
 .nav-group{display:flex;flex-direction:column;gap:1px;margin-bottom:4px}

@@ -128,8 +128,47 @@ export default function Home() {
     [companies, selectedCompanyId]
   );
 
-  // Single fixed company (the default account); the sidebar dropdown switches LOCATION.
+  // Single fixed company (the default account); the sidebar dropdown switches SERVICE AREA.
   const [selectedLocationId, setSelectedLocationId] = useState("");
+
+  // Service areas for the active brand. Each area is its own report (per company×area),
+  // so switching the dropdown loads a different report rather than filtering in place.
+  const serviceAreaOptions = useMemo(() => {
+    const active = activeReport?.company;
+    if (!active) return [] as Array<{ reportId: string; area: string }>;
+    const brand = canonicalCompanyName(active.name);
+    const byId = new Map(companies.map((item) => [item.id, item]));
+    const byArea = new Map<string, { reportId: string; area: string; status: Report["status"]; runs: number; createdAt: string }>();
+    const activeId = activeReport?.report.id;
+    for (const report of reports) {
+      const owner = byId.get(report.companyId);
+      if (!owner || canonicalCompanyName(owner.name) !== brand) continue;
+      const area = primaryLocation(owner) ?? "—";
+      const prev = byArea.get(area);
+      if (prev && prev.reportId === activeId) continue; // active report already owns this area
+      const runs = (report as Report & { runCount?: number }).runCount ?? report.runs?.length ?? 0;
+      const isActive = report.id === activeId;
+      const better =
+        isActive ||
+        !prev ||
+        (report.status === "complete" && prev.status !== "complete") ||
+        (report.status === prev.status && (runs > prev.runs || (runs === prev.runs && report.createdAt > prev.createdAt)));
+      if (better) byArea.set(area, { reportId: report.id, area, status: report.status, runs, createdAt: report.createdAt });
+    }
+    return Array.from(byArea.values())
+      .sort((a, b) => a.area.localeCompare(b.area))
+      .map(({ reportId, area }) => ({ reportId, area }));
+  }, [activeReport?.company, activeReport?.report.id, companies, reports]);
+
+  async function switchServiceArea(reportId: string) {
+    if (reportId === activeReport?.report.id) return;
+    await loadReport(reportId);
+    if (typeof window !== "undefined") {
+      const next = new URL(window.location.href);
+      next.searchParams.set("report", reportId);
+      window.history.replaceState({}, "", next.toString());
+    }
+  }
 
   useEffect(() => {
     if (!activeReport) return;
@@ -245,17 +284,23 @@ export default function Home() {
 
             <div className="acct">
               <div className="acct-company">{company?.name ?? "—"}</div>
-              <label htmlFor="loc">Location</label>
+              <label htmlFor="loc">Service area</label>
               <div className="sel">
-                <select id="loc" value={selectedLocationId} onChange={(event) => setSelectedLocationId(event.target.value)} disabled={!company || company.locations.length <= 1}>
-                  {(company?.locations ?? []).map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.label}
+                <select
+                  id="loc"
+                  value={activeReport?.report.id ?? ""}
+                  onChange={(event) => switchServiceArea(event.target.value)}
+                  disabled={serviceAreaOptions.length <= 1}
+                >
+                  {serviceAreaOptions.map((option) => (
+                    <option key={option.reportId} value={option.reportId}>
+                      {option.area}
                     </option>
                   ))}
                 </select>
                 <Icon name="chevdown" size={14} />
               </div>
+              {company?.headquarters?.label ? <div className="acct-hq">HQ · {company.headquarters.label}</div> : null}
             </div>
 
             <NavGroup label="Overview">

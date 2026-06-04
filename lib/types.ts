@@ -49,7 +49,12 @@ export type Company = {
   googleBusinessProfileUrl?: string;
   services: Service[];
   competitors: string[];
+  // Service areas the report is run against (the markets where customers search).
+  // The dropdown switches between these; each area is its own report.
   locations: Location[];
+  // Where the business is physically based (GBP / HQ). Display-only reference —
+  // NOT what the report is scored on. May differ from the target service area.
+  headquarters?: Location;
   createdAt: string;
 };
 
