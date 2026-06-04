@@ -7,7 +7,7 @@
 export const dashboardStyles = `
 *{box-sizing:border-box}
 /* Global UI density — matches the Claude design-tool view (~90%). Tune to taste. */
-.aeo3{zoom:0.9}
+.aeo3{zoom:0.95}
 .aeo3 .app{min-height:calc(100vh / 0.9)}
 button,input,select,textarea{font:inherit;color:inherit}
 .aeo3 a{color:var(--primary);text-decoration:none}
@@ -47,10 +47,6 @@ button,input,select,textarea{font:inherit;color:inherit}
 .navi .count{font-size:11px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
 .navi.active .count{color:var(--primary)}
 .navi .soon{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-muted);background:var(--secondary);padding:2px 5px;border-radius:var(--radius-full)}
-.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.side-foot .av{width:28px;height:28px;border-radius:var(--radius-full);background:var(--primary);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
-.side-foot .nm{font-size:12px;font-weight:500;line-height:1.3}
-.side-foot .rl{font-size:11px;color:var(--fg-muted)}
 
 /* ── Top bar ── */
 .topbar{display:flex;align-items:center;gap:16px;padding:0;height:60px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}

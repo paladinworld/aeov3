@@ -326,14 +326,6 @@ export default function Home() {
                 Competitors
               </Navi>
             </NavGroup>
-
-            <div className="side-foot">
-              <div className="av">{initials(company?.name ?? "Netic")}</div>
-              <div>
-                <div className="nm">{(company?.name ?? "Netic").split(",")[0]}</div>
-                <div className="rl">operator</div>
-              </div>
-            </div>
           </aside>
 
           <section className="workspace">
@@ -2382,16 +2374,6 @@ function renderRich(text: string): React.ReactNode[] {
   });
 }
 
-function initials(value: string) {
-  return (
-    value
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase() ?? "")
-      .join("") || "N"
-  );
-}
 
 function truncate(value: string, length: number) {
   return value.length > length ? `${value.slice(0, length - 1)}…` : value;
