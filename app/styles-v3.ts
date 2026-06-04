@@ -138,6 +138,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ta-item.good .ta-dot{background:var(--success)}
 .ta-item.warn .ta-dot{background:var(--warning)}
 .ta-item.neutral .ta-dot{background:var(--primary)}
+/* Key Insights + Recommended Actions sit side by side; stack on narrow screens. */
+.insight-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+@media(max-width:900px){.insight-row{grid-template-columns:1fr}}
+.reco-panel .reco-group{padding:12px 20px 4px}
+.reco-panel .reco-group:last-child{padding-bottom:16px}
+.reco-panel .reco-group .ta-list{padding:8px 0 0}
+.reco-sub{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fg-muted)}
+.reco-icon{background:color-mix(in oklab,var(--success) 14%,transparent);color:var(--success)}
 .panel-body{padding:18px 20px}
 
 /* ── Barometer (gauge) ── */

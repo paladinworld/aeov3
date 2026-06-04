@@ -84,7 +84,8 @@ const ICONS: Record<string, string> = {
   menu: "M3 6h18M3 12h18M3 18h18",
   spark: "M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z",
   close: "M18 6L6 18M6 6l12 12",
-  desktop: "M3 4h18v12H3zM8 20h8M12 16v4"
+  desktop: "M3 4h18v12H3zM8 20h8M12 16v4",
+  target: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"
 };
 
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -484,6 +485,64 @@ function buildTakeaways(input: {
   return out;
 }
 
+// Recommended Actions = static "general tips" (how to use the tool) + data-driven
+// "for you" actions derived from this location's audit. Placeholder angle set —
+// we expand the angles over time. Kept defensive so thin data never breaks it.
+function buildRecommendations(input: {
+  geminiRate: number;
+  chatgptRate: number;
+  topRival?: string;
+  visRank: number;
+  citation: CitationStats;
+  weakestCategory?: { category: string; rate: number };
+}): { general: string[]; forYou: string[] } {
+  const general = [
+    "Check which prompts and sources your top competitors win — and what they do well there.",
+    "Review the top cited sources for gaps: directories, review sites, and editorial lists you should appear on.",
+    "Read the “Why you weren’t recommended” notes on prompts you’re missing — those are the AI’s own reasons.",
+    "Track your score per engine — Google and ChatGPT pull from different sources, so each needs its own play."
+  ];
+
+  const forYou: string[] = [];
+  const gi = Math.round(input.geminiRate * 100);
+  const gp = Math.round(input.chatgptRate * 100);
+
+  // Angle: platform imbalance — name the weaker engine + why it differs.
+  if (Math.abs(gi - gp) >= 12) {
+    const weakerIsChatgpt = gp < gi;
+    const why = weakerIsChatgpt
+      ? "ChatGPT leans on open-web directories and review sites — get listed and well-rated on them."
+      : "Google leans on Maps, the local pack, and Google reviews — strengthen your Business Profile and local pages.";
+    forYou.push(`You appear in ${gi}% of Google answers vs ${gp}% on ChatGPT — your weaker engine is ${weakerIsChatgpt ? "ChatGPT" : "Google"}. ${why}`);
+  }
+
+  // Angle: the directories/review sites AI cites most in this market.
+  const platforms = input.citation.domainRows.filter((row) => row.type === "Platform").slice(0, 3).map((row) => row.domain);
+  if (platforms.length) {
+    forYou.push(`AI’s most-cited directories in your market are ${platforms.join(", ")} → make sure your profile is complete and strongly rated on each.`);
+  }
+
+  // Angle: who's ahead of you.
+  if (input.visRank > 1 && input.topRival) {
+    forYou.push(`${input.topRival} is recommended ahead of you → open Competitors to see the prompts and sources they win, and match them.`);
+  }
+
+  // Angle: thin owned content — only the homepage gets cited.
+  const distinctOwned = new Set(
+    input.citation.domainDetails.filter((domain) => domain.owned).flatMap((domain) => (domain.urls || []).map((url) => url.url))
+  ).size;
+  if (distinctOwned <= 1) {
+    forYou.push("AI rarely cites your site beyond the homepage → add dedicated location and service pages so there’s more of your content to cite.");
+  }
+
+  // Angle: weakest prompt category.
+  if (input.weakestCategory && input.weakestCategory.rate < 0.5) {
+    forYou.push(`You show up least for “${input.weakestCategory.category}” prompts (${pct(input.weakestCategory.rate)}) → create content targeting that stage.`);
+  }
+
+  return { general, forYou };
+}
+
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
   const [visFilter, setVisFilter] = useState<SurfaceFilter>("all");
   const [sovFilter, setSovFilter] = useState<SurfaceFilter>("all");
@@ -540,6 +599,8 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
   const topRival = visRanked.find((row) => !row.isTarget)?.name;
   const takeaways = buildTakeaways({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival });
+  const weakestCategory = [...stats.categoryCoverage].sort((a, b) => a.rate - b.rate)[0];
+  const recommendations = buildRecommendations({ geminiRate, chatgptRate, topRival, visRank, citation: citationStats, weakestCategory });
 
   return (
     <div className="view-stack">
@@ -550,24 +611,57 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         Based on tracked high-intent prompts with multiple queries for accuracy. AI results can vary by platform, session, model, location, and timing. For reference only; not an exact view of what every consumer sees.
       </p>
 
-      {takeaways.length ? (
-        <div className="panel key-insights">
-          <div className="ki-head">
-            <span className="ki-icon"><Icon name="spark" size={15} /></span>
-            <h2>Key Insights</h2>
+      <div className="insight-row">
+        {takeaways.length ? (
+          <div className="panel key-insights">
+            <div className="ki-head">
+              <span className="ki-icon"><Icon name="spark" size={15} /></span>
+              <h2>Key Insights</h2>
+            </div>
+            <ul className="ta-list">
+              {takeaways.map((item, index) => (
+                <li key={index} className={"ta-item " + item.tone}>
+                  <span className="ta-dot" />
+                  <span>
+                    <strong>{item.lead}:</strong> {item.body}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="ta-list">
-            {takeaways.map((item, index) => (
-              <li key={index} className={"ta-item " + item.tone}>
-                <span className="ta-dot" />
-                <span>
-                  <strong>{item.lead}:</strong> {item.body}
-                </span>
-              </li>
-            ))}
-          </ul>
+        ) : null}
+
+        <div className="panel key-insights reco-panel">
+          <div className="ki-head">
+            <span className="ki-icon reco-icon"><Icon name="target" size={15} /></span>
+            <h2>Recommended Actions</h2>
+          </div>
+          <div className="reco-group">
+            <span className="reco-sub">General tips</span>
+            <ul className="ta-list">
+              {recommendations.general.map((text, index) => (
+                <li key={"g" + index} className="ta-item neutral">
+                  <span className="ta-dot" />
+                  <span>{text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {recommendations.forYou.length ? (
+            <div className="reco-group">
+              <span className="reco-sub">For you</span>
+              <ul className="ta-list">
+                {recommendations.forYou.map((text, index) => (
+                  <li key={"f" + index} className="ta-item good">
+                    <span className="ta-dot" />
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       <div className="panel score-panel">
         <PanelHead
