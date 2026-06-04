@@ -695,7 +695,6 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                 <span className="prompt-text">
                   <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
                   <span className="label">{row.query.text}</span>
-                  {row.hasInsight ? <b className="insight-marker">Insight</b> : null}
                 </span>
                 <span>
                   <Badge>{INTENT_LABELS[row.query.intent] || row.query.intent}</Badge>
