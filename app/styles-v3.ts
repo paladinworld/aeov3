@@ -138,13 +138,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ta-item.good .ta-dot{background:var(--success)}
 .ta-item.warn .ta-dot{background:var(--warning)}
 .ta-item.neutral .ta-dot{background:var(--primary)}
-/* Key Insights + Recommended Actions sit side by side; stack on narrow screens. */
-.insight-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
-@media(max-width:900px){.insight-row{grid-template-columns:1fr}}
-.reco-icon{background:color-mix(in oklab,var(--success) 14%,transparent);color:var(--success)}
-.ins-group{padding:12px 20px 2px}
-.ins-group:last-child{padding-bottom:14px}
-.ins-group .ta-list{padding:8px 0 0}
+/* One Key Insights panel: Strengths (left) and Improvements (right); stack on narrow screens. */
+.insight-cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;padding:12px 20px 16px;align-items:start}
+@media(max-width:900px){.insight-cols{grid-template-columns:1fr;gap:0}.insight-cols .ins-col+.ins-col{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}}
+.ins-col{min-width:0}
+.ins-col .ta-list{padding:8px 0 0}
 .ins-sub{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fg-muted)}
 .ins-body{display:flex;flex-direction:column;gap:5px;min-width:0}
 .ins-action{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;background:none;border:0;padding:0;margin:0;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--primary);font-family:inherit;text-align:left;line-height:1.4}
@@ -154,7 +152,6 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ins-action.plain:hover{text-decoration:none}
 .ins-more{display:inline-flex;align-items:center;gap:3px;margin:4px 0 12px;background:none;border:0;padding:0;cursor:pointer;font-size:12px;font-weight:600;color:var(--fg-muted);font-family:inherit}
 .ins-more:hover{color:var(--fg)}
-.reco-tips{padding-top:14px}
 .panel-body{padding:18px 20px}
 
 /* ── Barometer (gauge) ── */

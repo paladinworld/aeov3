@@ -442,7 +442,6 @@ type AdviceAction = { text: string; nav?: View };
 type Advice = {
   strengths: Array<{ lead: string; body: string }>;
   improvements: Array<{ lead: string; body: string; action: AdviceAction }>;
-  tips: Array<{ text: string; nav?: View }>;
 };
 
 function buildHomeAdvice(input: {
@@ -497,7 +496,7 @@ function buildHomeAdvice(input: {
       strengths.push({ lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `You win a healthy slice of the mentions AI makes in your market.` });
     } else {
       improvements.push({
-        lead: `Low share of voice (${pct(sov)}${sovRankStr})`,
+        lead: `Low share of voice — ${pct(sov)}${sovRankStr}`,
         body: `Competitors take most of the mentions AI makes in your market.`,
         action: { text: "See who's taking your share", nav: "competitors" }
       });
@@ -540,14 +539,7 @@ function buildHomeAdvice(input: {
     });
   }
 
-  const tips: Advice["tips"] = [
-    { text: "Check what your top competitors do well", nav: "competitors" },
-    { text: "Find gaps in your top cited sources", nav: "citations" },
-    { text: "Read the AI’s “why not recommended” notes", nav: "prompts" },
-    { text: "Track your score per engine" }
-  ];
-
-  return { strengths, improvements, tips };
+  return { strengths, improvements };
 }
 
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
@@ -622,30 +614,32 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google, ChatGPT).
       </p>
       <p className="bench-note">
-        Based on tracked high-intent prompts with multiple queries for accuracy. AI results can vary by platform, session, model, location, and timing. For reference only; not an exact view of what every consumer sees.
+        Directional reference only — AI results vary by platform, session, location, and timing, so this won&apos;t match exactly what every consumer sees.
       </p>
 
-      <div className="insight-row">
+      {advice.strengths.length || advice.improvements.length ? (
         <div className="panel key-insights">
           <div className="ki-head">
             <span className="ki-icon"><Icon name="spark" size={15} /></span>
-            <h2>Key Insights</h2>
+            <h2>Key Insights &amp; Actions</h2>
           </div>
-          {advice.strengths.length ? (
-            <div className="ins-group">
+          <div className="insight-cols">
+            <div className="ins-col">
               <span className="ins-sub">Strengths</span>
               <ul className="ta-list">
-                {advice.strengths.map((item, index) => (
-                  <li key={"s" + index} className="ta-item good">
-                    <span className="ta-dot" />
-                    <span><strong>{item.lead}:</strong> {item.body}</span>
-                  </li>
-                ))}
+                {advice.strengths.length ? (
+                  advice.strengths.map((item, index) => (
+                    <li key={"s" + index} className="ta-item good">
+                      <span className="ta-dot" />
+                      <span><strong>{item.lead}:</strong> {item.body}</span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="ta-item neutral"><span className="ta-dot" /><span className="muted">No standout strengths yet — focus on the improvements.</span></li>
+                )}
               </ul>
             </div>
-          ) : null}
-          {advice.improvements.length ? (
-            <div className="ins-group">
+            <div className="ins-col">
               <span className="ins-sub">Improvements</span>
               <ul className="ta-list">
                 {shownImprovements.map((item, index) => (
@@ -671,30 +665,9 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
                 </button>
               ) : null}
             </div>
-          ) : null}
-        </div>
-
-        <div className="panel key-insights reco-panel">
-          <div className="ki-head">
-            <span className="ki-icon reco-icon"><Icon name="target" size={15} /></span>
-            <h2>Recommended Actions</h2>
           </div>
-          <ul className="ta-list reco-tips">
-            {advice.tips.map((tip, index) => (
-              <li key={"t" + index} className="ta-item neutral">
-                <span className="ta-dot" />
-                {tip.nav ? (
-                  <button className="ins-action" onClick={() => onNav(tip.nav!)}>
-                    {tip.text} <Icon name="arrow" size={12} />
-                  </button>
-                ) : (
-                  <span>{tip.text}</span>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
-      </div>
+      ) : null}
 
       <div className="panel score-panel">
         <PanelHead
