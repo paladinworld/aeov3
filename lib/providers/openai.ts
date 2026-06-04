@@ -55,7 +55,9 @@ export async function runChatGptSearch(params: {
     surface: "chatgpt_search",
     runNumber: params.runNumber,
     rawAnswer: answer,
-    mentions,
+    // Store the source list once on the run; don't duplicate it on every mention.
+    mentions: mentions.map((mention) => ({ ...mention, citations: [] })),
+    citations,
     createdAt: new Date().toISOString()
   };
 }

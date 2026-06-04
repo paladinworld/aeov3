@@ -1,4 +1,5 @@
 import { Citation, CompanyMention, Report, VisibilitySummary } from "./types";
+import { runCitations } from "./citations";
 
 type CompetitorGroup = {
   displayName: string;
@@ -20,18 +21,17 @@ export function summarizeReport(report: Report): VisibilitySummary {
   }
 
   for (const run of report.runs) {
-    const runCitationDomains = new Set<string>();
-
     for (const mention of run.mentions) {
       if (!mention.isTarget) {
         addCompetitorMention(competitorGroups, mention);
       }
+    }
 
-      for (const citation of mention.citations) {
-        const domain = displayCitationDomain(citation);
-        if (domain) {
-          runCitationDomains.add(domain);
-        }
+    const runCitationDomains = new Set<string>();
+    for (const citation of runCitations(run)) {
+      const domain = displayCitationDomain(citation);
+      if (domain) {
+        runCitationDomains.add(domain);
       }
     }
 

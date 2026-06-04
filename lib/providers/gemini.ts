@@ -166,7 +166,9 @@ async function buildRunFromGemini(params: {
     surface: params.surface,
     runNumber: params.runNumber,
     rawAnswer: answer,
-    mentions,
+    // Store the source list once on the run; don't duplicate it on every mention.
+    mentions: mentions.map((mention) => ({ ...mention, citations: [] })),
+    citations,
     createdAt: new Date().toISOString()
   };
 }

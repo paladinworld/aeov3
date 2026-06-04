@@ -101,6 +101,10 @@ export type SurfaceRun = {
   runNumber: number;
   rawAnswer: string;
   mentions: CompanyMention[];
+  // The run's distinct cited sources, stored ONCE here (new runs). Older runs left
+  // this undefined and duplicated the same list on every mention — read both via
+  // runCitations() in lib/citations.ts.
+  citations?: Citation[];
   missingInsight?: MissingRecommendationInsight;
   createdAt: string;
 };

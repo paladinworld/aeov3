@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { HVAC_SERVICES } from "@/lib/constants";
+import { runCitations } from "@/lib/citations";
 import {
   Citation,
   Company,
@@ -1971,25 +1972,23 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
     const urlsSeenInRun = new Set<string>();
     const runKey = `${run.queryId}:${run.runNumber}:${run.surface}`;
 
-    for (const mention of run.mentions) {
-      for (const citation of mention.citations) {
-        const domain = displayCitationDomain(citation);
-        const url = citationUrl(citation);
-        if (domain) domains.add(domain);
-        if (!domain || !url || urlsSeenInRun.has(url)) continue;
-        urlsSeenInRun.add(url);
+    for (const citation of runCitations(run)) {
+      const domain = displayCitationDomain(citation);
+      const url = citationUrl(citation);
+      if (domain) domains.add(domain);
+      if (!domain || !url || urlsSeenInRun.has(url)) continue;
+      urlsSeenInRun.add(url);
 
-        const byUrl = urlRuns.get(domain) ?? new Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>();
-        const existing = byUrl.get(url);
-        if (existing) {
-          existing.runs.add(runKey);
-          existing.prompts.add(run.queryText);
-          if (citation.title.length > existing.title.length && !looksLikeDomain(citation.title)) existing.title = citationTitle(citation, domain);
-        } else {
-          byUrl.set(url, { title: citationTitle(citation, domain), url, runs: new Set([runKey]), prompts: new Set([run.queryText]) });
-        }
-        urlRuns.set(domain, byUrl);
+      const byUrl = urlRuns.get(domain) ?? new Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>();
+      const existing = byUrl.get(url);
+      if (existing) {
+        existing.runs.add(runKey);
+        existing.prompts.add(run.queryText);
+        if (citation.title.length > existing.title.length && !looksLikeDomain(citation.title)) existing.title = citationTitle(citation, domain);
+      } else {
+        byUrl.set(url, { title: citationTitle(citation, domain), url, runs: new Set([runKey]), prompts: new Set([run.queryText]) });
       }
+      urlRuns.set(domain, byUrl);
     }
 
     for (const domain of domains) {
@@ -2041,20 +2040,18 @@ function buildPromptCitationRows(row: PromptRow, surfaces?: readonly string[]): 
   for (const run of row.runs) {
     if (surfaces && !surfaces.includes(run.surface)) continue;
     const seenInRun = new Set<string>();
-    for (const mention of run.mentions) {
-      for (const citation of mention.citations) {
-        const domain = displayCitationDomain(citation);
-        const url = citationUrl(citation);
-        if (!domain || !url || seenInRun.has(url)) continue;
-        seenInRun.add(url);
-        const existing = citationMap.get(url);
-        if (existing) {
-          existing.count += 1;
-          if (citation.title.length > existing.title.length && !looksLikeDomain(citation.title)) existing.title = citation.title;
-          continue;
-        }
-        citationMap.set(url, { key: url, title: citationTitle(citation, domain), url, domain, count: 1 });
+    for (const citation of runCitations(run)) {
+      const domain = displayCitationDomain(citation);
+      const url = citationUrl(citation);
+      if (!domain || !url || seenInRun.has(url)) continue;
+      seenInRun.add(url);
+      const existing = citationMap.get(url);
+      if (existing) {
+        existing.count += 1;
+        if (citation.title.length > existing.title.length && !looksLikeDomain(citation.title)) existing.title = citation.title;
+        continue;
       }
+      citationMap.set(url, { key: url, title: citationTitle(citation, domain), url, domain, count: 1 });
     }
   }
   return Array.from(citationMap.values())

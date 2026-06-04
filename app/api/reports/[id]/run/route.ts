@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runSurface } from "@/lib/runner";
+import { runCitations } from "@/lib/citations";
 import { citationDomain, classifyDomains } from "@/lib/domain-classifier";
 import { id as createId, readDb, writeDb } from "@/lib/store";
 import { Location, Query, Surface } from "@/lib/types";
@@ -106,11 +107,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   try {
     const domains = new Set<string>();
     for (const run of report.runs) {
-      for (const mention of run.mentions) {
-        for (const citation of mention.citations) {
-          const domain = citationDomain(citation);
-          if (domain) domains.add(domain);
-        }
+      for (const citation of runCitations(run)) {
+        const domain = citationDomain(citation);
+        if (domain) domains.add(domain);
       }
     }
     report.domainTypes = await classifyDomains([...domains]);
