@@ -105,7 +105,6 @@ function Hero() {
     <div className="hero">
       <div className="hero-content">
         <h1>When a homeowner asks AI who to recommend, <em>are you the answer?</em></h1>
-        <p className="lede">The first local AI visibility tool built for home service companies.</p>
 
         <a href="#signup" className="hero-cta">Request my free report <Arrow /></a>
 
@@ -263,10 +262,11 @@ function Signup() {
       <div className="signup-inner">
         <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
         <h1 className="s-head">Request your AI visibility deep dive</h1>
-        <p className="s-sub">A dashboard for home service companies to track AI ranking across Google Gemini and ChatGPT.</p>
+        <p className="s-sub">The first AI visibility tool built for home service companies.</p>
 
         <ul className="whatsin">
           <li><Check /><span>Check hundreds of AI queries at local level</span></li>
+          <li><Check /><span>Track across Google Gemini and ChatGPT</span></li>
           <li><Check /><span>See which prompts and sources drive AI ranking</span></li>
           <li><Check /><span>Compare your rank against local competitors</span></li>
         </ul>
