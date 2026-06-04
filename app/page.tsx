@@ -2401,14 +2401,18 @@ function buildCompanyReportOptions(companies: Company[], reports: Report[]): Com
 }
 
 function selectPreferredReport(reports: Report[]) {
+  // Works on both full reports and the lightweight list (no runs/queries fields) —
+  // guard accordingly and fall back to status + recency.
   return [...reports].sort((a, b) => {
     const aComplete = a.status === "complete" ? 1 : 0;
     const bComplete = b.status === "complete" ? 1 : 0;
     if (aComplete !== bComplete) return bComplete - aComplete;
-    const aRuns = a.runCount ?? a.runs.length;
-    const bRuns = b.runCount ?? b.runs.length;
+    const aRuns = a.runCount ?? a.runs?.length ?? 0;
+    const bRuns = b.runCount ?? b.runs?.length ?? 0;
     if (aRuns !== bRuns) return bRuns - aRuns;
-    if (a.queries.length !== b.queries.length) return b.queries.length - a.queries.length;
+    const aQueries = a.queries?.length ?? 0;
+    const bQueries = b.queries?.length ?? 0;
+    if (aQueries !== bQueries) return bQueries - aQueries;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   })[0];
 }

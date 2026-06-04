@@ -80,6 +80,44 @@ export async function readReportById(id: string): Promise<{ report: Report; comp
   return { report, company };
 }
 
+// Companies only — never load the (huge) report payloads just to list companies.
+export async function readCompanies(): Promise<Company[]> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const result = await supabase.from("companies").select("id,payload,created_at").order("created_at", { ascending: false });
+    if (result.error) throw new Error(`Supabase companies read failed: ${result.error.message}`);
+    return ((result.data ?? []) as CompanyRow[]).map((row) => row.payload);
+  }
+  return (await readDb()).companies;
+}
+
+// Lightweight report list — extract only id/company/status/createdAt from each row's
+// JSONB, never the full payload. Loading all payloads (tens of MB) hits Postgres's
+// statement timeout. status is pulled server-side via payload->>status.
+export type ReportSummary = { id: string; companyId: string; status: Report["status"]; createdAt: string };
+export async function readReportsLight(): Promise<ReportSummary[]> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const result = await supabase
+      .from("reports")
+      .select("id,company_id,created_at,status:payload->>status")
+      .order("created_at", { ascending: false });
+    if (result.error) throw new Error(`Supabase reports read failed: ${result.error.message}`);
+    return ((result.data ?? []) as Array<{ id: string; company_id: string; created_at: string; status: string | null }>).map((row) => ({
+      id: row.id,
+      companyId: row.company_id,
+      status: (row.status as Report["status"]) ?? "complete",
+      createdAt: row.created_at
+    }));
+  }
+  return (await readDb()).reports.map((report) => ({
+    id: report.id,
+    companyId: report.companyId,
+    status: report.status,
+    createdAt: report.createdAt
+  }));
+}
+
 export async function writeDb(db: Database) {
   const supabase = getSupabaseAdmin();
   if (supabase) {

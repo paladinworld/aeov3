@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HVAC_SERVICES } from "@/lib/constants";
-import { id, readDb, writeDb } from "@/lib/store";
+import { id, readCompanies, readDb, writeDb } from "@/lib/store";
 import { Company, Service } from "@/lib/types";
 
 const locationSchema = z.object({
@@ -23,8 +23,8 @@ const companySchema = z.object({
 });
 
 export async function GET() {
-  const db = await readDb();
-  return NextResponse.json(db.companies);
+  // Only the companies table — not every report's full payload (which would time out).
+  return NextResponse.json(await readCompanies());
 }
 
 export async function POST(request: Request) {

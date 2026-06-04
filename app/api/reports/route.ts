@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateHvacQueries } from "@/lib/query-generator";
-import { id, readDb, writeDb } from "@/lib/store";
+import { id, readDb, readReportsLight, writeDb } from "@/lib/store";
 import { Report } from "@/lib/types";
 
 const createReportSchema = z.object({
@@ -12,17 +12,10 @@ const createReportSchema = z.object({
 });
 
 export async function GET() {
-  const db = await readDb();
-  // Lightweight list: the dashboard only uses this to pick/list reports. The heavy
-  // runs[]/targetedSentiment (often >10MB combined) are fetched per-report via [id],
-  // so strip them here and expose runCount for the "preferred report" tiebreaker.
-  const summaries = db.reports.map((report) => ({
-    ...report,
-    runCount: report.runs?.length ?? 0,
-    runs: [],
-    targetedSentiment: []
-  }));
-  return NextResponse.json(summaries);
+  // Lightweight list (id/company/status/createdAt only) extracted server-side — the
+  // dashboard uses it just to pick/group reports, and loading every full payload here
+  // hits Postgres's statement timeout. The full report is fetched per-id via [id].
+  return NextResponse.json(await readReportsLight());
 }
 
 export async function POST(request: Request) {
