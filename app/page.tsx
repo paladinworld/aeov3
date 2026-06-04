@@ -2166,10 +2166,20 @@ function averageSentiment(mentions: CompanyMention[]) {
 }
 
 /* ── citation domain classification ── */
+// Manually-maintained domain aliases: sites that redirect to / are the same
+// business as a primary domain, so AI citations to them count as that company's
+// own site (merged + classified as Owned).
+const DOMAIN_ALIASES: Record<string, string> = {
+  "callalltech.com": "alltechservicesinc.com" // AllTech — callalltech.com redirects to their site
+};
+function aliasDomain(domain: string) {
+  return domain ? DOMAIN_ALIASES[domain] ?? domain : domain;
+}
+
 function displayCitationDomain(citation: Citation) {
-  const domain = domainFromValue(citation.domain || citation.url);
+  const domain = aliasDomain(domainFromValue(citation.domain || citation.url));
   if (domain && !isInfrastructureDomain(domain)) return domain;
-  const titleDomain = domainFromValue(citation.title);
+  const titleDomain = aliasDomain(domainFromValue(citation.title));
   return titleDomain && looksLikeDomain(titleDomain) && !isInfrastructureDomain(titleDomain) ? titleDomain : "";
 }
 
