@@ -435,12 +435,12 @@ export default function Home() {
 /* ──────────────────────────────────────────────────────────────
    Overview
    ──────────────────────────────────────────────────────────── */
-// Home advice: Key Insights split into Strengths (positive, no action) and
-// Improvements (each with one next-step action that deep-links to the relevant
-// view), plus shortened general Tips. Defensive so thin data never breaks it.
+// Home advice: one Key Insights panel — Insights (the situation, always populated,
+// left) and Improvements (each with a next-step action that deep-links to the
+// relevant view, right). Defensive so thin data never breaks it.
 type AdviceAction = { text: string; nav?: View };
 type Advice = {
-  strengths: Array<{ lead: string; body: string }>;
+  insights: Array<{ lead: string; body: string; tone: "good" | "warn" | "neutral" }>;
   improvements: Array<{ lead: string; body: string; action: AdviceAction }>;
 };
 
@@ -460,47 +460,42 @@ function buildHomeAdvice(input: {
   weakestCategory?: { category: string; rate: number };
 }): Advice {
   const { score100, gband, visRank, total, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory } = input;
-  const strengths: Advice["strengths"] = [];
+  const insights: Advice["insights"] = [];
   const improvements: Advice["improvements"] = [];
   const rankStr = visRank === 1 ? ` — #1 of ${total} in your market` : visRank > 0 && total > 0 ? ` (#${visRank} of ${total})` : "";
   const gi = Math.round(geminiRate * 100);
   const gp = Math.round(chatgptRate * 100);
+  const imbalanced = Math.abs(gi - gp) >= 12;
 
-  // Overall standing
-  if (gband === "High") {
-    strengths.push({ lead: `Strong overall AI visibility (${score100}%)`, body: `AI recommends you frequently${rankStr}.` });
-  } else {
-    improvements.push({
-      lead: `${gband} overall AI visibility (${score100}%)`,
-      body: gband === "Medium" ? `AI recommends you selectively — clear room to grow${rankStr}.` : `AI rarely recommends you today${rankStr}.`,
-      action: { text: "Target your weakest prompts and sources", nav: "prompts" }
+  // ── Insights (left): the situation as we found it; always populated. ──
+  insights.push({
+    tone: gband === "High" ? "good" : gband === "Low" ? "warn" : "neutral",
+    lead: `${gband === "High" ? "Strong" : gband === "Medium" ? "Moderate" : "Limited"} overall AI visibility (${score100}%)`,
+    body: `AI recommends you ${gband === "High" ? "frequently" : gband === "Medium" ? "selectively" : "rarely"}${rankStr}.`
+  });
+  if (gi > 0 || gp > 0) {
+    insights.push({
+      tone: imbalanced ? "warn" : "good",
+      lead: imbalanced ? "Coverage is uneven across engines" : "Consistent across engines",
+      body: `${gi}% on Google and ${gp}% on ChatGPT.`
+    });
+  }
+  if (sovCount > 0) {
+    insights.push({
+      tone: sov >= 0.15 ? "good" : "neutral",
+      lead: `Share of voice ${pct(sov)}${sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : ""}`,
+      body: `Of every company mention AI makes in your market, this is the slice that names you.`
     });
   }
 
-  // Platform balance
-  if (Math.abs(gi - gp) >= 12) {
+  // ── Improvements (right): the actions to take. ──
+  if (imbalanced) {
     const weak = gp < gi ? "ChatGPT" : "Google";
     improvements.push({
-      lead: "Platform coverage is imbalanced",
-      body: `${gi}% on Google vs ${gp}% on ChatGPT — ${weak} is the gap.`,
-      action: { text: "Compare citation sources between engines for gaps vs competitors", nav: "citations" }
+      lead: `Close the ${weak} gap`,
+      body: `${weak} pulls from a different source mix than the other engine.`,
+      action: { text: "Compare citation sources for gaps vs competitors", nav: "citations" }
     });
-  } else if (gi > 0 || gp > 0) {
-    strengths.push({ lead: "Consistent across engines", body: `${gi}% on Google and ${gp}% on ChatGPT.` });
-  }
-
-  // Share of voice
-  if (sovCount > 0) {
-    const sovRankStr = sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : "";
-    if (sov >= 0.15) {
-      strengths.push({ lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `You win a healthy slice of the mentions AI makes in your market.` });
-    } else {
-      improvements.push({
-        lead: `Low share of voice — ${pct(sov)}${sovRankStr}`,
-        body: `Competitors take most of the mentions AI makes in your market.`,
-        action: { text: "See who's taking your share", nav: "competitors" }
-      });
-    }
   }
 
   // Who leads
@@ -539,7 +534,16 @@ function buildHomeAdvice(input: {
     });
   }
 
-  return { strengths, improvements };
+  // Fallback so the Improvements column is never empty.
+  if (!improvements.length) {
+    improvements.push({
+      lead: gband === "High" ? "Defend your lead" : "Grow your visibility",
+      body: gband === "High" ? "You're ahead — keep widening the gap on competitors." : `You're below the 30% High band.`,
+      action: { text: "Find your weakest prompts and sources", nav: "prompts" }
+    });
+  }
+
+  return { insights, improvements };
 }
 
 function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats: ReportStats; onNav: (view: View) => void }) {
@@ -614,10 +618,10 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google, ChatGPT).
       </p>
       <p className="bench-note">
-        Directional reference only — AI results vary by platform, session, location, and timing, so this won&apos;t match exactly what every consumer sees.
+        Directional reference only. AI results vary by each query, so this won&apos;t match exactly what every consumer sees.
       </p>
 
-      {advice.strengths.length || advice.improvements.length ? (
+      {advice.insights.length || advice.improvements.length ? (
         <div className="panel key-insights">
           <div className="ki-head">
             <span className="ki-icon"><Icon name="spark" size={15} /></span>
@@ -625,18 +629,14 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
           </div>
           <div className="insight-cols">
             <div className="ins-col">
-              <span className="ins-sub">Strengths</span>
+              <span className="ins-sub">Insights</span>
               <ul className="ta-list">
-                {advice.strengths.length ? (
-                  advice.strengths.map((item, index) => (
-                    <li key={"s" + index} className="ta-item good">
-                      <span className="ta-dot" />
-                      <span><strong>{item.lead}:</strong> {item.body}</span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="ta-item neutral"><span className="ta-dot" /><span className="muted">No standout strengths yet — focus on the improvements.</span></li>
-                )}
+                {advice.insights.map((item, index) => (
+                  <li key={"i" + index} className={"ta-item " + item.tone}>
+                    <span className="ta-dot" />
+                    <span><strong>{item.lead}:</strong> {item.body}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             <div className="ins-col">
