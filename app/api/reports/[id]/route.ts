@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { summarizeReport } from "@/lib/scoring";
-import { readDb } from "@/lib/store";
+import { readReportById } from "@/lib/store";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const db = await readDb();
-  const report = db.reports.find((item) => item.id === id);
+  // Fetch only this report (+ its company), not every report's full payload.
+  const found = await readReportById(id);
 
-  if (!report) {
+  if (!found) {
     return NextResponse.json({ error: "Report not found" }, { status: 404 });
   }
 
-  const company = db.companies.find((item) => item.id === report.companyId);
+  const { report, company } = found;
 
   return NextResponse.json(
     {

@@ -55,6 +55,31 @@ export async function readDb(): Promise<Database> {
   }
 }
 
+// Fetch ONLY the requested report + its company. The per-report payloads are large
+// (multi-MB once citations are captured), so loading every report's payload via
+// readDb() just to find one would blow the serverless function's time/memory budget.
+export async function readReportById(id: string): Promise<{ report: Report; company: Company } | null> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const reportResult = await supabase.from("reports").select("payload,company_id").eq("id", id).maybeSingle();
+    if (reportResult.error) throw new Error(`Supabase report read failed: ${reportResult.error.message}`);
+    if (!reportResult.data) return null;
+    const row = reportResult.data as ReportRow;
+    const companyResult = await supabase.from("companies").select("payload").eq("id", row.company_id).maybeSingle();
+    if (companyResult.error) throw new Error(`Supabase company read failed: ${companyResult.error.message}`);
+    if (!companyResult.data) return null;
+    return { report: row.payload, company: (companyResult.data as CompanyRow).payload };
+  }
+
+  // Local-file fallback (dev): the whole file is small and fast to read.
+  const db = await readDb();
+  const report = db.reports.find((item) => item.id === id);
+  if (!report) return null;
+  const company = db.companies.find((item) => item.id === report.companyId);
+  if (!company) return null;
+  return { report, company };
+}
+
 export async function writeDb(db: Database) {
   const supabase = getSupabaseAdmin();
   if (supabase) {
