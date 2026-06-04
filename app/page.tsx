@@ -373,7 +373,7 @@ export default function Home() {
 /* ──────────────────────────────────────────────────────────────
    Overview
    ──────────────────────────────────────────────────────────── */
-type Takeaway = { tone: "good" | "warn" | "neutral"; text: string };
+type Takeaway = { tone: "good" | "warn" | "neutral"; lead: string; body: string };
 
 function buildTakeaways(input: {
   score100: number;
@@ -393,31 +393,31 @@ function buildTakeaways(input: {
 
   // 1) Overall standing
   if (gband === "High") {
-    out.push({ tone: "good", text: `Strong overall AI visibility (${score100}%). AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
+    out.push({ tone: "good", lead: `Strong overall AI visibility (${score100}%)`, body: `AI frequently recommends you when homeowners ask it for a provider.${rankStr}` });
   } else if (gband === "Medium") {
-    out.push({ tone: "warn", text: `Moderate overall AI visibility (${score100}%). AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
+    out.push({ tone: "warn", lead: `Moderate overall AI visibility (${score100}%)`, body: `AI recommends you some of the time, but there is clear room to grow.${rankStr}` });
   } else {
-    out.push({ tone: "warn", text: `Low overall AI visibility (${score100}%). AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
+    out.push({ tone: "warn", lead: `Low overall AI visibility (${score100}%)`, body: `AI rarely recommends you today, so there is significant room to improve.${rankStr}` });
   }
 
   // 2) Platform gap (ChatGPT vs Gemini)
   const hi = geminiRate >= chatgptRate ? { n: "Gemini", v: geminiRate } : { n: "ChatGPT", v: chatgptRate };
   const lo = geminiRate >= chatgptRate ? { n: "ChatGPT", v: chatgptRate } : { n: "Gemini", v: geminiRate };
   if (hi.v - lo.v >= 0.2) {
-    out.push({ tone: "warn", text: `Uneven across platforms: you appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is your biggest opportunity.` });
+    out.push({ tone: "warn", lead: `Uneven across platforms`, body: `You appear in ${pct(hi.v)} of ${hi.n} answers but only ${pct(lo.v)} on ${lo.n}. Closing the ${lo.n} gap is your biggest opportunity.` });
   } else {
-    out.push({ tone: "neutral", text: `Consistent across platforms — ${pct(geminiRate)} on Gemini and ${pct(chatgptRate)} on ChatGPT.` });
+    out.push({ tone: "neutral", lead: `Consistent across platforms`, body: `You appear in ${pct(geminiRate)} of Gemini answers and ${pct(chatgptRate)} of ChatGPT answers.` });
   }
 
   // 3) Share of voice
   if (sovCount > 0) {
     const sovRankStr = sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : "";
-    out.push({ tone: sov >= 0.15 ? "good" : "neutral", text: `Share of voice is ${pct(sov)}${sovRankStr} — of every brand AI names in your market, that share is you.` });
+    out.push({ tone: sov >= 0.15 ? "good" : "neutral", lead: `Share of voice ${pct(sov)}${sovRankStr}`, body: `Of every brand AI names in your market, that share is you.` });
   }
 
   // 4) Who to overtake
   if (visRank > 1 && topRival) {
-    out.push({ tone: "neutral", text: `${topRival} is the most-recommended company in your market right now — the one to overtake.` });
+    out.push({ tone: "neutral", lead: `${topRival} leads your market`, body: `The most-recommended company right now — the one to overtake.` });
   }
 
   return out;
@@ -491,16 +491,15 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <div className="panel key-insights">
           <div className="ki-head">
             <span className="ki-icon"><Icon name="spark" size={15} /></span>
-            <div>
-              <h2>Key Insights</h2>
-              <span className="ki-sub">The at-a-glance read across your metrics</span>
-            </div>
+            <h2>Key Insights</h2>
           </div>
           <ul className="ta-list">
             {takeaways.map((item, index) => (
               <li key={index} className={"ta-item " + item.tone}>
                 <span className="ta-dot" />
-                <span>{item.text}</span>
+                <span>
+                  <strong>{item.lead}:</strong> {item.body}
+                </span>
               </li>
             ))}
           </ul>
