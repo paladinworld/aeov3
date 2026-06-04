@@ -219,9 +219,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .glegend{display:flex;justify-content:space-between;gap:6px;margin:-2px 0 2px}
 .glegend span{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--fg-muted);white-space:nowrap}
 .glegend i{width:8px;height:8px;border-radius:var(--radius-full);flex:0 0 auto}
-.glegend i.lo{background:var(--green-300)}
-.glegend i.md{background:var(--green-500)}
-.glegend i.hi{background:var(--primary)}
+.glegend i.lo{background:var(--destructive)}
+.glegend i.md{background:var(--warning)}
+.glegend i.hi{background:var(--success)}
 .gauge-wrap{position:relative;margin:6px 0 2px}
 .gauge-svg{display:block;width:100%;height:auto}
 .gauge-svg .gtrack{fill:none;stroke:var(--secondary)}
@@ -229,7 +229,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .gauge-svg .gneedle{fill:var(--fg)}
 .gauge-center{position:absolute;left:50%;top:65%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:7px}
 .gauge-center strong{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--fg)}
-.gauge-center .pill{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--warning) 16%,transparent);color:#b56a1e}
+.gauge-center .pill{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--success) 14%,transparent);color:var(--success)}
 .b-vis .cap{font-size:12px;color:var(--fg-muted);margin:6px 0 0;text-align:center}
 .b-vis .surf{display:flex;flex-direction:column;gap:11px;margin-top:auto;padding-top:18px}
 .b-vis .surf .row{display:grid;grid-template-columns:60px 1fr 36px;align-items:center;gap:10px;font-size:12px}

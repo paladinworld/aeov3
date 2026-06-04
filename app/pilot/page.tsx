@@ -92,9 +92,9 @@ function Gauge({ value }: { value: number }) {
   return (
     <svg className="gauge-svg" viewBox="-2 -4 204 124" role="img">
       <path className="gtrack" d={seg(0, 100)} strokeWidth={sw} />
-      <path d={seg(1, 32)} stroke="var(--green-300)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-      <path d={seg(34, 65)} stroke="var(--green-500)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-      <path d={seg(67, 99)} stroke="var(--primary)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(1, 19)} stroke="var(--destructive)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(21, 29)} stroke="var(--warning)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+      <path d={seg(31, 99)} stroke="var(--success)" strokeWidth={sw} strokeLinecap="round" fill="none" />
       {ticks.map((k) => {
         const [tx, ty] = pt(k.v, r + 13);
         return <text key={k.v} className="gtick" x={tx} y={ty + 3.5} textAnchor="middle">{k.t}</text>;
@@ -128,7 +128,7 @@ function Hero() {
               <Gauge value={55} />
               <div className="gauge-center">
                 <strong>55%</strong>
-                <span className="pill">Medium</span>
+                <span className="pill">High</span>
               </div>
             </div>
             <div className="cap">Across 50 tracked prompts</div>
@@ -274,11 +274,12 @@ function Signup() {
       <div className="signup-inner">
         <div className="s-brand"><img src={WORDMARK_GREEN} alt="Netic" /></div>
         <h1 className="s-head">Request your AI visibility deep dive</h1>
-        <p className="s-sub">A dashboard of how your company shows up across ChatGPT and Gemini.</p>
+        <p className="s-sub">A dashboard of how your company ranks across Google Gemini and ChatGPT.</p>
 
         <ul className="whatsin">
-          <li><Check /><span>Where you rank against local competitors</span></li>
-          <li><Check /><span>Which prompts and sources drive your rank?</span></li>
+          <li><Check /><span>Check hundreds of AI queries at local level</span></li>
+          <li><Check /><span>See which prompts and sources drive local AI rank</span></li>
+          <li><Check /><span>Compare your rank against local competitors</span></li>
         </ul>
 
         <div className="steps">
@@ -290,8 +291,8 @@ function Signup() {
         </div>
 
         <div className="fld">
-          <label>Are you already a Netic client?</label>
-          <div className={"seg-row" + (touched && !isClient ? " err" : "")} role="radiogroup" aria-label="Are you already a Netic client?">
+          <label>Are you a current Netic client?</label>
+          <div className={"seg-row" + (touched && !isClient ? " err" : "")} role="radiogroup" aria-label="Are you a current Netic client?">
             <button type="button" className={"seg" + (isClient === "yes" ? " sel" : "")}
               role="radio" aria-checked={isClient === "yes"}
               onClick={() => { setIsClient("yes"); setTouched(false); }}>Yes</button>
