@@ -41,7 +41,20 @@ const NAV: Record<View, string> = {
 };
 
 const defaultServices: Service[] = ["AC repair", "Furnace repair", "Emergency HVAC", "Heat pump repair", "Maintenance/tune-up"];
-const customerSurfaces = ["gemini_maps", "chatgpt_search"] as const;
+const customerSurfaces = ["gemini_maps", "gemini_search", "chatgpt_search"] as const;
+// Two customer-facing engines. "Google" pools the local pack (Maps) and AI Overview
+// (Search) into a single score; ChatGPT is its own engine. Everything the customer
+// sees (gauge, by-platform bars, leaderboard) is grouped by these two engines.
+const ENGINE_SURFACES = {
+  gemini: ["gemini_maps", "gemini_search"],
+  chatgpt: ["chatgpt_search"]
+} as const;
+// Overall AI Visibility Score weighting. We blend the two engines by importance,
+// NOT by raw run count, so a company that wins only one engine can't top the
+// overall rank. Google (Maps local pack + AI Overviews) drives the majority of
+// local home-service discovery today, so it carries more weight than ChatGPT.
+const GEMINI_WEIGHT = 0.7;
+const CHATGPT_WEIGHT = 0.3;
 const INTENT_LABELS: Record<string, string> = {
   best: "Best of",
   near_me: "Near me",
@@ -428,18 +441,20 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const citationStats = useMemo(() => buildCitationStats(payload), [payload]);
   const citRank = useMemo(() => buildCitationStats(payload, citFilter), [payload, citFilter]);
 
-  const targetMetrics = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "all"), payload.company.name, true);
-  // targetMetrics.visibility is already the weighted score; use it directly so the gauge
-  // equals this company's value in the Visibility score rank leaderboard.
-  const score100 = Math.round(targetMetrics.visibility * 100);
+  // Overall gauge = the 70/30 Gemini/ChatGPT blend (see blendedVisibilityForName),
+  // so it matches this company's value in the Visibility score rank leaderboard.
+  const score100 = Math.round(blendedVisibilityForName(payload, payload.company.name, true) * 100);
   // Official Visibility Score bands (backend): 30%+ High, 20–30% Medium, <20% Low.
   const gband = score100 >= 30 ? "High" : score100 >= 20 ? "Medium" : "Low";
 
-  const surfaceShow = customerSurfaces
-    .map((surface) => {
-      const score = summary.surfaceScores.find((item) => item.surface === surface);
-      return { surface, label: shortSurface(surface), rate: score?.mentionRate ?? 0 };
-    });
+  // By-platform uses the SAME composite Visibility Score as the leaderboard (one
+  // definition everywhere), grouped into the two engines — Google (Maps + AI
+  // Overview) and ChatGPT — so the bars match each engine's leaderboard tab.
+  const surfaceShow = (["gemini", "chatgpt"] as const).map((engine) => ({
+    surface: engine,
+    label: engine === "gemini" ? "Google" : "ChatGPT",
+    rate: visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, engine), payload.company.name, true).visibility
+  }));
 
   // Share of voice
   const lb = leaderboard.all;
@@ -466,8 +481,8 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const topDomains = citRank.domainRows.slice(0, 6);
 
   // Plain-language "what this means" summary (starting point — COO will expand the checklist).
-  const geminiRate = surfaceShow.find((item) => item.surface === "gemini_maps")?.rate ?? 0;
-  const chatgptRate = surfaceShow.find((item) => item.surface === "chatgpt_search")?.rate ?? 0;
+  const geminiRate = surfaceShow.find((item) => item.surface === "gemini")?.rate ?? 0;
+  const chatgptRate = surfaceShow.find((item) => item.surface === "chatgpt")?.rate ?? 0;
   const visRanked = [...lb].sort((a, b) => (b.visibilityScore ?? b.visibilityRate) - (a.visibilityScore ?? a.visibilityRate));
   const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
   const topRival = visRanked.find((row) => !row.isTarget)?.name;
@@ -476,7 +491,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   return (
     <div className="view-stack">
       <p className="page-note">
-        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI search surfaces.
+        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google, ChatGPT).
       </p>
       <p className="bench-note">
         Based on tracked high-intent prompts with multiple queries for accuracy. AI results can vary by platform, session, model, location, and timing. For reference only; not an exact view of what every consumer sees.
@@ -505,7 +520,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <PanelHead
           title="AI Visibility Score"
           subtitle="How often does AI recommend you overall?"
-          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
+          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. The overall score weights Gemini (Google) at 70% and ChatGPT at 30%, since Google drives most local home-service discovery today. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
         <div className="score-body">
           <div className="score-gauge">
@@ -625,7 +640,7 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 
   const visible = useMemo(() => {
     return stats.promptRows.filter((row) => {
-      if (cat !== "All" && normalizeCategory(row.query.category) !== cat) return false;
+      if (cat !== "All" && displayCategory(row.query) !== cat) return false;
       if (filter === "ranked" && !row.hasTarget) return false;
       if (filter === "missing" && row.hasTarget) return false;
       return true;
@@ -826,7 +841,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
 
       <div className="cit-controls">
         <div className="segmented">
-          {([["all", "All"], ["gemini", "Gemini"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
+          {([["all", "All"], ["gemini", "Google"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
             <button key={key} className={cFilter === key ? "active" : ""} onClick={() => setCFilter(key)}>
               {label}
             </button>
@@ -1351,7 +1366,7 @@ function Leaderboard({
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
               <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+                {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
               </button>
             ))}
           </div>
@@ -1391,7 +1406,7 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
               <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+                {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
               </button>
             ))}
           </div>
@@ -1540,7 +1555,23 @@ type ReportStats = {
 
 type RadarMetrics = { visibility: number; promptMention: number; topPosition: number; topOne: number };
 
-const categoryOrder = ["Core Local Service", "Emergency Repair", "Trust & Reviews", "Price & Financing", "Replacement & Tune-Up"];
+const categoryOrder = ["Core Local Service", "Emergency Repair", "Research"];
+
+// Funnel-stage category derived from each prompt's intent (not query length or
+// surface). Ready-to-hire intents keep a high-intent topical bucket; everyone in
+// the consideration/research stage rolls into a single "Research" category.
+function displayCategory(query: Query): string {
+  switch (query.intent) {
+    case "emergency":
+      return "Emergency Repair";
+    case "near_me":
+    case "best":
+      return "Core Local Service";
+    default:
+      // review, comparison, price, problem
+      return "Research";
+  }
+}
 
 function buildReportStats(payload: ReportPayload): ReportStats {
   const promptRows: PromptRow[] = payload.report.queries.map((query) => {
@@ -1574,15 +1605,15 @@ function buildReportStats(payload: ReportPayload): ReportStats {
   });
 
   promptRows.sort((a, b) => {
-    const ca = categoryOrder.indexOf(normalizeCategory(a.query.category));
-    const cb = categoryOrder.indexOf(normalizeCategory(b.query.category));
+    const ca = categoryOrder.indexOf(displayCategory(a.query));
+    const cb = categoryOrder.indexOf(displayCategory(b.query));
     if (ca !== cb) return ca - cb;
     return priorityValue(b.query.priority) - priorityValue(a.query.priority);
   });
 
-  const categories = categoryOrder.filter((category) => promptRows.some((row) => normalizeCategory(row.query.category) === category));
+  const categories = categoryOrder.filter((category) => promptRows.some((row) => displayCategory(row.query) === category));
   const categoryCoverage = categories.map((category) => {
-    const rows = promptRows.filter((row) => normalizeCategory(row.query.category) === category);
+    const rows = promptRows.filter((row) => displayCategory(row.query) === category);
     const mentioned = rows.filter((row) => row.hasTarget).length;
     return { category, total: rows.length, mentioned, rate: rows.length ? mentioned / rows.length : 0 };
   });
@@ -1640,7 +1671,7 @@ function buildCategoryCoverage(payload: ReportPayload, surfaceFilter: SurfaceFil
   const surfaces: readonly string[] = surfaceFilter === "gemini" ? ["gemini_maps"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : customerSurfaces;
   const rows = payload.report.queries.map((query) => {
     const runs = payload.report.runs.filter((run) => run.queryId === query.id && surfaces.includes(run.surface));
-    return { category: normalizeCategory(query.category), hasTarget: runs.some((run) => targetRank(run) !== null) };
+    return { category: displayCategory(query), hasTarget: runs.some((run) => targetRank(run) !== null) };
   });
   const categories = categoryOrder.filter((category) => rows.some((row) => row.category === category));
   return categories.map((category) => {
@@ -1657,15 +1688,20 @@ function buildLeaderboardData(payload: ReportPayload): Record<SurfaceFilter, Men
     const runs = mentionShareRuns(payload.report.runs, filter);
     return buildMentionShareRows(payload, runs).map((row) => ({
       ...row,
-      visibilityScore: visibilityMetricsForName(payload, runs, row.name, row.isTarget).visibility
+      // "all" ranks by the 70/30 engine blend; per-engine tabs rank by that engine alone.
+      visibilityScore:
+        filter === "all"
+          ? blendedVisibilityForName(payload, row.name, row.isTarget)
+          : visibilityMetricsForName(payload, runs, row.name, row.isTarget).visibility
     }));
   };
   return { all: make("all"), gemini: make("gemini"), chatgpt: make("chatgpt") };
 }
 
 function mentionShareRuns(runs: SurfaceRun[], filter: SurfaceFilter) {
-  const surfaces = filter === "gemini" ? ["gemini_maps"] : filter === "chatgpt" ? ["chatgpt_search"] : customerSurfaces;
-  return runs.filter((run) => surfaces.includes(run.surface as (typeof customerSurfaces)[number]));
+  const surfaces: readonly string[] =
+    filter === "gemini" ? ENGINE_SURFACES.gemini : filter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
+  return runs.filter((run) => surfaces.includes(run.surface));
 }
 
 function buildMentionShareRows(payload: ReportPayload, runs: SurfaceRun[]): MentionShareRow[] {
@@ -1732,6 +1768,15 @@ function visibilityMetricsForName(payload: ReportPayload, runs: SurfaceRun[], na
     topPosition: runs.length ? topThree / runs.length : 0,
     topOne: runs.length ? topOne / runs.length : 0
   };
+}
+
+// Overall score = weighted blend of each engine's own visibility score, rather
+// than pooling raw runs (which over-weights ChatGPT because more prompts hit it).
+// A ChatGPT-only company therefore caps at CHATGPT_WEIGHT of the overall score.
+function blendedVisibilityForName(payload: ReportPayload, name: string, isTarget: boolean): number {
+  const gemini = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "gemini"), name, isTarget).visibility;
+  const chatgpt = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "chatgpt"), name, isTarget).visibility;
+  return gemini * GEMINI_WEIGHT + chatgpt * CHATGPT_WEIGHT;
 }
 
 function topOneRateOf(payload: ReportPayload) {
@@ -2088,12 +2133,6 @@ function priorityValue(priority: Query["priority"]) {
   return priority === "high" ? 3 : priority === "medium" ? 2 : 1;
 }
 
-function normalizeCategory(category: string) {
-  if (category === "Core Local" || category === "Symptom Diagnosis" || category === "Property-Specific Needs") return "Core Local Service";
-  if (category === "Replacement & Installation" || category === "Maintenance & Prevention") return "Replacement & Tune-Up";
-  return category;
-}
-
 function primaryLocation(company?: Company) {
   return company?.locations.find((location) => location.isPrimary)?.label ?? company?.locations[0]?.label;
 }
@@ -2118,8 +2157,8 @@ function ordinal(n: number) {
 }
 
 function shortSurface(surface: string) {
-  if (surface === "gemini_maps" || surface === "gemini_search") return "Gemini";
-  if (surface === "chatgpt_search") return "ChatGPT";
+  if (surface === "gemini_maps" || surface === "gemini_search" || surface === "gemini") return "Google";
+  if (surface === "chatgpt_search" || surface === "chatgpt") return "ChatGPT";
   return surface;
 }
 
@@ -2127,8 +2166,8 @@ function shortSurface(surface: string) {
 // understand e.g. ChatGPT's "few reviews" reflects the open web, not Google reviews.
 function surfaceSource(surface: string): { label: string; basis: string } {
   if (surface === "chatgpt_search") return { label: "ChatGPT", basis: "from open-web search & cited pages" };
-  if (surface === "gemini_maps") return { label: "Gemini", basis: "from Google Maps & local reviews" };
-  if (surface === "gemini_search") return { label: "Gemini", basis: "from Google web search" };
+  if (surface === "gemini_maps") return { label: "Google", basis: "from Google Maps & local reviews" };
+  if (surface === "gemini_search") return { label: "Google", basis: "from Google web search" };
   return { label: shortSurface(surface), basis: "" };
 }
 
