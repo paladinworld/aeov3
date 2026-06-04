@@ -633,7 +633,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </ul>
             </div>
             <div className="ins-col">
-              <span className="ins-sub">Improvements</span>
+              <span className="ins-sub">Actions</span>
               <ul className="ta-list">
                 {shownImprovements.map((item, index) => (
                   <li key={"m" + index} className="ta-item warn">
@@ -1393,8 +1393,8 @@ function EmptyState() {
   return (
     <section className="panel empty-state">
       <span className="es-icon"><Icon name="clock" size={20} /></span>
-      <h2>Your report isn&apos;t ready yet</h2>
-      <p>We&apos;re still putting your numbers together — this can take a couple of minutes. Please check back shortly.</p>
+      <h2>Your report is brewing</h2>
+      <p>The data may take a couple of minutes to load. Please check back shortly.</p>
     </section>
   );
 }
