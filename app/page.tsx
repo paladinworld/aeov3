@@ -490,7 +490,7 @@ function buildHomeAdvice(input: {
   }
   if (sovCount > 0) {
     insights.push({
-      tone: sov >= 0.15 ? "good" : "neutral",
+      tone: sov >= 0.1 ? "good" : "neutral",
       lead: `Share of voice ${pct(sov)}${sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : ""}`,
       body: `Of every company mention AI makes in your market, this is the slice that names you.`
     });
@@ -1513,7 +1513,7 @@ function Leaderboard({
   const visible = pinned && targetRow ? [...top, targetRow] : top;
   const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : scoreOf(row));
   const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : scoreOf(row) / maxScore);
-  const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.2) : value >= 0.15 ? "High" : value >= 0.08 ? "Medium" : "Low");
+  const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.2) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
 
   return (
     <div className="panel">
