@@ -131,9 +131,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ta-list{list-style:none;margin:0;padding:14px 20px 16px;display:flex;flex-direction:column;gap:12px}
 .ta-item{display:flex;gap:11px;font-size:13.5px;line-height:1.5;color:var(--fg)}
 .ta-dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--fg-placeholder)}
-.ta-item.good .ta-dot{background:var(--success)}
-.ta-item.warn .ta-dot{background:var(--warning)}
+/* good + neutral share ONE green (brand) so adjacent insight dots never mismatch; warn = orange concern. */
+.ta-item.good .ta-dot,
 .ta-item.neutral .ta-dot{background:var(--primary)}
+.ta-item.warn .ta-dot{background:var(--warning)}
 /* One Key Insights panel: Strengths (left) and Improvements (right); stack on narrow screens. */
 .insight-cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;padding:12px 20px 16px;align-items:start}
 @media(max-width:900px){.insight-cols{grid-template-columns:1fr;gap:0}.insight-cols .ins-col+.ins-col{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}}
