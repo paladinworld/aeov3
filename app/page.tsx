@@ -1818,7 +1818,11 @@ function recomputeSummaryForLocation(runs: SurfaceRun[], base: VisibilitySummary
 }
 
 function buildCategoryCoverage(payload: ReportPayload, surfaceFilter: SurfaceFilter) {
-  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ["gemini_maps"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : customerSurfaces;
+  // Use the SAME engine→surface mapping as the leaderboards/cards: "Google" = both
+  // Gemini surfaces (maps + search), not maps-only. Otherwise gemini_search coverage
+  // counts toward "All" but neither engine tab, making All look ~100% while each
+  // engine reads far lower (they can't sum to a union that drops a whole surface).
+  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
   const rows = payload.report.queries.map((query) => {
     const runs = payload.report.runs.filter((run) => run.queryId === query.id && surfaces.includes(run.surface));
     return { category: displayCategory(query), hasTarget: runs.some((run) => targetRank(run) !== null) };
