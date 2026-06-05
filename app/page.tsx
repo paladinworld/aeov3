@@ -28,7 +28,6 @@ type ReportPayload = {
 };
 
 type View = "home" | "prompts" | "citations" | "competitors" | "sentiment" | "setup";
-type PromptFilter = "all" | "ranked" | "missing";
 type SurfaceFilter = "all" | "gemini" | "chatgpt";
 type PromptTypeFilter = "all" | "intention" | "informational";
 
@@ -776,7 +775,6 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
    Prompts
    ──────────────────────────────────────────────────────────── */
 function PromptsView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
-  const [filter, setFilter] = useState<PromptFilter>("all");
   const [cat, setCat] = useState("All");
   const [expanded, setExpanded] = useState("");
 
@@ -785,13 +783,8 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
   const topCompetitor = stats.mentionShareRows.find((row) => !row.isTarget);
 
   const visible = useMemo(() => {
-    return stats.promptRows.filter((row) => {
-      if (cat !== "All" && displayCategory(row.query) !== cat) return false;
-      if (filter === "ranked" && !row.hasTarget) return false;
-      if (filter === "missing" && row.hasTarget) return false;
-      return true;
-    });
-  }, [filter, cat, stats.promptRows]);
+    return stats.promptRows.filter((row) => cat === "All" || displayCategory(row.query) === cat);
+  }, [cat, stats.promptRows]);
 
   useEffect(() => {
     if (!visible.length) return;
@@ -815,17 +808,6 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
       <CategoryCoveragePanel payload={payload} />
 
       <section className="panel">
-        <div className="prompt-tools">
-          <div className="segmented">
-            {([["all", "All"], ["ranked", "Your rank"], ["missing", "Missing"]] as const).map(([key, label]) => (
-              <button key={key} className={filter === key ? "active" : ""} onClick={() => setFilter(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <span className="sort-note">Sorted by category, then priority</span>
-        </div>
-
         <div className="intent-pills">
           <button className={cat === "All" ? "active" : ""} onClick={() => setCat("All")}>
             All <span>{stats.totalQueries}</span>
