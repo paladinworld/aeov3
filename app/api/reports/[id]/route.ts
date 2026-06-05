@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { summarizeReport } from "@/lib/scoring";
 import { readReportById } from "@/lib/store";
+import { accessEnabled, currentGrant, grantsReport } from "@/lib/access";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+
+  // Gate: a shared report is only readable with a cookie that grants this report
+  // (a per-report client code) or "*" (admin master code).
+  if (accessEnabled() && !grantsReport(await currentGrant(), id)) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+  }
+
   // Fetch only this report (+ its company), not every report's full payload.
   const found = await readReportById(id);
 
@@ -20,12 +28,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       summary: summarizeReport(report)
     },
     {
-      // Report payloads are large (multi-MB) and effectively immutable once complete.
-      // Cache at the browser + Vercel edge so switching service areas / re-opening a
-      // report is near-instant instead of re-fetching from Supabase every time.
-      // stale-while-revalidate keeps it snappy even after a re-run updates the data.
+      // Gated data must NOT be shared-cached (a public edge cache would serve one
+      // client's report to anyone). Keep it private to the authenticated browser only.
       headers: {
-        "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=86400"
+        "Cache-Control": "private, no-store"
       }
     }
   );

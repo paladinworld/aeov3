@@ -42,6 +42,14 @@ const NAV: Record<View, string> = {
 
 const defaultServices: Service[] = ["AC repair", "Furnace repair", "Emergency HVAC", "Heat pump repair", "Maintenance/tune-up"];
 const customerSurfaces = ["gemini_maps", "gemini_search", "chatgpt_search"] as const;
+
+// When the data APIs answer 401 (gate is on and we have no valid cookie), send the
+// visitor to the sign-in page, preserving which report they were trying to open.
+function redirectToAccess() {
+  if (typeof window === "undefined") return;
+  const id = new URLSearchParams(window.location.search).get("report");
+  window.location.href = "/access" + (id ? `?report=${encodeURIComponent(id)}` : "");
+}
 // Two customer-facing engines. "Google" pools the local pack (Maps) and AI Overview
 // (Search) into a single score; ChatGPT is its own engine. Everything the customer
 // sees (gauge, by-platform bars, leaderboard) is grouped by these two engines.
@@ -201,6 +209,10 @@ export default function Home() {
 
   async function refresh() {
     const [companyResponse, reportResponse] = await Promise.all([fetch("/api/companies"), fetch("/api/reports")]);
+    if (companyResponse.status === 401 || reportResponse.status === 401) {
+      redirectToAccess();
+      return;
+    }
     const nextCompanies = (await companyResponse.json()) as Company[];
     const nextReports = (await reportResponse.json()) as Report[];
     setCompanies(nextCompanies);
@@ -219,6 +231,10 @@ export default function Home() {
     setLoadingReport(true);
     try {
       const response = await fetch(`/api/reports/${reportId}`);
+      if (response.status === 401) {
+        redirectToAccess();
+        return;
+      }
       const payload = (await response.json()) as ReportPayload;
       if (!response.ok || !payload.report?.queries || !payload.company) {
         console.error("Invalid report payload", payload);

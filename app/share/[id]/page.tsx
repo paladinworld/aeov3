@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { summarizeReport } from "@/lib/scoring";
 import { readDb } from "@/lib/store";
 import { Report, SurfaceRun } from "@/lib/types";
+import { accessEnabled, currentGrant, grantsReport } from "@/lib/access";
 import { ShareReportActions } from "./ShareReportActions";
 
 type ShareReportPageProps = {
@@ -11,6 +12,12 @@ type ShareReportPageProps = {
 
 export default async function ShareReportPage({ params }: ShareReportPageProps) {
   const { id } = await params;
+
+  // Gate: bounce to the sign-in page unless this visitor holds a grant for this report.
+  if (accessEnabled() && !grantsReport(await currentGrant(), id)) {
+    redirect(`/access?report=${encodeURIComponent(id)}`);
+  }
+
   const db = await readDb();
   const report = db.reports.find((item) => item.id === id);
 

@@ -33,9 +33,23 @@ create table if not exists signups (
   created_at    timestamptz not null default now()
 );
 
+-- Shared-link access grants (one row per email + report). code_hash is HMAC(ACCESS_SECRET).
+-- report_id = '*' is the admin master code (unlocks every report). Populated via
+-- scripts/grant-access.mjs; read server-side to gate /access sign-ins.
+create table if not exists report_access (
+  email       text not null,
+  report_id   text not null,            -- a specific report id, or '*' for admin
+  code_hash   text not null,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz,
+  primary key (email, report_id)
+);
+create index if not exists report_access_report_id_idx on report_access (report_id);
+
 -- Lock the tables down. The app talks to Supabase only with the service-role
 -- key (server-side), which bypasses RLS. With RLS enabled and no policies,
 -- the public anon key can read/write nothing.
-alter table companies enable row level security;
-alter table reports   enable row level security;
-alter table signups   enable row level security;
+alter table companies     enable row level security;
+alter table reports       enable row level security;
+alter table signups       enable row level security;
+alter table report_access enable row level security;
