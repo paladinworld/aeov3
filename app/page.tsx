@@ -505,7 +505,7 @@ function buildHomeAdvice(input: {
     improvements.push({
       lead: "Key directories AI trusts",
       body: `${topDirectories.join(", ")}.`,
-      action: { text: "Make sure your profile is strong on each", nav: "citations" }
+      action: { text: "Evaluate which of these platforms you can build a presence on", nav: "citations" }
     });
   }
 
