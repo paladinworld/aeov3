@@ -1,278 +1,109 @@
 import { Company, Query, QueryCategory, QueryIntent, Service, Surface } from "./types";
 import { id } from "./store";
 
-const webSurfaces: Surface[] = ["gemini_search", "chatgpt_search"];
-const localSurfaces: Surface[] = ["gemini_maps", "chatgpt_search"];
-const allSurfaces: Surface[] = ["gemini_maps", "gemini_search", "chatgpt_search"];
+// Surfaces each prompt is run against (this is what actually gets queried, and it
+// drives audit cost: surfaces × repeatRuns). Derived from the CSV's Geo Param:
+//  - LOCAL    (Geo = Yes / Local Pack / Hybrid): a local pack exists → include Gemini Maps.
+//  - NATIONAL (Geo = No / AI Overview, e.g. brand & symptom prompts): no local pack → skip Maps.
+const LOCAL: Surface[] = ["gemini_maps", "gemini_search", "chatgpt_search"];
+const NATIONAL: Surface[] = ["gemini_search", "chatgpt_search"];
 
-type QueryDraft = Omit<Query, "id">;
+type PromptSpec = {
+  text: string; // {place} is replaced with the report's primary "City, ST"
+  category: QueryCategory; // the CSV "Bucket" — the dashboard's prompt type
+  intent: QueryIntent; // funnel/intent cue, shown as the per-prompt badge only
+  priority: "high" | "medium" | "low";
+  service: Service | "General HVAC";
+  geo: boolean; // true = local (includes Gemini Maps); false = national (no Maps)
+};
+
+// ── The locked V3 HVAC prompt set (40 prompts, from "AI Visibility Prompts - V3.csv"). ──
+// This is the single source of truth for which prompts every NEW HVAC audit runs — it is
+// intentionally static so results stay comparable across companies and over time. Editing
+// the official HVAC list means editing THIS array. A new vertical should get its own list
+// + its own buckets in QueryCategory (lib/types.ts), not be mixed in here.
+const HVAC_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best HVAC company in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
+  { text: "HVAC company near me", category: "Core General", intent: "near_me", priority: "high", service: "General HVAC", geo: true },
+  { text: "best heating and cooling company in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
+  { text: "best heating and air conditioning company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
+  { text: "who is the best HVAC company to call in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
+  { text: "most reliable HVAC company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
+  { text: "emergency HVAC repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
+  { text: "24 hour HVAC repair near me", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
+  { text: "same day AC repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
+  { text: "AC installation in {place}", category: "Core General", intent: "best", priority: "high", service: "AC installation", geo: true },
+  { text: "new furnace installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Furnace installation", geo: true },
+  { text: "HVAC system replacement company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
+  { text: "heat pump installation in {place}", category: "Core General", intent: "best", priority: "low", service: "General HVAC", geo: true },
+  { text: "mini split installation in {place}", category: "Core General", intent: "best", priority: "low", service: "Ductless mini split", geo: true },
+  { text: "licensed HVAC contractor in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
+
+  // Repair & Maintenance
+  { text: "AC repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "AC repair", geo: true },
+  { text: "furnace repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Furnace repair", geo: true },
+  { text: "heat pump repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Heat pump repair", geo: true },
+  { text: "AC tune up near me", category: "Repair & Maintenance", intent: "near_me", priority: "medium", service: "Maintenance/tune-up", geo: true },
+  { text: "HVAC maintenance plan in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Maintenance/tune-up", geo: true },
+
+  // Reviews & Price
+  { text: "top rated HVAC company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "General HVAC", geo: true },
+  { text: "which HVAC companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General HVAC", geo: true },
+  { text: "most trusted HVAC company in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General HVAC", geo: true },
+  { text: "how much does AC replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "General HVAC", geo: true },
+  { text: "HVAC company in {place} with financing", category: "Reviews & Price", intent: "price", priority: "low", service: "General HVAC", geo: true },
+
+  // Product / Brand
+  { text: "best company to install a Lennox AC system in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "AC installation", geo: true },
+  { text: "factory authorized Carrier dealer in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "General HVAC", geo: true },
+  { text: "experienced Mitsubishi mini split installer in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Ductless mini split", geo: true },
+  { text: "most reliable central air conditioner brand", category: "Product / Brand", intent: "comparison", priority: "low", service: "General HVAC", geo: false },
+  { text: "Carrier vs Trane vs Lennox which is better", category: "Product / Brand", intent: "comparison", priority: "medium", service: "General HVAC", geo: false },
+
+  // Consideration
+  { text: "how to choose a good HVAC company", category: "Consideration", intent: "comparison", priority: "medium", service: "General HVAC", geo: false },
+  { text: "what questions should I ask before hiring an HVAC company", category: "Consideration", intent: "comparison", priority: "medium", service: "General HVAC", geo: false },
+  { text: "how do I know if an HVAC company is trustworthy", category: "Consideration", intent: "comparison", priority: "medium", service: "General HVAC", geo: false },
+  { text: "should I get a second opinion before replacing my HVAC system", category: "Consideration", intent: "comparison", priority: "medium", service: "General HVAC", geo: false },
+  { text: "is it worth repairing or replacing an old air conditioner", category: "Consideration", intent: "comparison", priority: "medium", service: "AC repair", geo: false },
+
+  // Symptom / Problem
+  { text: "why is my AC blowing warm air", category: "Symptom / Problem", intent: "problem", priority: "high", service: "AC repair", geo: false },
+  { text: "my furnace turns on then shuts off after a few minutes", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Furnace repair", geo: false },
+  { text: "my AC runs but the house is not getting cold", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "AC repair", geo: false },
+  { text: "upstairs is hot and downstairs is cold in a two story house", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "General HVAC", geo: false },
+  { text: "no heat in the middle of the night who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
+];
 
 export function generateHvacQueries(company: Company): Query[] {
   const primary = company.locations.find((location) => location.isPrimary) ?? company.locations[0];
   const city = primary?.city || "your city";
   const state = primary?.state || "";
   const place = `${city}${state ? `, ${state}` : ""}`;
-  const services = prioritizeServices(company.services);
-  const drafts: QueryDraft[] = [
-    ...coreLocalQueries(place, city),
-    ...emergencyQueries(place, city),
-    ...trustQueries(place, city),
-    ...priceQueries(place, city),
-    ...lifecycleQueries(place, city)
-  ];
 
-  for (const service of services.slice(0, 7)) {
-    drafts.push(...serviceQueries(service, place, city));
-  }
-
-  const evaluated = dedupeDrafts(drafts)
-    .filter((query) => evaluateQuery(query).pass)
-    .sort((a, b) => scoreQuery(b) - scoreQuery(a));
-
-  return balanceQueries(evaluated).map((query) => ({
-    id: id("query"),
-    ...query
-  }));
-}
-
-function coreLocalQueries(place: string, city: string): QueryDraft[] {
-  return [
-    q("best HVAC company in {place}", "General HVAC", "Core Local Service", "best", "high", "head", allSurfaces, place, city),
-    q("HVAC contractors near me", "General HVAC", "Core Local Service", "near_me", "high", "head", localSurfaces, place, city),
-    q("AC repair {city}", "AC repair", "Core Local Service", "best", "high", "head", allSurfaces, place, city),
-    q("furnace repair {city}", "Furnace repair", "Core Local Service", "best", "high", "head", allSurfaces, place, city),
-    q("top rated HVAC contractors in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-    q("best heating and air conditioning company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-    q("licensed HVAC contractor in {place}", "General HVAC", "Core Local Service", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-    q("heating and cooling company near me", "General HVAC", "Core Local Service", "near_me", "high", "head", localSurfaces, place, city),
-    q("reliable HVAC company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-    q("best AC and heating company in {place}", "General HVAC", "Core Local Service", "best", "high", "mid_tail", webSurfaces, place, city),
-    q("who is the best HVAC company to call in {place}", "General HVAC", "Core Local Service", "comparison", "high", "long_tail", webSurfaces, place, city)
-  ];
-}
-
-function emergencyQueries(place: string, city: string): QueryDraft[] {
-  return [
-    q("emergency HVAC repair {city}", "Emergency HVAC", "Emergency Repair", "emergency", "high", "head", allSurfaces, place, city),
-    q("24 hour AC repair near me", "Emergency HVAC", "Emergency Repair", "emergency", "high", "head", localSurfaces, place, city),
-    q("same day AC repair in {place}", "Emergency HVAC", "Emergency Repair", "emergency", "high", "mid_tail", allSurfaces, place, city),
-    q("who should I call if my AC stops working in {city}", "Emergency HVAC", "Emergency Repair", "emergency", "high", "long_tail", localSurfaces, place, city),
-    q("best emergency HVAC company in {place} for no heat at night", "Emergency HVAC", "Emergency Repair", "emergency", "medium", "long_tail", allSurfaces, place, city)
-  ];
-}
-
-function trustQueries(place: string, city: string): QueryDraft[] {
-  return [
-    q("top rated HVAC company {city}", "General HVAC", "Trust & Reviews", "review", "high", "head", allSurfaces, place, city),
-    q("HVAC company reviews {city}", "General HVAC", "Trust & Reviews", "review", "medium", "head", webSurfaces, place, city),
-    q("most trusted HVAC company in {place}", "General HVAC", "Trust & Reviews", "review", "high", "mid_tail", webSurfaces, place, city),
-    q("which HVAC companies in {place} have the best reviews", "General HVAC", "Trust & Reviews", "review", "high", "mid_tail", webSurfaces, place, city),
-    q("HVAC contractor in {place} known for honest diagnostics", "General HVAC", "Trust & Reviews", "review", "medium", "long_tail", webSurfaces, place, city)
-  ];
-}
-
-function priceQueries(place: string, city: string): QueryDraft[] {
-  return [
-    q("affordable HVAC repair {city}", "General HVAC", "Price & Financing", "price", "medium", "head", webSurfaces, place, city),
-    q("HVAC repair cost {city}", "General HVAC", "Price & Financing", "price", "medium", "head", webSurfaces, place, city),
-    q("HVAC company in {place} with financing", "General HVAC", "Price & Financing", "price", "medium", "mid_tail", webSurfaces, place, city),
-    q("best HVAC company in {place} for a second opinion before replacing my system", "General HVAC", "Price & Financing", "comparison", "high", "long_tail", allSurfaces, place, city),
-    q("who offers fair HVAC repair pricing in {city} without surprise fees", "General HVAC", "Price & Financing", "price", "medium", "long_tail", webSurfaces, place, city)
-  ];
-}
-
-function lifecycleQueries(place: string, city: string): QueryDraft[] {
-  return [
-    q("AC tune up near me", "Maintenance/tune-up", "Replacement & Tune-Up", "best", "medium", "head", localSurfaces, place, city),
-    q("best HVAC maintenance plan in {place}", "Maintenance/tune-up", "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-    q("HVAC company for older homes in {place}", "General HVAC", "Core Local Service", "problem", "medium", "mid_tail", webSurfaces, place, city),
-    q("HVAC company for uneven heating and cooling in {city}", "General HVAC", "Core Local Service", "problem", "medium", "mid_tail", webSurfaces, place, city),
-    q("best HVAC company for a two-story house with uneven temperatures in {place}", "General HVAC", "Core Local Service", "problem", "medium", "long_tail", webSurfaces, place, city),
-    q("HVAC contractor in {place} for improving airflow in an older home", "General HVAC", "Core Local Service", "problem", "medium", "long_tail", allSurfaces, place, city)
-  ];
-}
-
-function serviceQueries(service: Service, place: string, city: string): QueryDraft[] {
-  switch (service) {
-    case "AC repair":
-      return [
-        q("AC repair near me", service, "Core Local Service", "near_me", "high", "head", localSurfaces, place, city),
-        q("best AC repair company in {place}", service, "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-        q("AC blowing warm air repair {city}", service, "Core Local Service", "problem", "high", "mid_tail", webSurfaces, place, city),
-        q("who can fix an AC that keeps short cycling in {city}", service, "Core Local Service", "problem", "medium", "long_tail", webSurfaces, place, city),
-        q("my AC is running but the house is not getting cold in {city}", service, "Core Local Service", "problem", "high", "long_tail", webSurfaces, place, city)
-      ];
-    case "Furnace repair":
-      return [
-        q("furnace repair near me", service, "Core Local Service", "near_me", "high", "head", localSurfaces, place, city),
-        q("best furnace repair company in {place}", service, "Core Local Service", "best", "high", "mid_tail", allSurfaces, place, city),
-        q("furnace blowing cold air repair {city}", service, "Core Local Service", "problem", "high", "mid_tail", webSurfaces, place, city),
-        q("my furnace turns on then shuts off after a few minutes in {city}", service, "Core Local Service", "problem", "high", "long_tail", webSurfaces, place, city),
-        q("who fixes furnace ignition problems in {place}", service, "Core Local Service", "problem", "medium", "mid_tail", webSurfaces, place, city)
-      ];
-    case "Heat pump repair":
-      return [
-        q("heat pump repair {city}", service, "Core Local Service", "best", "medium", "head", webSurfaces, place, city),
-        q("best heat pump repair company in {place}", service, "Core Local Service", "best", "medium", "mid_tail", webSurfaces, place, city),
-        q("heat pump stuck in auxiliary heat repair {city}", service, "Core Local Service", "problem", "medium", "mid_tail", webSurfaces, place, city),
-        q("who repairs heat pumps that are icing up in {place}", service, "Core Local Service", "problem", "medium", "long_tail", webSurfaces, place, city)
-      ];
-    case "AC installation":
-      return [
-        q("AC installation {city}", service, "Replacement & Tune-Up", "best", "medium", "head", webSurfaces, place, city),
-        q("best AC replacement company in {place}", service, "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-        q("who installs high efficiency air conditioners in {city}", service, "Replacement & Tune-Up", "comparison", "medium", "long_tail", webSurfaces, place, city)
-      ];
-    case "Furnace installation":
-      return [
-        q("furnace installation {city}", service, "Replacement & Tune-Up", "best", "medium", "head", webSurfaces, place, city),
-        q("best furnace replacement company in {place}", service, "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-        q("who installs high efficiency furnaces in {city}", service, "Replacement & Tune-Up", "comparison", "medium", "long_tail", webSurfaces, place, city)
-      ];
-    case "Ductless mini split":
-      return [
-        q("mini split installer {city}", service, "Replacement & Tune-Up", "best", "medium", "head", webSurfaces, place, city),
-        q("best ductless mini split installer in {place}", service, "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-        q("mini split installer for garage or ADU in {city}", service, "Replacement & Tune-Up", "comparison", "low", "long_tail", webSurfaces, place, city)
-      ];
-    case "Indoor air quality":
-      return [
-        q("indoor air quality HVAC company {city}", service, "Core Local Service", "problem", "medium", "mid_tail", webSurfaces, place, city),
-        q("HVAC company for allergies and air filtration in {place}", service, "Core Local Service", "problem", "medium", "long_tail", webSurfaces, place, city)
-      ];
-    case "Duct cleaning":
-      return [
-        q("air duct cleaning {city}", service, "Replacement & Tune-Up", "best", "medium", "head", webSurfaces, place, city),
-        q("best duct cleaning company in {place}", service, "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-        q("is air duct cleaning worth it and who should I use in {city}", service, "Replacement & Tune-Up", "comparison", "low", "long_tail", webSurfaces, place, city)
-      ];
-    case "Maintenance/tune-up":
-      return [
-        q("AC tune up {city}", service, "Replacement & Tune-Up", "best", "medium", "head", webSurfaces, place, city),
-        q("HVAC maintenance plan {city}", service, "Replacement & Tune-Up", "comparison", "medium", "mid_tail", webSurfaces, place, city),
-        q("best HVAC company in {place} for annual maintenance and priority service", service, "Replacement & Tune-Up", "comparison", "medium", "long_tail", webSurfaces, place, city)
-      ];
-    case "Emergency HVAC":
-      return [];
-  }
-}
-
-function q(
-  template: string,
-  service: Service | "General HVAC",
-  category: QueryCategory,
-  intent: QueryIntent,
-  priority: "high" | "medium" | "low",
-  queryDepth: "head" | "mid_tail" | "long_tail",
-  surfaces: Surface[],
-  place: string,
-  city: string
-): QueryDraft {
-  return {
-    text: template.replaceAll("{place}", place).replaceAll("{city}", city),
-    service,
-    category,
-    intent,
-    priority,
-    queryDepth,
-    longTail: queryDepth === "long_tail",
-    surfaces
-  };
-}
-
-function evaluateQuery(query: QueryDraft): { pass: boolean; reason?: string } {
-  const text = query.text.trim();
-  const lower = text.toLowerCase();
-  const weirdPhrases = [
-    "just moved",
-    "worth calling first and why",
-    "family with kids",
-    "avoid, and which",
-    "pros and cons of hiring"
-  ];
-
-  if (text.includes("{}") || /\s{2,}/.test(text)) {
-    return { pass: false, reason: "Malformed placeholder or spacing" };
-  }
-
-  if (weirdPhrases.some((phrase) => lower.includes(phrase))) {
-    return { pass: false, reason: "Contrived phrasing" };
-  }
-
-  if (query.queryDepth === "head" && text.split(/\s+/).length > 7) {
-    return { pass: false, reason: "Head query too long" };
-  }
-
-  if (query.queryDepth === "long_tail" && text.split(/\s+/).length < 8) {
-    return { pass: false, reason: "Long-tail query too short" };
-  }
-
-  if (!/(hvac|ac|air conditioner|furnace|heat pump|mini split|duct|air quality|heating|cooling)/i.test(text)) {
-    return { pass: false, reason: "Missing HVAC context" };
-  }
-
-  return { pass: true };
-}
-
-function scoreQuery(query: QueryDraft) {
-  const priorityScore = query.priority === "high" ? 3 : query.priority === "medium" ? 2 : 1;
-  const depthScore = query.queryDepth === "head" ? 3 : query.queryDepth === "mid_tail" ? 2 : 1;
-  const surfaceScore = query.surfaces.includes("gemini_maps") ? 1 : 0;
-  return priorityScore * 10 + depthScore + surfaceScore;
-}
-
-function balanceQueries(queries: QueryDraft[]): QueryDraft[] {
-  const targets = { head: 11, mid_tail: 14, long_tail: 15 };
-  const selected: QueryDraft[] = [];
-  const used = new Set<QueryDraft>();
-
-  for (const depth of ["head", "mid_tail", "long_tail"] as const) {
-    for (const query of queries.filter((query) => query.queryDepth === depth).slice(0, targets[depth])) {
-      selected.push(query);
-      used.add(query);
-    }
-  }
-
-  // Top up to 40 from the next highest-scoring queries if a depth bucket fell short.
-  if (selected.length < 40) {
-    for (const query of queries) {
-      if (selected.length >= 40) break;
-      if (!used.has(query)) {
-        selected.push(query);
-        used.add(query);
-      }
-    }
-  }
-
-  return selected.slice(0, 40);
-}
-
-function dedupeDrafts(queries: QueryDraft[]) {
-  const seen = new Set<string>();
-  return queries.filter((query) => {
-    const key = query.text.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+  return HVAC_PROMPTS.map((spec) => {
+    const text = spec.text.replaceAll("{place}", place);
+    const depth = queryDepth(text);
+    return {
+      id: id("query"),
+      text,
+      service: spec.service,
+      category: spec.category,
+      intent: spec.intent,
+      priority: spec.priority,
+      queryDepth: depth,
+      longTail: depth === "long_tail",
+      surfaces: spec.geo ? LOCAL : NATIONAL,
+    };
   });
 }
 
-function prioritizeServices(services: Service[]) {
-  const priority: Service[] = [
-    "AC repair",
-    "Emergency HVAC",
-    "Furnace repair",
-    "AC installation",
-    "Furnace installation",
-    "Heat pump repair",
-    "Ductless mini split",
-    "Indoor air quality",
-    "Maintenance/tune-up",
-    "Duct cleaning"
-  ];
-
-  return [
-    ...priority.filter((service) => services.includes(service)),
-    ...services.filter((service) => !priority.includes(service))
-  ];
+// queryDepth is metadata only now (the static list isn't scored/balanced); kept so
+// longTailCount and any depth display stay meaningful. Simple word-count heuristic.
+function queryDepth(text: string): "head" | "mid_tail" | "long_tail" {
+  const words = text.trim().split(/\s+/).length;
+  if (words <= 5) return "head";
+  if (words <= 8) return "mid_tail";
+  return "long_tail";
 }

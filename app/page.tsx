@@ -1715,22 +1715,12 @@ type ReportStats = {
 
 type RadarMetrics = { visibility: number; promptMention: number; topPosition: number; topOne: number };
 
-const categoryOrder = ["Core Local Service", "Emergency Repair", "Research"];
+// Prompt type = the locked CSV "Bucket" stored on each query (lib/query-generator.ts).
+// Order matches the CSV; any bucket not present in a report is filtered out downstream.
+const categoryOrder = ["Core General", "Repair & Maintenance", "Reviews & Price", "Product / Brand", "Consideration", "Symptom / Problem"];
 
-// Funnel-stage category derived from each prompt's intent (not query length or
-// surface). Ready-to-hire intents keep a high-intent topical bucket; everyone in
-// the consideration/research stage rolls into a single "Research" category.
 function displayCategory(query: Query): string {
-  switch (query.intent) {
-    case "emergency":
-      return "Emergency Repair";
-    case "near_me":
-    case "best":
-      return "Core Local Service";
-    default:
-      // review, comparison, price, problem
-      return "Research";
-  }
+  return query.category;
 }
 
 function buildReportStats(payload: ReportPayload): ReportStats {

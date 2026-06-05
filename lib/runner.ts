@@ -58,7 +58,7 @@ async function maybeAttachMissingInsight(params: {
   runNumber: number;
 }, run: SurfaceRun): Promise<SurfaceRun> {
   if (params.runNumber !== 1) return run;
-  if (params.query.category !== "Core Local Service") return run;
+  if (params.query.category !== "Core General") return run;
   if (!["gemini_maps", "chatgpt_search"].includes(params.surface)) return run;
   if (run.rawAnswer.startsWith("Provider error:")) return run;
 

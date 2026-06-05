@@ -16,12 +16,15 @@ export type Surface =
   | "chatgpt_search"
   | "google_ai_overview";
 
+// The locked V3 HVAC prompt buckets (the CSV "Bucket" column). This is the
+// prompt-type taxonomy the dashboard groups by. Add a vertical's buckets here.
 export type QueryCategory =
-  | "Core Local Service"
-  | "Emergency Repair"
-  | "Trust & Reviews"
-  | "Price & Financing"
-  | "Replacement & Tune-Up";
+  | "Core General"
+  | "Repair & Maintenance"
+  | "Reviews & Price"
+  | "Product / Brand"
+  | "Consideration"
+  | "Symptom / Problem";
 
 export type QueryIntent =
   | "near_me"
