@@ -876,10 +876,10 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                         <Badge>{INTENT_LABELS[row.query.intent] || row.query.intent}</Badge>
                       </span>
                       <span className="cell-center">
-                        <RankCell run={row.bySurface.gemini_maps} />
+                        <EngineRankCell runs={row.runs} surfaces={ENGINE_SURFACES.gemini} />
                       </span>
                       <span className="cell-center">
-                        <RankCell run={row.bySurface.chatgpt_search} />
+                        <EngineRankCell runs={row.runs} surfaces={ENGINE_SURFACES.chatgpt} />
                       </span>
                       <span className="comp-name">{row.topCompetitor || "—"}</span>
                     </button>
@@ -1594,11 +1594,21 @@ function Track({ value, tone }: { value: number; tone?: string }) {
   );
 }
 
-function RankCell({ run }: { run?: SurfaceRun }) {
-  if (!run) return <span className="dash">—</span>;
-  if (run.rawAnswer.startsWith("Provider error:")) return <span className="error-pill">Error</span>;
-  const rank = targetRank(run);
-  return rank ? <span className={"rank-pill" + (rank === 1 ? " one" : "")}>#{rank}</span> : <span className="missing-pill">Missing</span>;
+// Per-ENGINE cell: an engine pools surfaces (Gemini = Maps + Search) and is run
+// multiple times. Show the company's BEST rank across all of that engine's
+// surfaces and repeats — so the table agrees with the Coverage chart (which
+// counts a prompt as covered if you appear at least once). The row expander
+// shows the per-surface, per-run detail behind this single number.
+function EngineRankCell({ runs, surfaces }: { runs: SurfaceRun[]; surfaces: readonly string[] }) {
+  const engineRuns = runs.filter((run) => surfaces.includes(run.surface));
+  if (!engineRuns.length) return <span className="dash">—</span>;
+  const ranks = engineRuns.map((run) => targetRank(run)).filter((rank): rank is number => typeof rank === "number");
+  if (ranks.length) {
+    const best = Math.min(...ranks);
+    return <span className={"rank-pill" + (best === 1 ? " one" : "")}>#{best}</span>;
+  }
+  if (engineRuns.every((run) => run.rawAnswer.startsWith("Provider error:"))) return <span className="error-pill">Error</span>;
+  return <span className="missing-pill">Missing</span>;
 }
 
 /* ── Leaderboard ── */
