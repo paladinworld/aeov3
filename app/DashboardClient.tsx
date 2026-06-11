@@ -1141,6 +1141,11 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
   // Top 10 cited sources + the prompts that cite each (competitive citation intel).
   const [cf, setCf] = useState<SurfaceFilter>("all");
   const [openDom, setOpenDom] = useState("");
+  const isPrimaryText = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const q of payload.report.queries) m.set(q.text, isPrimaryCategory(q.category));
+    return m;
+  }, [payload]);
   const topCited = useMemo(() => {
     const cit = buildCitationStats(payload, cf);
     return [...cit.domainDetails]
@@ -1148,9 +1153,13 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       .slice(0, 10)
       .map((d) => {
         const prompts = Array.from(new Set((d.urls || []).flatMap((u) => u.prompts || []))).sort();
-        return { domain: d.domain, type: d.type, owned: d.owned, count: d.count, prompts: prompts.slice(0, 20), promptTotal: prompts.length };
+        return {
+          domain: d.domain, type: d.type, owned: d.owned, count: d.count, promptTotal: prompts.length,
+          primary: prompts.filter((p) => isPrimaryText.get(p)),
+          secondary: prompts.filter((p) => !isPrimaryText.get(p))
+        };
       });
-  }, [payload, cf]);
+  }, [payload, cf, isPrimaryText]);
 
   return (
     <div className="view-stack">
@@ -1202,11 +1211,25 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
                   <span>{d.promptTotal}</span>
                 </button>
                 {open ? (
-                  <div className="cite-prompts">
-                    {d.prompts.map((p, i) => (
-                      <span key={i} className="cite-prompt">{p}</span>
-                    ))}
-                    {d.promptTotal > d.prompts.length ? <span className="cite-prompt more">+{d.promptTotal - d.prompts.length} more</span> : null}
+                  <div className="cite-groups">
+                    {([
+                      { label: "Primary", cls: "primary", list: d.primary },
+                      { label: "Secondary", cls: "secondary", list: d.secondary }
+                    ] as const).map((g) =>
+                      g.list.length ? (
+                        <div key={g.label} className="cite-group">
+                          <div className="cite-group-head">
+                            <span className={"tier-tag " + g.cls}>{g.label}</span>
+                            <span className="cite-group-count">{g.list.length}</span>
+                          </div>
+                          <div className="cite-prompts">
+                            {g.list.map((p, i) => (
+                              <span key={i} className="cite-prompt">{p}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    )}
                   </div>
                 ) : null}
               </div>
