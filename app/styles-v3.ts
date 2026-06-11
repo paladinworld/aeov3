@@ -415,13 +415,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .dom-row>span{font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg)}
 .dom-row>span .badge{font-size:10px}
 .url-list{display:flex;flex-direction:column;gap:0;background:color-mix(in oklab,var(--bg-muted) 40%,transparent);padding:6px 20px 14px}
-.url-row{display:grid;grid-template-columns:minmax(0,1fr) 80px 80px;gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
+.url-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 90px 80px;gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
 .url-row:last-child{border-bottom:0}
-.url-row .u-main{min-width:0}
+.url-row .u-main{min-width:0;grid-column:1 / 3}
 .url-row .u-main strong{display:block;font-size:12.5px;font-weight:500;color:var(--fg);margin-bottom:2px}
 .url-row .u-main code{font-size:11px;color:var(--accent);font-family:var(--font-mono);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .url-row .u-main p{font-size:11px;color:var(--fg-muted);margin:5px 0 0;line-height:1.4}
-.url-row>span{font-size:12px;color:var(--fg-muted);text-align:right;font-variant-numeric:tabular-nums}
+.url-row>span{font-size:12px;color:var(--fg-muted);text-align:left;font-variant-numeric:tabular-nums}
 
 /* ── Sentiment view ── */
 .sentiment-hero{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);padding:26px 28px}
@@ -535,7 +535,7 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .prompt-row>:nth-child(2),.prompt-row>:nth-child(5){display:none}
   /* citations table -> horizontal scroll */
   .src-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .src-head,.dom-row{min-width:520px}
+  .src-head,.dom-row,.url-row{min-width:520px}
   .panel-body,.panel{overflow-x:hidden}
   .prompt-tools{flex-wrap:wrap;gap:8px}
   .search{min-width:0;max-width:none;width:100%}
