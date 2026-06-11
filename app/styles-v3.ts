@@ -236,7 +236,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .cov-list{display:flex;flex-direction:column}
 .cov-list .coverage-row{padding:12px 20px;border-bottom:1px solid var(--border)}
 .cov-list .coverage-row:last-child{border-bottom:0}
-.coverage-row{display:grid;grid-template-columns:170px 1fr max-content;align-items:center;gap:14px}
+.coverage-row{display:grid;grid-template-columns:236px 1fr max-content;align-items:center;gap:14px}
 .coverage-row>span{font-size:13px;font-weight:500}
 .coverage-row .track{height:8px}
 .coverage-row>strong{display:flex;align-items:baseline;gap:6px;justify-content:flex-end;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -244,8 +244,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* Primary / Secondary tier tags + prompt-list section headers */
 .tier-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:20px;line-height:1.5;white-space:nowrap;flex:0 0 auto}
 .tier-tag.primary{background:color-mix(in oklab,var(--primary) 14%,transparent);color:var(--primary)}
-.tier-tag.secondary{background:var(--bg-muted);color:var(--fg-muted)}
-.cov-cat{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.tier-tag.secondary{background:color-mix(in oklab,var(--accent) 16%,transparent);color:var(--accent)}
+.cov-cat{display:grid;grid-template-columns:80px 1fr;align-items:center;gap:8px;min-width:0}
+.cov-cat-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prompt-tier-head{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:12px;font-weight:650;color:var(--fg);background:color-mix(in oklab,var(--bg-muted) 55%,transparent);border-bottom:1px solid var(--border)}
 .prompt-tier-head .tier-count{margin-left:auto;font-size:11px;font-weight:600;color:var(--fg-muted);font-variant-numeric:tabular-nums}
 

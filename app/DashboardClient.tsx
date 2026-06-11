@@ -744,8 +744,8 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </section>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
-        <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
+        <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
       </section>
 
       <section className="dashboard-grid">
@@ -1537,7 +1537,9 @@ function Leaderboard({
   const top = rows.slice(0, limit);
   const targetRow = rows.find((row) => row.isTarget);
   const pinned = Boolean(targetRow && !top.some((row) => row.isTarget));
-  const visible = pinned && targetRow ? [...top, targetRow] : top;
+  // Always render exactly `limit` rows: when the target isn't in the top `limit`,
+  // drop the last and append it so it's always shown (top limit-1 + you).
+  const visible = pinned && targetRow ? [...rows.slice(0, Math.max(0, limit - 1)), targetRow] : top;
   const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : scoreOf(row));
   const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : scoreOf(row) / maxScore);
   const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.2) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
@@ -1601,10 +1603,10 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
         {coverage.map((row) => (
           <div key={row.category} className="coverage-row">
             <span className="cov-cat">
-              {row.category}
               <span className={"tier-tag " + (isPrimaryCategory(row.category) ? "primary" : "secondary")}>
                 {isPrimaryCategory(row.category) ? "Primary" : "Secondary"}
               </span>
+              <span className="cov-cat-name">{row.category}</span>
             </span>
             <Track value={row.rate} tone={band(row.rate, 0.6, 0.34)} />
             <strong>
