@@ -3,7 +3,7 @@ import { z } from "zod";
 import { HVAC_SERVICES } from "@/lib/constants";
 import { id, readCompanies, readDb, readReportById, writeDb } from "@/lib/store";
 import { Company, Service } from "@/lib/types";
-import { accessEnabled, currentGrant, isAdmin } from "@/lib/access";
+import { accessEnabled, currentGrant, grantedReportIds, isAdmin } from "@/lib/access";
 
 const locationSchema = z.object({
   label: z.string().min(1),
@@ -25,13 +25,20 @@ const companySchema = z.object({
 
 export async function GET() {
   // Scope: admin (or gate off) sees all companies; a client cookie sees ONLY the
-  // company behind the one report it was granted — never the rest of the roster.
+  // companies behind the reports it was granted — never the rest of the roster.
+  // A client account can span several markets (e.g. 6 service areas), so return
+  // all of them — that's what powers the service-area dropdown.
   if (accessEnabled()) {
     const grant = await currentGrant();
     if (!grant) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     if (!isAdmin(grant)) {
-      const found = await readReportById(grant.report);
-      return NextResponse.json(found ? [found.company] : []);
+      const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));
+      const seen = new Set<string>();
+      const companies = found
+        .filter((f): f is { report: import("@/lib/types").Report; company: Company } => Boolean(f))
+        .map((f) => f.company)
+        .filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
+      return NextResponse.json(companies);
     }
   }
   // Only the companies table — not every report's full payload (which would time out).

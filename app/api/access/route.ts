@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { accessEnabled, findAccessScope, newGrantCookie } from "@/lib/access";
+import { accessEnabled, findGrantedReports, newGrantCookie } from "@/lib/access";
 
 const schema = z.object({
   email: z.string().email(),
@@ -21,16 +21,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter a valid email and access code." }, { status: 400 });
   }
 
-  const scope = await findAccessScope(parsed.email, parsed.code, parsed.reportId);
-  if (!scope) {
+  const granted = await findGrantedReports(parsed.email, parsed.code, parsed.reportId);
+  if (!granted) {
     // Deliberately generic — never reveal whether the email or the code was wrong,
     // and never reveal any company name.
     return NextResponse.json({ error: "That email and access code don't match." }, { status: 401 });
   }
 
-  const redirect = scope === "*" ? "/" : `/?report=${encodeURIComponent(scope)}`;
+  // Land on the report they opened if the code covers it; otherwise the first
+  // report the account unlocks. Admin ("*") lands on the home dashboard.
+  const admin = granted.includes("*");
+  const land = !admin && parsed.reportId && granted.includes(parsed.reportId) ? parsed.reportId : granted[0];
+  const redirect = admin ? "/" : `/?report=${encodeURIComponent(land)}`;
   const response = NextResponse.json({ ok: true, redirect });
-  const cookie = newGrantCookie(scope, parsed.email);
+  const cookie = newGrantCookie(granted, parsed.email);
   response.cookies.set(cookie.name, cookie.value, cookie.options);
   return response;
 }

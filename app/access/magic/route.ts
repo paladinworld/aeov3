@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ACCESS_COOKIE, accessEnabled, grantsReport, verifyGrant } from "@/lib/access";
+import { ACCESS_COOKIE, accessEnabled, grantedReportIds, grantsReport, isAdmin, verifyGrant } from "@/lib/access";
 
 // Magic-link sign-in: /access/magic?t=<signed grant token>&r=<reportId>
 // Verifies the token (HMAC-signed with ACCESS_SECRET — unforgeable), sets the access
@@ -20,13 +20,14 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/access" + (reportId ? `?report=${encodeURIComponent(reportId)}` : ""), request.url));
   }
 
-  // Land on the requested report if this grant covers it; otherwise the grant's own scope.
+  // Land on the requested report if this grant covers it; otherwise admin → home,
+  // a scoped grant → its first report.
   const target =
     reportId && grantsReport(grant, reportId)
       ? `/?report=${encodeURIComponent(reportId)}`
-      : grant.report === "*"
+      : isAdmin(grant)
         ? "/"
-        : `/?report=${encodeURIComponent(grant.report)}`;
+        : `/?report=${encodeURIComponent(grantedReportIds(grant)[0] ?? "")}`;
 
   const res = NextResponse.redirect(new URL(target, request.url));
   res.cookies.set(ACCESS_COOKIE, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 365 * 86400 });

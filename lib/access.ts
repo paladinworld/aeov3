@@ -16,7 +16,17 @@ const COOKIE_NAME = "aeo_access";
 const TTL_DAYS = 30;
 const ADMIN = "*";
 
-export type Grant = { report: string; email: string; exp: number };
+// A grant covers a SET of reports: `reports` is the canonical form (a list of
+// report ids, or ["*"] for the admin master scope). The legacy single-`report`
+// field is still read so older cookies / magic tokens keep working.
+export type Grant = { reports?: string[]; report?: string; email: string; exp: number };
+
+// Normalize either grant shape to the list of report ids it unlocks.
+function reportsOf(grant: Grant | null): string[] {
+  if (!grant) return [];
+  if (Array.isArray(grant.reports)) return grant.reports;
+  return grant.report ? [grant.report] : [];
+}
 
 export function accessEnabled(): boolean {
   return Boolean(process.env.ACCESS_SECRET);
@@ -68,43 +78,56 @@ export async function currentGrant(): Promise<Grant | null> {
 }
 
 export function isAdmin(grant: Grant | null): boolean {
-  return Boolean(grant && grant.report === ADMIN);
+  return reportsOf(grant).includes(ADMIN);
 }
 
 export function grantsReport(grant: Grant | null, reportId: string): boolean {
-  return Boolean(grant && (grant.report === ADMIN || grant.report === reportId));
+  const r = reportsOf(grant);
+  return r.includes(ADMIN) || r.includes(reportId);
+}
+
+// The concrete report ids a (non-admin) grant unlocks. Admin grants return ["*"];
+// callers gate on isAdmin() before using this for a per-account report list.
+export function grantedReportIds(grant: Grant | null): string[] {
+  return reportsOf(grant);
 }
 
 export const ACCESS_COOKIE = COOKIE_NAME;
 
-export function newGrantCookie(report: string, email: string) {
+export function newGrantCookie(reports: string[], email: string) {
   const exp = Date.now() + TTL_DAYS * 86400 * 1000;
   return {
     name: COOKIE_NAME,
-    value: signGrant({ report, email: email.trim().toLowerCase(), exp }),
+    value: signGrant({ reports, email: email.trim().toLowerCase(), exp }),
     options: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/", maxAge: TTL_DAYS * 86400 }
   };
 }
 
-// Validate an (email, code) pair against the report_access table.
-// Returns the scope the pair unlocks ("*" for admin, or a specific report id),
-// or null if no row matches. A pair matches when its row is for THIS report
-// (a per-report client code) OR for "*" (the admin master code).
-export async function findAccessScope(email: string, code: string, reportId?: string): Promise<string | null> {
+// Validate an (email, code) pair against the report_access table and return
+// EVERY report the pair unlocks — so a client whose account spans several
+// markets gets one cookie that covers all of them (the service-area dropdown
+// then works). Returns ["*"] for the admin master code, a list of report ids
+// for a client code, or null if nothing matches. When a specific report is
+// requested, the pair must cover it (else null) so a code can't be replayed
+// against a report it wasn't issued for.
+export async function findGrantedReports(email: string, code: string, reportId?: string): Promise<string[] | null> {
   if (!accessEnabled()) return null;
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
-  const wanted = [ADMIN, ...(reportId ? [reportId] : [])];
   const { data, error } = await supabase
     .from("report_access")
     .select("report_id,code_hash,expires_at")
-    .eq("email", email.trim().toLowerCase())
-    .in("report_id", wanted);
+    .eq("email", email.trim().toLowerCase());
   if (error || !data) return null;
   const codeHash = hashCode(code);
+  const granted: string[] = [];
   for (const row of data as Array<{ report_id: string; code_hash: string; expires_at: string | null }>) {
     if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) continue;
-    if (eq(row.code_hash || "", codeHash)) return row.report_id;
+    if (eq(row.code_hash || "", codeHash)) granted.push(row.report_id);
   }
-  return null;
+  if (!granted.length) return null;
+  if (granted.includes(ADMIN)) return [ADMIN];
+  // Guard: a per-report code can only open the report(s) it was issued for.
+  if (reportId && !granted.includes(reportId)) return null;
+  return granted;
 }
