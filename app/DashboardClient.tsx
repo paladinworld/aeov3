@@ -561,23 +561,26 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const [advExpanded, setAdvExpanded] = useState(false);
 
   const summary = payload.summary;
-  const leaderboard = useMemo(() => buildLeaderboardData(payload), [payload]);
+  // Headline score, by-platform, and competitor leaderboards run on PRIMARY (high-intent)
+  // prompts only; the prompt breakdown + citations stay on all prompts (full `payload`).
+  const primaryPayload = useMemo(() => primaryPayloadOf(payload), [payload]);
+  const leaderboard = useMemo(() => buildLeaderboardData(primaryPayload), [primaryPayload]);
   const citationStats = useMemo(() => buildCitationStats(payload), [payload]);
   const citRank = useMemo(() => buildCitationStats(payload, citFilter), [payload, citFilter]);
 
   // Overall gauge = the 70/30 Gemini/ChatGPT blend (see blendedVisibilityForName),
-  // so it matches this company's value in the Visibility score rank leaderboard.
-  const score100 = Math.round(blendedVisibilityForName(payload, payload.company.name, true) * 100);
+  // computed on primary prompts — matches this company's value in the leaderboard.
+  const score100 = Math.round(blendedVisibilityForName(primaryPayload, payload.company.name, true) * 100);
   // Official Visibility Score bands (backend): 30%+ High, 20–30% Medium, <20% Low.
   const gband = score100 >= 30 ? "High" : score100 >= 20 ? "Medium" : "Low";
 
   // By-platform uses the SAME composite Visibility Score as the leaderboard (one
   // definition everywhere), grouped into the two engines — Google (Maps + AI
-  // Overview) and ChatGPT — so the bars match each engine's leaderboard tab.
+  // Overview) and ChatGPT — also on primary prompts so the bars match the gauge.
   const surfaceShow = (["gemini", "chatgpt"] as const).map((engine) => ({
     surface: engine,
     label: engine === "gemini" ? "Google" : "ChatGPT",
-    rate: visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, engine), payload.company.name, true).visibility
+    rate: visibilityMetricsForName(primaryPayload, mentionShareRuns(primaryPayload.report.runs, engine), payload.company.name, true).visibility
   }));
 
   // Share of voice
@@ -706,7 +709,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
                 <span className={"gpill " + gband.toLowerCase()}>{gband}</span>
               </div>
             </div>
-            <p className="gauge-cap">{payload.report.runs.length.toLocaleString()} queries run across {stats.totalQueries} tracked prompts</p>
+            <p className="gauge-cap">{primaryPayload.report.runs.length.toLocaleString()} queries run across {primaryPayload.report.queries.length} high-intent prompts</p>
             <p className="gauge-cap">Weighted more toward Google than ChatGPT for the overall score.</p>
           </div>
           <div className="score-platforms">
@@ -797,7 +800,12 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 
   const summary = payload.summary;
   const topOneRate = topOneRateOf(payload);
-  const topCompetitor = stats.mentionShareRows.find((row) => !row.isTarget);
+  // Top Competitor reflects PRIMARY (high-intent) prompts, matching the headline metrics.
+  const primaryPayload = useMemo(() => primaryPayloadOf(payload), [payload]);
+  const topCompetitor = useMemo(() => {
+    const customerRuns = primaryPayload.report.runs.filter((r) => customerSurfaces.includes(r.surface as (typeof customerSurfaces)[number]));
+    return buildMentionShareRows(primaryPayload, customerRuns).find((row) => !row.isTarget);
+  }, [primaryPayload]);
 
   const visible = useMemo(() => {
     return stats.promptRows.filter((row) => cat === "All" || displayCategory(row.query) === cat);
@@ -844,27 +852,43 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
             <span>ChatGPT</span>
             <span>#1 competitor</span>
           </div>
-          {visible.map((row) => (
-            <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")}>
-              <button className="prompt-row" onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
-                <span className="prompt-text">
-                  <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
-                  <span className="label">{row.query.text}</span>
-                </span>
-                <span>
-                  <Badge>{INTENT_LABELS[row.query.intent] || row.query.intent}</Badge>
-                </span>
-                <span className="cell-center">
-                  <RankCell run={row.bySurface.gemini_maps} />
-                </span>
-                <span className="cell-center">
-                  <RankCell run={row.bySurface.chatgpt_search} />
-                </span>
-                <span className="comp-name">{row.topCompetitor || "—"}</span>
-              </button>
-              {expanded === row.query.id ? <PromptDetails row={row} /> : null}
-            </div>
-          ))}
+          {([
+            { header: "Primary high-intent prompts", primary: true },
+            { header: "Secondary prompts", primary: false }
+          ] as const).map((tier) => {
+            const tierRows = visible.filter((row) => isPrimaryCategory(row.query.category) === tier.primary);
+            if (!tierRows.length) return null;
+            return (
+              <div key={tier.header} className="prompt-tier">
+                <div className={"prompt-tier-head " + (tier.primary ? "primary" : "secondary")}>
+                  <span className={"tier-tag " + (tier.primary ? "primary" : "secondary")}>{tier.primary ? "Primary" : "Secondary"}</span>
+                  {tier.header}
+                  <span className="tier-count">{tierRows.length}</span>
+                </div>
+                {tierRows.map((row) => (
+                  <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")}>
+                    <button className="prompt-row" onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
+                      <span className="prompt-text">
+                        <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
+                        <span className="label">{row.query.text}</span>
+                      </span>
+                      <span>
+                        <Badge>{INTENT_LABELS[row.query.intent] || row.query.intent}</Badge>
+                      </span>
+                      <span className="cell-center">
+                        <RankCell run={row.bySurface.gemini_maps} />
+                      </span>
+                      <span className="cell-center">
+                        <RankCell run={row.bySurface.chatgpt_search} />
+                      </span>
+                      <span className="comp-name">{row.topCompetitor || "—"}</span>
+                    </button>
+                    {expanded === row.query.id ? <PromptDetails row={row} /> : null}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
           {!visible.length ? (
             <p className="muted" style={{ padding: "20px" }}>
               No prompts match these filters.
@@ -1103,14 +1127,16 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
 function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
   const [vf, setVf] = useState<SurfaceFilter>("all");
   const [sf, setSf] = useState<SurfaceFilter>("all");
-  const leaderboard = useMemo(() => buildLeaderboardData(payload), [payload]);
+  // Leaderboards rank on PRIMARY (high-intent) prompts only — same basis as the home gauge.
+  const primaryPayload = useMemo(() => primaryPayloadOf(payload), [payload]);
+  const leaderboard = useMemo(() => buildLeaderboardData(primaryPayload), [primaryPayload]);
 
   return (
     <div className="view-stack">
       <p className="page-note">
-        How {payload.company.name.split(",")[0]} ranks against other HVAC companies in {primaryLocation(payload.company)}, across {stats.totalQueries} tracked prompts.
+        How {payload.company.name.split(",")[0]} ranks against other HVAC companies in {primaryLocation(payload.company)}, across {primaryPayload.report.queries.length} high-intent prompts.
       </p>
-      <p className="bench-note">Ranked by how often each company is named across ChatGPT and Gemini. Switch a list to a single platform with the toggle.</p>
+      <p className="bench-note">Visibility Score and Share of Voice are based on the <strong>primary high-intent prompts</strong>. Ranked by how often each company is named across ChatGPT and Gemini; switch a list to a single platform with the toggle.</p>
 
       <section className="dashboard-grid">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
@@ -1574,7 +1600,12 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
       <div className="cov-list">
         {coverage.map((row) => (
           <div key={row.category} className="coverage-row">
-            <span>{row.category}</span>
+            <span className="cov-cat">
+              {row.category}
+              <span className={"tier-tag " + (isPrimaryCategory(row.category) ? "primary" : "secondary")}>
+                {isPrimaryCategory(row.category) ? "Primary" : "Secondary"}
+              </span>
+            </span>
             <Track value={row.rate} tone={band(row.rate, 0.6, 0.34)} />
             <strong>
               {pct(row.rate)}
@@ -1720,6 +1751,32 @@ const categoryOrder = ["Core General", "Repair & Maintenance", "Reviews & Price"
 
 function displayCategory(query: Query): string {
   return query.category;
+}
+
+// PRIMARY (high-intent) buckets drive the HEADLINE: Visibility Score, by-platform
+// bars, top competitor and the competitor leaderboards. SECONDARY buckets still run
+// and appear in the prompt breakdown, but don't move the headline number. Change the
+// split by editing this set.
+const PRIMARY_CATEGORIES = new Set(["Core General", "Repair & Maintenance", "Reviews & Price"]);
+function isPrimaryCategory(category: string): boolean {
+  return PRIMARY_CATEGORIES.has(category);
+}
+// A payload narrowed to primary prompts only (queries + their runs) — pass this to the
+// score/leaderboard builders so they compute on high-intent prompts with the right denominators.
+function primaryPayloadOf(payload: ReportPayload): ReportPayload {
+  const primaryQueries = payload.report.queries.filter((q) => isPrimaryCategory(q.category));
+  // Old reports (pre-lockdown taxonomy) have no primary buckets — fall back to all
+  // prompts so their score/leaderboards still render instead of showing empty.
+  if (!primaryQueries.length) return payload;
+  const ids = new Set(primaryQueries.map((q) => q.id));
+  return {
+    ...payload,
+    report: {
+      ...payload.report,
+      queries: primaryQueries,
+      runs: payload.report.runs.filter((r) => ids.has(r.queryId))
+    }
+  };
 }
 
 function buildReportStats(payload: ReportPayload): ReportStats {

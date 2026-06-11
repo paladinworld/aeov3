@@ -241,6 +241,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .coverage-row .track{height:8px}
 .coverage-row>strong{display:flex;align-items:baseline;gap:6px;justify-content:flex-end;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
 .coverage-row>strong small{font-size:11px;color:var(--fg-muted);font-weight:400}
+/* Primary / Secondary tier tags + prompt-list section headers */
+.tier-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:20px;line-height:1.5;white-space:nowrap;flex:0 0 auto}
+.tier-tag.primary{background:color-mix(in oklab,var(--primary) 14%,transparent);color:var(--primary)}
+.tier-tag.secondary{background:var(--bg-muted);color:var(--fg-muted)}
+.cov-cat{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.prompt-tier-head{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:12px;font-weight:650;color:var(--fg);background:color-mix(in oklab,var(--bg-muted) 55%,transparent);border-bottom:1px solid var(--border)}
+.prompt-tier-head .tier-count{margin-left:auto;font-size:11px;font-weight:600;color:var(--fg-muted);font-variant-numeric:tabular-nums}
 
 /* ── Leaderboards ── */
 .controls-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border)}
