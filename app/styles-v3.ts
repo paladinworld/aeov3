@@ -422,6 +422,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .url-row .u-main code{font-size:11px;color:var(--accent);font-family:var(--font-mono);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .url-row .u-main p{font-size:11px;color:var(--fg-muted);margin:5px 0 0;line-height:1.4}
 .url-row>span{font-size:12px;color:var(--fg-muted);text-align:left;font-variant-numeric:tabular-nums}
+/* Top-cited-source -> prompts (Competitors tab) */
+.cite-prompts{display:flex;flex-wrap:wrap;gap:7px;padding:4px 20px 16px;background:color-mix(in oklab,var(--bg-muted) 40%,transparent)}
+.cite-prompt{font-size:12px;color:var(--fg);background:var(--paper,var(--bg));border:1px solid var(--border);border-radius:7px;padding:4px 9px;line-height:1.4}
+.cite-prompt.more{color:var(--fg-muted);background:none;border-style:dashed}
 
 /* ── Sentiment view ── */
 .sentiment-hero{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);padding:26px 28px}

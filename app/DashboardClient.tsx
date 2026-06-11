@@ -1138,6 +1138,20 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
   const primaryPayload = useMemo(() => primaryPayloadOf(payload), [payload]);
   const leaderboard = useMemo(() => buildLeaderboardData(primaryPayload), [primaryPayload]);
 
+  // Top 10 cited sources + the prompts that cite each (competitive citation intel).
+  const [cf, setCf] = useState<SurfaceFilter>("all");
+  const [openDom, setOpenDom] = useState("");
+  const topCited = useMemo(() => {
+    const cit = buildCitationStats(payload, cf);
+    return [...cit.domainDetails]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((d) => {
+        const prompts = Array.from(new Set((d.urls || []).flatMap((u) => u.prompts || []))).sort();
+        return { domain: d.domain, type: d.type, owned: d.owned, count: d.count, prompts: prompts.slice(0, 20), promptTotal: prompts.length };
+      });
+  }, [payload, cf]);
+
   return (
     <div className="view-stack">
       <p className="page-note">
@@ -1148,6 +1162,59 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       <section className="dashboard-grid">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
         <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
+      </section>
+
+      <section className="panel">
+        <PanelHead
+          title="Top Citation Sources — by Prompt"
+          subtitle="The 10 most-cited sources and the prompts that cite each (expand a row)"
+          right={
+            <div className="segmented">
+              {(["all", "gemini", "chatgpt"] as const).map((option) => (
+                <button key={option} className={cf === option ? "active" : ""} onClick={() => setCf(option)}>
+                  {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
+                </button>
+              ))}
+            </div>
+          }
+        />
+        <div className="src-head">
+          <span>Source</span>
+          <span>Type</span>
+          <span>Citations</span>
+          <span>Prompts</span>
+        </div>
+        {topCited.length ? (
+          topCited.map((d) => {
+            const open = openDom === d.domain;
+            return (
+              <div key={d.domain} className="dom-group">
+                <button className={"dom-row" + (open ? " expanded" : "")} onClick={() => setOpenDom(open ? "" : d.domain)}>
+                  <strong>
+                    <i>{open ? "⌄" : "›"}</i>
+                    {d.domain}
+                    {d.owned ? <span className="tier-tag primary">You</span> : null}
+                  </strong>
+                  <span>
+                    <Badge tone={d.type}>{d.type}</Badge>
+                  </span>
+                  <span>{d.count}</span>
+                  <span>{d.promptTotal}</span>
+                </button>
+                {open ? (
+                  <div className="cite-prompts">
+                    {d.prompts.map((p, i) => (
+                      <span key={i} className="cite-prompt">{p}</span>
+                    ))}
+                    {d.promptTotal > d.prompts.length ? <span className="cite-prompt more">+{d.promptTotal - d.prompts.length} more</span> : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        ) : (
+          <p className="muted" style={{ padding: "12px 20px" }}>No citations for this selection.</p>
+        )}
       </section>
     </div>
   );
