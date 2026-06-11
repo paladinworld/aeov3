@@ -517,7 +517,7 @@ function buildHomeAdvice(input: {
     improvements.push({
       lead: `${topRival} leads your market`,
       body: `The most-recommended company to displace.`,
-      action: { text: "See the prompts and sources they win", nav: "competitors" }
+      action: { text: "See the prompts and sources they win", nav: "prompts" }
     });
   }
 
