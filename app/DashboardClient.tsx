@@ -491,7 +491,7 @@ function buildHomeAdvice(input: {
     insights.push({
       tone: imbalanced ? "warn" : "good",
       lead: imbalanced ? "Coverage is uneven across engines" : "Consistent across engines",
-      body: `${gi}% on Google and ${gp}% on ChatGPT.`
+      body: `${gi}% on Google Gemini and ${gp}% on ChatGPT.`
     });
   }
   if (sovCount > 0) {
@@ -504,7 +504,7 @@ function buildHomeAdvice(input: {
 
   // ── Improvements (right): the actions to take. ──
   if (imbalanced) {
-    const weak = gp < gi ? "ChatGPT" : "Google";
+    const weak = gp < gi ? "ChatGPT" : "Google Gemini";
     improvements.push({
       lead: `Close the ${weak} gap`,
       body: `${weak} pulls from a different source mix than the other engine.`,
@@ -585,7 +585,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   // Overview) and ChatGPT — also on primary prompts so the bars match the gauge.
   const surfaceShow = (["gemini", "chatgpt"] as const).map((engine) => ({
     surface: engine,
-    label: engine === "gemini" ? "Google" : "ChatGPT",
+    label: engine === "gemini" ? "Google Gemini" : "ChatGPT",
     rate: visibilityMetricsForName(primaryPayload, mentionShareRuns(primaryPayload.report.runs, engine), payload.company.name, true).visibility
   }));
 
@@ -632,7 +632,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   return (
     <div className="view-stack">
       <p className="page-note">
-        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google, ChatGPT).
+        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google Gemini, ChatGPT).
       </p>
       <p className="bench-note">
         Directional reference only. AI results vary by each query, so this won&apos;t match exactly what every consumer sees.
@@ -690,7 +690,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <PanelHead
           title="AI Visibility Score"
           subtitle="How often does AI recommend you overall?"
-          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. The overall score weights Gemini (Google) at 70% and ChatGPT at 30%, since Google drives most local home-service discovery today. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
+          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. The overall score weights Google Gemini at 70% and ChatGPT at 30%, since Google drives most local home-service discovery today. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
         <div className="score-body">
           <div className="score-gauge">
@@ -716,7 +716,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </div>
             </div>
             <p className="gauge-cap">{primaryPayload.report.runs.length.toLocaleString()} queries run across {primaryPayload.report.queries.length} high-intent prompts</p>
-            <p className="gauge-cap">Weighted more toward Google than ChatGPT for the overall score.</p>
+            <p className="gauge-cap">Weighted more toward Google Gemini than ChatGPT for the overall score.</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
@@ -763,7 +763,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               <div className="segmented">
                 {(["all", "gemini", "chatgpt"] as const).map((option) => (
                   <button key={option} className={citFilter === option ? "active" : ""} onClick={() => setCitFilter(option)}>
-                    {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+                    {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
                   </button>
                 ))}
               </div>
@@ -854,7 +854,7 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
           <div className="prompt-head">
             <span>Prompt</span>
             <span>Intent</span>
-            <span>Gemini</span>
+            <span>Google Gemini</span>
             <span>ChatGPT</span>
             <span>#1 competitor</span>
           </div>
@@ -1029,7 +1029,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
 
       <div className="cit-controls">
         <div className="segmented">
-          {([["all", "All"], ["gemini", "Google"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
+          {([["all", "All"], ["gemini", "Google Gemini"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
             <button key={key} className={cFilter === key ? "active" : ""} onClick={() => setCFilter(key)}>
               {label}
             </button>
@@ -1186,7 +1186,7 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
             <div className="segmented">
               {(["all", "gemini", "chatgpt"] as const).map((option) => (
                 <button key={option} className={cf === option ? "active" : ""} onClick={() => setCf(option)}>
-                  {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
+                  {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
                 </button>
               ))}
             </div>
@@ -1264,7 +1264,7 @@ function SentimentView({ payload, stats }: { payload: ReportPayload; stats: Repo
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
               <button key={option} className={sFilter === option ? "active" : ""} onClick={() => setSFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Gemini" : "ChatGPT"}
+                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
               </button>
             ))}
           </div>
@@ -1665,7 +1665,7 @@ function Leaderboard({
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
               <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
+                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
               </button>
             ))}
           </div>
@@ -1709,7 +1709,7 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
               <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Google" : "ChatGPT"}
+                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
               </button>
             ))}
           </div>
@@ -2491,7 +2491,7 @@ function ordinal(n: number) {
 }
 
 function shortSurface(surface: string) {
-  if (surface === "gemini_maps" || surface === "gemini_search" || surface === "gemini") return "Google";
+  if (surface === "gemini_maps" || surface === "gemini_search" || surface === "gemini") return "Google Gemini";
   if (surface === "chatgpt_search" || surface === "chatgpt") return "ChatGPT";
   return surface;
 }
@@ -2500,8 +2500,8 @@ function shortSurface(surface: string) {
 // understand e.g. ChatGPT's "few reviews" reflects the open web, not Google reviews.
 function surfaceSource(surface: string): { label: string; basis: string } {
   if (surface === "chatgpt_search") return { label: "ChatGPT", basis: "from open-web search & cited pages" };
-  if (surface === "gemini_maps") return { label: "Google", basis: "from Google Maps & local reviews" };
-  if (surface === "gemini_search") return { label: "Google", basis: "from Google web search" };
+  if (surface === "gemini_maps") return { label: "Google Gemini", basis: "from Google Maps & local reviews" };
+  if (surface === "gemini_search") return { label: "Google Gemini", basis: "from Google web search" };
   return { label: shortSurface(surface), basis: "" };
 }
 
