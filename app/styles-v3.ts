@@ -258,7 +258,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .segmented button:hover{color:var(--fg)}
 .segmented button.active{background:var(--bg);color:var(--fg);box-shadow:var(--shadow-xs)}
 .lb-list{display:flex;flex-direction:column}
-.lb-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 52px;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--border)}
+.lb-row{display:grid;grid-template-columns:22px minmax(0,1fr) 130px 52px;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--border)}
+.lb-rank{font-size:12px;font-weight:600;color:var(--fg-muted);font-variant-numeric:tabular-nums;text-align:right}
+.lb-row.you .lb-rank{color:var(--primary)}
 .lb-row:last-child{border-bottom:0}
 .lb-row.you{background:color-mix(in oklab,var(--primary) 5%,transparent)}
 .lb-row .who{display:flex;flex-direction:column;min-width:0}

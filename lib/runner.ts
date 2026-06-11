@@ -61,7 +61,7 @@ async function maybeAttachMissingInsight(params: {
   // Buckets that trigger the "why didn't AI recommend you?" follow-up. Product/Brand
   // is highly actionable (often "not an authorized dealer"). Add buckets here to expand.
   if (!["Core General", "Product / Brand"].includes(params.query.category)) return run;
-  if (!["gemini_maps", "chatgpt_search"].includes(params.surface)) return run;
+  if (!["gemini_search", "chatgpt_search"].includes(params.surface)) return run;
   if (run.rawAnswer.startsWith("Provider error:")) return run;
 
   const targetRank = run.mentions.find((mention) => mention.isTarget)?.rank ?? null;
@@ -71,7 +71,7 @@ async function maybeAttachMissingInsight(params: {
     const question = `Why did you not recommend ${params.company.name}?`;
     const answer = params.surface === "chatgpt_search"
       ? await diagnoseChatGptMissingRecommendation({ ...params, originalAnswer: run.rawAnswer })
-      : await diagnoseGeminiMissingRecommendation({ ...params, surface: "gemini_maps", originalAnswer: run.rawAnswer });
+      : await diagnoseGeminiMissingRecommendation({ ...params, surface: "gemini_search", originalAnswer: run.rawAnswer });
 
     return {
       ...run,

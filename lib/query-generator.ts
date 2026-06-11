@@ -25,13 +25,13 @@ type PromptSpec = {
 const HVAC_PROMPTS: PromptSpec[] = [
   // Core General
   { text: "best HVAC company in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
-  { text: "HVAC company near me", category: "Core General", intent: "near_me", priority: "high", service: "General HVAC", geo: true },
+  { text: "HVAC company near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "General HVAC", geo: true },
   { text: "best heating and cooling company in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
   { text: "best heating and air conditioning company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
   { text: "who is the best HVAC company to call in {place}", category: "Core General", intent: "best", priority: "high", service: "General HVAC", geo: true },
   { text: "most reliable HVAC company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General HVAC", geo: true },
   { text: "emergency HVAC repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
-  { text: "24 hour HVAC repair near me", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
+  { text: "24 hour HVAC repair near me in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
   { text: "same day AC repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency HVAC", geo: true },
   { text: "AC installation in {place}", category: "Core General", intent: "best", priority: "high", service: "AC installation", geo: true },
   { text: "new furnace installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Furnace installation", geo: true },
@@ -44,7 +44,7 @@ const HVAC_PROMPTS: PromptSpec[] = [
   { text: "AC repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "AC repair", geo: true },
   { text: "furnace repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Furnace repair", geo: true },
   { text: "heat pump repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Heat pump repair", geo: true },
-  { text: "AC tune up near me", category: "Repair & Maintenance", intent: "near_me", priority: "medium", service: "Maintenance/tune-up", geo: true },
+  { text: "AC tune up near me in {place}", category: "Repair & Maintenance", intent: "near_me", priority: "medium", service: "Maintenance/tune-up", geo: true },
   { text: "HVAC maintenance plan in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Maintenance/tune-up", geo: true },
 
   // Reviews & Price

@@ -1673,7 +1673,10 @@ function Leaderboard({
       />
       <div className="lb-list">
         {visible.map((row, index) => (
+          // Rank = the company's TRUE position in the full sorted list, not its row
+          // position — so a pinned "You" appended at the bottom shows e.g. #11, not #6.
           <div key={row.name + index} className={"lb-row" + (row.isTarget ? " you" : "")}>
+            <span className="lb-rank">{rows.indexOf(row) + 1}</span>
             <div className="who">
               <strong>{row.name}</strong>
               <span>{row.isTarget ? "You" : "Competitor"}</span>
