@@ -999,6 +999,13 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
   const [cFilter, setCFilter] = useState<SurfaceFilter>("all");
   const [domType, setDomType] = useState<"all" | SourceType>("all");
   const cit = useMemo(() => buildCitationStats(payload, cFilter), [payload, cFilter]);
+  // Citation Rate: of the prompts whose answers cite any source, how many cite YOUR site.
+  const citRate = useMemo(() => {
+    const cited = new Set<string>();
+    const owned = new Set<string>();
+    cit.domainDetails.forEach((d) => (d.urls || []).forEach((u) => (u.prompts || []).forEach((p) => { cited.add(p); if (d.owned) owned.add(p); })));
+    return { owned: owned.size, cited: cited.size, rate: cited.size ? owned.size / cited.size : 0 };
+  }, [cit]);
   const filteredDomains = useMemo(
     () => (domType === "all" ? cit.domainDetails : cit.domainDetails.filter((row) => row.type === domType)),
     [cit, domType]
@@ -1028,7 +1035,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       <section className="metric-grid four">
         <MetricCard label="Unique Sources" value={String(cit.uniqueSources)} helper="real citation domains" />
         <MetricCard label="Total Citations" value={String(cit.totalCitations)} helper="counted once per run" />
-        <MetricCard label="Your Citation Share" value={pct(cit.ownedShare)} helper={`${cit.ownedCitations} owned citations`} />
+        <MetricCard label="Citation Rate" value={pct(citRate.rate)} helper={`${citRate.owned}/${citRate.cited} cited answers`} tooltip="Of the prompts whose AI answers cite sources, how often your own website is one of them." />
         <MetricCard label="Platform Source Share" value={pct(cit.platformShare)} helper="directories, reviews, editorial" />
       </section>
 
