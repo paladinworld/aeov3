@@ -41,7 +41,12 @@ const NAV: Record<View, string> = {
 };
 
 const defaultServices: Service[] = ["AC repair", "Furnace repair", "Emergency HVAC", "Heat pump repair", "Maintenance/tune-up"];
-const customerSurfaces = ["gemini_maps", "gemini_search", "chatgpt_search"] as const;
+// Google Maps (local pack) is collected but EXCLUDED from the customer-facing
+// report: it measures local-SEO/proximity ranking, not "do AI assistants
+// recommend you" (AI visibility). The two scored surfaces are the AI answers —
+// Google's Search-grounded answer (AI Overview / Gemini) and ChatGPT. The
+// gemini_maps runs stay in the payload (reversible) but feed no score or display.
+const customerSurfaces = ["gemini_search", "chatgpt_search"] as const;
 
 // When the data APIs answer 401 (gate is on and we have no valid cookie), send the
 // visitor to the sign-in page, preserving which report they were trying to open.
@@ -50,11 +55,12 @@ function redirectToAccess() {
   const id = new URLSearchParams(window.location.search).get("report");
   window.location.href = "/access" + (id ? `?report=${encodeURIComponent(id)}` : "");
 }
-// Two customer-facing engines. "Google" pools the local pack (Maps) and AI Overview
-// (Search) into a single score; ChatGPT is its own engine. Everything the customer
-// sees (gauge, by-platform bars, leaderboard) is grouped by these two engines.
+// Two customer-facing engines, each = its AI answer. "Google" is the Search-grounded
+// AI answer (AI Overview / Gemini); ChatGPT is its own engine. The Maps local pack is
+// deliberately NOT part of "Google" here — it's local SEO, not AI visibility. Everything
+// the customer sees (gauge, by-platform bars, leaderboard) is grouped by these two engines.
 const ENGINE_SURFACES = {
-  gemini: ["gemini_maps", "gemini_search"],
+  gemini: ["gemini_search"],
   chatgpt: ["chatgpt_search"]
 } as const;
 // Overall AI Visibility Score weighting. We blend the two engines by importance,
@@ -904,10 +910,9 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 // Grouping by platform makes each engine's story self-contained (and makes clear
 // that, e.g., a ChatGPT "few reviews" note is about the open web, not Google reviews).
 const PROMPT_PLATFORMS = [
-  // Google = Maps (local pack) + AI Overview (Search). Show whichever response the
-  // prompt actually triggered, preferring the local pack when both exist; research
-  // prompts only run on AI Overview, so the response falls back to it.
-  { key: "gemini", responseSurfaces: ["gemini_maps", "gemini_search"], citeSurfaces: ["gemini_maps", "gemini_search"] },
+  // Google = the Search-grounded AI answer (AI Overview / Gemini). The Maps local pack
+  // is excluded from the report, so the panel shows the AI answer + the web pages it cited.
+  { key: "gemini", responseSurfaces: ["gemini_search"], citeSurfaces: ["gemini_search"] },
   { key: "chatgpt", responseSurfaces: ["chatgpt_search"], citeSurfaces: ["chatgpt_search"] }
 ] as const;
 
@@ -2118,7 +2123,7 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
   const domainRuns = new Map<string, Set<string>>();
   const urlRuns = new Map<string, Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>>();
 
-  const surfaces = surfaceFilter === "gemini" ? ["gemini_maps", "gemini_search"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : null;
+  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
   const queryById = new Map(payload.report.queries.map((query) => [query.id, query]));
   const citationRuns = payload.report.runs.filter(
     (item) =>
@@ -2220,7 +2225,7 @@ function buildPromptCitationRows(row: PromptRow, surfaces?: readonly string[]): 
 }
 
 function buildSentimentStats(payload: ReportPayload, stats: ReportStats, surfaceFilter: SurfaceFilter = "all"): SentimentStats {
-  const surfaces: readonly string[] | null = surfaceFilter === "gemini" ? ["gemini_maps", "gemini_search"] : surfaceFilter === "chatgpt" ? ["chatgpt_search"] : null;
+  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
   const runs = surfaces ? payload.report.runs.filter((run) => surfaces.includes(run.surface)) : payload.report.runs;
   const targetContexts: MentionContext[] = runs.flatMap((run) =>
     run.mentions.filter((mention) => mention.isTarget).map((mention) => ({ mention, answer: run.rawAnswer, surface: run.surface, companyName: payload.company.name }))
