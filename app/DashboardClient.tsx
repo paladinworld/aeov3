@@ -707,6 +707,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </div>
             </div>
             <p className="gauge-cap">{payload.report.runs.length.toLocaleString()} queries run across {stats.totalQueries} tracked prompts</p>
+            <p className="gauge-cap">Weighted more toward Google than ChatGPT for the overall score.</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
