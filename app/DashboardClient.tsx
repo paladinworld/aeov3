@@ -1684,8 +1684,9 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
   return (
     <div className="panel">
       <PanelHead
-        title="Visibility by Question Type"
+        title="Coverage by Question Type"
         subtitle="Which kinds of questions do you show up for?"
+        tooltip="The share of prompts in each category where you appear at least once. This is coverage (breadth of presence) — not the weighted Visibility Score, which also factors how often and how high up you're mentioned."
         right={
           <div className="segmented">
             {(["all", "gemini", "chatgpt"] as const).map((option) => (
