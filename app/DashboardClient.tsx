@@ -921,12 +921,13 @@ function PromptDetails({ row }: { row: PromptRow }) {
     <div className="prompt-details">
       {PROMPT_PLATFORMS.map((pf) => {
         const surfaces = pf.responseSurfaces as readonly string[];
+        const { ranked, targetRank: consensusRank } = buildConsensus(row.runs, surfaces);
+        const inTop5 = Boolean(consensusRank && consensusRank <= 5);
         const responseSurface = pf.responseSurfaces.find((surface) => row.bySurface[surface]) ?? pf.responseSurfaces[0];
         const run = row.bySurface[responseSurface];
-        const rank = targetRank(run);
-        // Insight is only computed on run #1 — look across repeats/surfaces for the carrier.
+        // Show the "why weren't you recommended" follow-up only when missing from the consensus top 5.
         const insightRun = row.runs.find((item) => surfaces.includes(item.surface) && item.missingInsight);
-        const insight = insightRun?.missingInsight ? parseInsight(insightRun.missingInsight.answer) : null;
+        const insight = !inTop5 && insightRun?.missingInsight ? parseInsight(insightRun.missingInsight.answer) : null;
         const citations = buildPromptCitationRows(row, pf.citeSurfaces);
         const src = surfaceSource(responseSurface);
 
@@ -939,12 +940,12 @@ function PromptDetails({ row }: { row: PromptRow }) {
             <div className="pcol-block">
               <div className="pcol-h">
                 <span>Response</span>
-                <span className="pcol-rank">{rank ? `You rank #${rank}` : "You: not ranked"}</span>
+                <span className="pcol-rank">{inTop5 ? `You rank #${consensusRank}` : "You: not ranked"}</span>
               </div>
               <ol>
-                {(run ? run.mentions : []).slice(0, 5).map((mention, index) => (
-                  <li key={index} className={mention.isTarget ? "you" : ""}>
-                    {mention.companyName}
+                {ranked.slice(0, 5).map((company, index) => (
+                  <li key={index} className={company.isTarget ? "you" : ""}>
+                    {company.name}
                   </li>
                 ))}
               </ol>
@@ -1604,15 +1605,42 @@ function Track({ value, tone }: { value: number; tone?: string }) {
 // surfaces and repeats — so the table agrees with the Coverage chart (which
 // counts a prompt as covered if you appear at least once). The row expander
 // shows the per-surface, per-run detail behind this single number.
-function EngineRankCell({ runs, surfaces }: { runs: SurfaceRun[]; surfaces: readonly string[] }) {
-  const engineRuns = runs.filter((run) => surfaces.includes(run.surface));
-  if (!engineRuns.length) return <span className="dash">—</span>;
-  const ranks = engineRuns.map((run) => targetRank(run)).filter((rank): rank is number => typeof rank === "number");
-  if (ranks.length) {
-    const best = Math.min(...ranks);
-    return <span className={"rank-pill" + (best === 1 ? " one" : "")}>#{best}</span>;
+// Consensus across an engine's repeat runs for ONE prompt: rank companies by how
+// OFTEN they appear across the runs, then by average position. Both the rank column
+// and the expanded panel read this same aggregate, so they can never disagree (no more
+// "#3 in the column, gone when you click in" from a single lucky run). A company is
+// counted once per run (its best position that run); absence in a run lowers its count.
+function buildConsensus(runs: SurfaceRun[], surfaces: readonly string[]) {
+  const hadRuns = runs.some((run) => surfaces.includes(run.surface));
+  const live = runs.filter((run) => surfaces.includes(run.surface) && !run.rawAnswer.startsWith("Provider error:"));
+  const groups = new Map<string, { name: string; isTarget: boolean; count: number; ranks: number[] }>();
+  for (const run of live) {
+    const seen = new Set<string>();
+    for (const mention of run.mentions) {
+      const key = mention.isTarget ? "__target" : canonicalCompanyName(mention.companyName);
+      if (!key || seen.has(key)) continue; // each company counts once per run
+      seen.add(key);
+      const g = groups.get(key) ?? { name: mention.companyName, isTarget: Boolean(mention.isTarget), count: 0, ranks: [] };
+      g.count += 1;
+      g.ranks.push(mention.rank);
+      if (!mention.isTarget && mention.companyName.length > g.name.length) g.name = mention.companyName;
+      groups.set(key, g);
+    }
   }
-  if (engineRuns.every((run) => run.rawAnswer.startsWith("Provider error:"))) return <span className="error-pill">Error</span>;
+  const ranked = Array.from(groups.values())
+    .map((g) => ({ name: g.name, isTarget: g.isTarget, count: g.count, avgRank: g.ranks.reduce((a, b) => a + b, 0) / g.ranks.length }))
+    .sort((a, b) => b.count - a.count || a.avgRank - b.avgRank);
+  const targetIndex = ranked.findIndex((r) => r.isTarget);
+  return { ranked, hadRuns, liveRuns: live.length, targetRank: targetIndex >= 0 ? targetIndex + 1 : null };
+}
+
+// Per-ENGINE cell: show the company's CONSENSUS rank across the engine's repeat runs,
+// or "Missing" if it's not in the consensus top 5 — the exact number the panel shows.
+function EngineRankCell({ runs, surfaces }: { runs: SurfaceRun[]; surfaces: readonly string[] }) {
+  const { targetRank: rank, hadRuns, liveRuns } = buildConsensus(runs, surfaces);
+  if (!hadRuns) return <span className="dash">—</span>;
+  if (!liveRuns) return <span className="error-pill">Error</span>;
+  if (rank && rank <= 5) return <span className={"rank-pill" + (rank === 1 ? " one" : "")}>#{rank}</span>;
   return <span className="missing-pill">Missing</span>;
 }
 
