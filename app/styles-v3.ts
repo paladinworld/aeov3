@@ -76,6 +76,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .main{padding:28px 32px 56px;max-width:1240px;width:100%;margin:0 auto}
 .page-note{font-size:14px;color:var(--fg-caption);margin:0 0 6px;max-width:760px;line-height:var(--lh-normal)}
 .cit-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cit-toggles{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .cit-note{font-size:12.5px;color:var(--fg-caption);background:var(--bg-muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 12px;margin:0;max-width:760px;line-height:1.5}
 .bench-note{font-size:12px;color:var(--fg-muted);margin:0 0 22px;line-height:1.5;max-width:760px}
 .view-stack{display:flex;flex-direction:column;gap:16px}
@@ -413,7 +414,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .dom-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 90px 80px;gap:12px;align-items:center;padding:12px 20px;width:100%;border:0;background:none;text-align:left;cursor:pointer;transition:background var(--dur)}
 .dom-row:hover{background:color-mix(in oklab,var(--bg-muted) 40%,transparent)}
 .dom-row.expanded{background:color-mix(in oklab,var(--primary) 4%,transparent)}
-.dom-row strong{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0}
+.dom-row strong{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0;overflow:hidden}
+.dom-row .dom-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dom-row strong i{font-style:normal;color:var(--fg-placeholder);font-size:13px;width:12px}
 .dom-row>span{font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg)}
 .dom-row>span .badge{font-size:10px}
@@ -559,9 +561,10 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .prompt-head,.prompt-row{grid-template-columns:minmax(0,1fr) 50px 50px;min-width:0}
     .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),
   .prompt-row>:nth-child(2),.prompt-row>:nth-child(5){display:none}
-  /* citations table -> horizontal scroll */
+  /* citations table -> horizontal scroll (the grouped per-engine table is wide; let it
+     scroll as one unit so Domain keeps its width and never overlaps Type) */
   .src-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .src-head,.dom-row,.url-row{min-width:520px}
+  .src-head,.dom-row,.url-row{min-width:480px}
   .panel-body,.panel{overflow-x:hidden}
   .prompt-tools{flex-wrap:wrap;gap:8px}
   .search{min-width:0;max-width:none;width:100%}

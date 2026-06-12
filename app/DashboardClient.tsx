@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { HVAC_SERVICES } from "@/lib/constants";
 import { runCitations } from "@/lib/citations";
 import {
@@ -497,8 +497,7 @@ function buildHomeAdvice(input: {
   gband: string;
   visRank: number;
   total: number;
-  geminiRate: number;
-  chatgptRate: number;
+  engineRates: { label: string; rate: number }[];
   sov: number;
   sovRank: number;
   sovCount: number;
@@ -507,13 +506,17 @@ function buildHomeAdvice(input: {
   distinctOwned: number;
   weakestCategory?: { category: string; rate: number };
 }): Advice {
-  const { score100, gband, visRank, total, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory } = input;
+  const { score100, gband, visRank, total, engineRates, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory } = input;
   const insights: Advice["insights"] = [];
   const improvements: Advice["improvements"] = [];
   const rankStr = visRank === 1 ? ` — #1 of ${total} in your market` : visRank > 0 && total > 0 ? ` (#${visRank} of ${total})` : "";
-  const gi = Math.round(geminiRate * 100);
-  const gp = Math.round(chatgptRate * 100);
-  const imbalanced = Math.abs(gi - gp) >= 12;
+  // Per-engine visibility spread (all present engines, e.g. Gemini / AI Mode / ChatGPT).
+  const ePcts = engineRates.map((e) => ({ label: e.label, pct: Math.round(e.rate * 100) }));
+  const maxP = Math.max(0, ...ePcts.map((e) => e.pct));
+  const minP = Math.min(...ePcts.map((e) => e.pct), maxP);
+  // "Uneven" = a real gap: ≥10pts absolute, OR one engine ≥2× another with ≥4pt gap
+  // (so 5% vs 15% reads as uneven, not "consistent").
+  const imbalanced = ePcts.length > 1 && (maxP - minP >= 10 || (minP > 0 && maxP >= 2 * minP && maxP - minP >= 4));
 
   // ── Insights (left): the situation as we found it; always populated. ──
   insights.push({
@@ -521,12 +524,17 @@ function buildHomeAdvice(input: {
     lead: `${gband === "High" ? "Strong" : gband === "Medium" ? "Moderate" : "Limited"} overall AI visibility (${score100}%)`,
     body: `AI recommends you ${gband === "High" ? "frequently" : gband === "Medium" ? "selectively" : "rarely"}${rankStr}.`
   });
-  if (gi > 0 || gp > 0) {
-    insights.push({
-      tone: imbalanced ? "warn" : "good",
-      lead: imbalanced ? "Coverage is uneven across engines" : "Consistent across engines",
-      body: `${gi}% on Google Gemini and ${gp}% on ChatGPT.`
-    });
+  if (maxP > 0) {
+    const body = ePcts.map((e) => `${e.pct}% ${e.label}`).join(" · ");
+    // Tone reflects reality: a gap is a warning; "even" is only GOOD when overall visibility
+    // is actually strong — even-but-low stays neutral (never green on a low score).
+    insights.push(
+      imbalanced
+        ? { tone: "warn", lead: "Uneven across engines", body: `${body} — recommendation rates differ sharply.` }
+        : gband === "High"
+          ? { tone: "good", lead: "Consistently strong across engines", body }
+          : { tone: gband === "Low" ? "warn" : "neutral", lead: "Even across engines, but low overall", body }
+    );
   }
   if (sovCount > 0) {
     insights.push({
@@ -537,11 +545,11 @@ function buildHomeAdvice(input: {
   }
 
   // ── Improvements (right): the actions to take. ──
-  if (imbalanced) {
-    const weak = gp < gi ? "ChatGPT" : "Google Gemini";
+  if (imbalanced && ePcts.length) {
+    const weak = ePcts.reduce((a, b) => (b.pct < a.pct ? b : a)).label;
     improvements.push({
       lead: `Close the ${weak} gap`,
-      body: `${weak} pulls from a different source mix than the other engine.`,
+      body: `${weak} recommends you far less than your strongest engine — it pulls from a different source mix.`,
       action: { text: "Compare citation sources for gaps vs competitors", nav: "citations" }
     });
   }
@@ -648,8 +656,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const topDomains = citRank.domainRows.slice(0, 6);
 
   // Plain-language "what this means" summary (starting point — COO will expand the checklist).
-  const geminiRate = surfaceShow.find((item) => item.surface === "gemini")?.rate ?? 0;
-  const chatgptRate = surfaceShow.find((item) => item.surface === "chatgpt")?.rate ?? 0;
+  const engineRates = surfaceShow.map((item) => ({ label: item.label, rate: item.rate }));
   const visRanked = [...lb].sort((a, b) => (b.visibilityScore ?? b.visibilityRate) - (a.visibilityScore ?? a.visibilityRate));
   const visRank = visRanked.findIndex((row) => row.isTarget) + 1;
   const topRival = visRanked.find((row) => !row.isTarget)?.name;
@@ -658,7 +665,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const distinctOwned = new Set(
     citationStats.domainDetails.filter((domain) => domain.owned).flatMap((domain) => (domain.urls || []).map((url) => url.url))
   ).size;
-  const advice = buildHomeAdvice({ score100, gband, visRank, total: lb.length, geminiRate, chatgptRate, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory });
+  const advice = buildHomeAdvice({ score100, gband, visRank, total: lb.length, engineRates, sov, sovRank, sovCount, topRival, topDirectories, distinctOwned, weakestCategory });
   const VISIBLE_IMPROVEMENTS = 3;
   const canCollapse = advice.improvements.length > VISIBLE_IMPROVEMENTS;
   const shownImprovements = canCollapse && !advExpanded ? advice.improvements.slice(0, VISIBLE_IMPROVEMENTS) : advice.improvements;
@@ -750,7 +757,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </div>
             </div>
             <p className="gauge-cap">{primaryPayload.report.runs.length.toLocaleString()} queries run across {primaryPayload.report.queries.length} high-intent prompts</p>
-            <p className="gauge-cap">Weighted more toward Google Gemini than ChatGPT for the overall score.</p>
+            <p className="gauge-cap">{surfaceShow.length >= 3 ? "Weighted toward Google Gemini & Google AI Mode over ChatGPT (35 / 35 / 30)." : "Weighted more toward Google Gemini than ChatGPT for the overall score."}</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
@@ -850,14 +857,20 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
     return stats.promptRows.filter((row) => cat === "All" || displayCategory(row.query) === cat);
   }, [cat, stats.promptRows]);
 
+  // Auto-expand the first row ONCE, on initial load (the default "All" view). After that,
+  // changing the category filter (or switching back to All) collapses everything so the
+  // list is easy to scroll — it does not re-expand.
+  const didAutoExpand = useRef(false);
   useEffect(() => {
-    if (!visible.length) return;
-    if (!expanded || !visible.some((row) => row.query.id === expanded)) {
+    if (!didAutoExpand.current && visible.length) {
       setExpanded(visible[0].query.id);
+      didAutoExpand.current = true;
     }
-    // Key on `visible` only: re-running on `expanded` would instantly re-open a row the user just collapsed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+  useEffect(() => {
+    if (didAutoExpand.current) setExpanded("");
+  }, [cat]);
 
   return (
     <div className="view-stack">
@@ -1046,12 +1059,11 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
   const cit = useMemo(() => buildCitationStats(payload, "all"), [payload]);
   const whereStats = useMemo(() => buildCitationStats(payload, whereFilter), [payload, whereFilter]);
 
-  // One column per engine that actually has runs in this payload.
-  const engines = useMemo(
-    // Ordered Google Gemini → Google AI Mode → ChatGPT; a column shows only where that engine has runs.
-    () => ENGINES.map((engine) => ({ ...engine, stats: domainCitationCounts(payload, engine.surfaces) })).filter((engine) => engine.stats.hasRuns),
-    [payload]
-  );
+  // Top Cited Domains has its OWN platform toggle (All / Google Gemini / Google AI Mode /
+  // ChatGPT), layered with the type toggle. The table shows ONE Citations + ONE Share
+  // column, reflecting the selected platform.
+  const [tableFilter, setTableFilter] = useState<SurfaceFilter>("all");
+  const tableStats = useMemo(() => buildCitationStats(payload, tableFilter), [payload, tableFilter]);
 
   // Citation Rate: of the prompts whose answers cite any source, how many cite YOUR site.
   const citRate = useMemo(() => {
@@ -1061,50 +1073,38 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
     return { owned: owned.size, cited: cited.size, rate: cited.size ? owned.size / cited.size : 0 };
   }, [cit]);
 
-  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "total", dir: "desc" });
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "count", dir: "desc" });
   const onSort = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" }));
   const arrow = (key: string) => (sort.key === key ? (sort.dir === "desc" ? " ↓" : " ↑") : "");
 
-  // Domain row universe = the UNION of domains across every present engine, so a domain
-  // cited only by one engine (e.g. Google AI Mode) still gets a row to compare against.
-  // Type + expandable URLs come from the scored-engine detail when available.
-  const ownedDomain = useMemo(() => domainFromValue(payload.company.website), [payload]);
-  const detailByDomain = useMemo(() => new Map(cit.domainDetails.map((d) => [d.domain, d])), [cit]);
+  // Rows = the selected platform's cited domains, filtered by type, sorted.
   const rows = useMemo(() => {
-    const domains = new Set<string>();
-    engines.forEach((engine) => engine.stats.counts.forEach((_, domain) => domains.add(domain)));
-    let list = Array.from(domains).map((domain) => {
-      const detail = detailByDomain.get(domain);
-      const type = detail?.type ?? classifyCitationDomain(domain, ownedDomain, payload.report.domainTypes);
-      const perEngine = Object.fromEntries(
-        engines.map((engine) => {
-          const count = engine.stats.counts.get(domain) ?? 0;
-          return [engine.key, { count, share: engine.stats.total ? count / engine.stats.total : 0 }];
-        })
-      ) as Record<string, { count: number; share: number }>;
-      const total = engines.reduce((sum, engine) => sum + (engine.stats.counts.get(domain) ?? 0), 0);
-      return { domain, type, urls: detail?.urls ?? [], perEngine, total };
-    });
-    if (domType !== "all") list = list.filter((row) => row.type === domType);
+    const base = domType === "all" ? tableStats.domainDetails : tableStats.domainDetails.filter((row) => row.type === domType);
     const dir = sort.dir === "asc" ? 1 : -1;
-    return list.sort((a, b) => {
+    return [...base].sort((a, b) => {
       if (sort.key === "domain") return a.domain.localeCompare(b.domain) * dir;
-      // count/share columns share the same per-engine ordering (share is monotonic in count),
-      // so a "key#share" sort resolves to that engine's count.
-      const base = sort.key.replace("#share", "");
-      const get = (row: (typeof list)[number]) => (sort.key === "total" ? row.total : row.perEngine[base]?.count ?? 0);
-      return (get(a) - get(b)) * dir || a.domain.localeCompare(b.domain);
+      // "citations" and "share" sort identically (share is monotonic in count).
+      return (a.count - b.count) * dir || a.domain.localeCompare(b.domain);
     });
-  }, [engines, detailByDomain, ownedDomain, payload, domType, sort]);
+  }, [tableStats, domType, sort]);
 
   const [expanded, setExpanded] = useState("");
+  // Auto-expand the first domain ONCE, on initial load (default "All"). Changing the type
+  // filter (or switching back to All) collapses everything for easy scrolling — no re-expand.
+  const didAutoExpand = useRef(false);
   useEffect(() => {
-    setExpanded(rows[0]?.domain ?? "");
+    if (!didAutoExpand.current && rows.length) {
+      setExpanded(rows[0].domain);
+      didAutoExpand.current = true;
+    }
   }, [rows]);
+  useEffect(() => {
+    if (didAutoExpand.current) setExpanded("");
+  }, [domType, tableFilter]);
 
-  // Domain + Type, then all per-engine CITATION columns grouped together, then all
-  // per-engine SHARE columns grouped together (counts next to counts, shares next to shares).
-  const gridCols = `minmax(0,1fr) 88px${engines.map(() => " 82px").join("")}${engines.map(() => " 74px").join("")}`;
+  // Domain | Type | Citations | Share — single columns reflecting the selected platform.
+  // Domain has a 150px floor so it never collapses into Type on narrow screens.
+  const gridCols = `minmax(150px,1fr) 110px 90px 80px`;
 
   return (
     <div className="view-stack">
@@ -1146,32 +1146,26 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       <section className="panel">
         <PanelHead
           title="Top Cited Domains"
-          subtitle="Per-engine citations, side by side · click a column to sort · expand a domain for exact pages"
+          subtitle="Filter by platform and source type · click a column to sort · expand a domain for exact pages"
           right={
-            <div className="segmented">
-              {([["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const).map(([key, label]) => (
-                <button key={key} className={domType === key ? "active" : ""} onClick={() => setDomType(key)}>
-                  {label}
-                </button>
-              ))}
+            <div className="cit-toggles">
+              <EngineToggle payload={payload} value={tableFilter} onChange={setTableFilter} />
+              <div className="segmented">
+                {([["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const).map(([key, label]) => (
+                  <button key={key} className={domType === key ? "active" : ""} onClick={() => setDomType(key)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           }
         />
         <div className="src-table">
-          <div className="src-head-grp" style={{ gridTemplateColumns: gridCols }}>
-            <span style={{ gridColumn: "1 / 3" }} />
-            <span className="shg" style={{ gridColumn: `3 / span ${engines.length}` }}>Citations</span>
-            <span className="shg" style={{ gridColumn: `${3 + engines.length} / span ${engines.length}` }}>Share of citations</span>
-          </div>
           <div className="src-head" style={{ gridTemplateColumns: gridCols }}>
-            <button type="button" className="src-sort" onClick={() => onSort("domain")}>Domain{arrow("domain")}</button>
+            <button type="button" className={"src-sort" + (sort.key === "domain" ? " is-active" : "")} onClick={() => onSort("domain")}>Domain{arrow("domain")}</button>
             <span>Type</span>
-            {engines.map((engine, i) => (
-              <button key={"c" + engine.key} type="button" className={"src-sort num" + (i === 0 ? " grp-start" : "") + (sort.key === engine.key ? " is-active" : "")} onClick={() => onSort(engine.key)} title={`Sort by ${engine.label} citations`}>{engine.label}{arrow(engine.key)}</button>
-            ))}
-            {engines.map((engine, i) => (
-              <button key={"s" + engine.key} type="button" className={"src-sort num" + (i === 0 ? " grp-start" : "") + (sort.key === engine.key + "#share" ? " is-active" : "")} onClick={() => onSort(engine.key + "#share")} title={`Sort by ${engine.label} share`}>{engine.label}{arrow(engine.key + "#share")}</button>
-            ))}
+            <button type="button" className={"src-sort num" + (sort.key === "count" ? " is-active" : "")} onClick={() => onSort("count")}>Citations{arrow("count")}</button>
+            <button type="button" className={"src-sort num" + (sort.key === "share" ? " is-active" : "")} onClick={() => onSort("share")}>Share{arrow("share")}</button>
           </div>
           {!rows.length ? (
             <p className="muted" style={{ padding: "12px 0" }}>
@@ -1185,19 +1179,13 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
                 <button className={"dom-row" + (open ? " expanded" : "")} style={{ gridTemplateColumns: gridCols }} onClick={() => setExpanded(open ? "" : row.domain)}>
                   <strong>
                     <i>{open ? "⌄" : "›"}</i>
-                    {row.domain}
+                    <span className="dom-name">{row.domain}</span>
                   </strong>
                   <span>
                     <Badge tone={row.type}>{row.type}</Badge>
                   </span>
-                  {engines.map((engine, i) => {
-                    const cell = row.perEngine[engine.key];
-                    return <span key={"c" + engine.key} className={"num" + (i === 0 ? " grp-start" : "") + (cell.count ? "" : " is-zero")}>{cell.count}</span>;
-                  })}
-                  {engines.map((engine, i) => {
-                    const cell = row.perEngine[engine.key];
-                    return <span key={"s" + engine.key} className={"num" + (i === 0 ? " grp-start" : "") + (cell.count ? "" : " is-zero")}>{pct(cell.share)}</span>;
-                  })}
+                  <span className="num">{row.count}</span>
+                  <span className="num">{pct(row.share)}</span>
                 </button>
                 {open ? (
                   <div className="url-list">
@@ -1267,7 +1255,7 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       <p className="page-note">
         How {payload.company.name.split(",")[0]} ranks against other HVAC companies in {primaryLocation(payload.company)}, across {primaryPayload.report.queries.length} high-intent prompts.
       </p>
-      <p className="bench-note">Visibility Score and Share of Voice are based on the <strong>primary high-intent prompts</strong>. Ranked by how often each company is named across ChatGPT and Gemini; switch a list to a single platform with the toggle.</p>
+      <p className="bench-note">Visibility Score and Share of Voice are based on the <strong>primary high-intent prompts</strong>. Ranked by how often each company is named across the AI platforms; switch a list to a single platform with the toggle.</p>
 
       <section className="dashboard-grid">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />

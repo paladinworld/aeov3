@@ -1,6 +1,15 @@
+import { appendFileSync } from "node:fs";
 import { Company, CompanyMention, Citation, Location, Query, SurfaceRun, TargetedSentimentRun } from "../types";
 import { id } from "../store";
 import { mockSurfaceRun } from "./mock";
+
+// Append per-call token usage so a run's exact OpenAI cost can be tallied. Opt-in via
+// OPENAI_USAGE_LOG=<path>; no-op otherwise. Best-effort (never throws into a run).
+function logUsage(model: string, usage: unknown) {
+  const path = process.env.OPENAI_USAGE_LOG;
+  if (!path || !usage) return;
+  try { appendFileSync(path, JSON.stringify({ model, usage }) + "\n"); } catch { /* ignore */ }
+}
 
 type OpenAIResponse = {
   output_text?: string;
@@ -135,22 +144,19 @@ export async function diagnoseChatGptMissingRecommendation(params: {
   location: Location;
   query: Query;
   originalAnswer: string;
+  model?: string;
 }): Promise<string> {
   if (process.env.DEMO_MODE !== "false" || !process.env.OPENAI_API_KEY) {
     return "The response did not recommend " + params.company.name + " because the visible evidence in this test answer favored other local providers. Strengthen location-specific service pages, review profiles, and third-party proof sources for this query.";
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  const model = params.model || process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  const body: Record<string, unknown> = {
+      model,
       tools: [
         {
           type: "web_search",
+          search_context_size: "medium",
           user_location: {
             type: "approximate",
             country: "US",
@@ -174,13 +180,23 @@ export async function diagnoseChatGptMissingRecommendation(params: {
         "",
         "Answer in 3-5 concise bullets. Be specific about missing proof, weaker signals, competitor advantages, or source gaps. Do not be polite filler."
       ].join("\n")
-    })
+  };
+  if (model.startsWith("gpt-5")) body.reasoning = { effort: "low" };
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`
+    },
+    body: JSON.stringify(body)
   });
 
-  const json = (await response.json()) as OpenAIResponse & { error?: { message?: string } };
+  const json = (await response.json()) as OpenAIResponse & { error?: { message?: string }; usage?: unknown };
   if (!response.ok) {
     throw new Error(`OpenAI missing diagnostic failed: ${json.error?.message ?? response.statusText}`);
   }
+  logUsage(model, json.usage);
 
   return extractText(json);
 }
@@ -235,10 +251,11 @@ Answer naturally. If you recommend companies, list specific company names in ran
     body: JSON.stringify(body)
   });
 
-  const json = (await response.json()) as OpenAIResponse & { error?: { message?: string } };
+  const json = (await response.json()) as OpenAIResponse & { error?: { message?: string }; usage?: unknown };
   if (!response.ok) {
     throw new Error(`OpenAI web search failed: ${json.error?.message ?? response.statusText}`);
   }
+  logUsage(model, json.usage);
 
   return json;
 }
@@ -367,12 +384,14 @@ function isLikelyTargetCompany(candidate: string, target: string) {
 
   if (!candidateNormalized || !targetNormalized) return false;
   if (candidateNormalized === targetNormalized) return true;
-  if (candidateNormalized.includes(targetNormalized) || targetNormalized.includes(candidateNormalized)) return true;
 
   const targetTokens = companyTokens(target);
   const candidateTokens = companyTokens(candidate);
   const sharedTokens = targetTokens.filter((token) => candidateTokens.includes(token));
 
+  // Substring match only counts when they ALSO share a distinctive (brand) token — otherwise
+  // a generic substring like "airplumb" wrongly matches "paschalairplumbingelectric".
+  if ((candidateNormalized.includes(targetNormalized) || targetNormalized.includes(candidateNormalized)) && sharedTokens.length >= 1) return true;
   if (sharedTokens.length >= 2) return true;
   return sharedTokens.length === 1 && sharedTokens[0].length >= 5 && candidateTokens[0] === sharedTokens[0];
 }

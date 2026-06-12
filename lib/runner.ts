@@ -49,49 +49,82 @@ export async function runSurface(params: {
       break;
   }
 
-  return maybeAttachMissingInsight(params, run);
+  // The "why didn't AI recommend you?" follow-up is NOT attached here per-run — a single
+  // round is a noisy signal. It runs once per prompt AFTER all repeats finish, off the
+  // consensus across the 5 rounds (see attachMissingInsights).
+  return run;
 }
 
-async function maybeAttachMissingInsight(params: {
-  company: Company;
-  location: Location;
-  query: Query;
-  surface: Surface;
-  runNumber: number;
-}, run: SurfaceRun): Promise<SurfaceRun> {
-  if (params.runNumber !== 1) return run;
-  // Buckets that trigger the "why didn't AI recommend you?" follow-up: the PRIMARY
-  // high-intent categories the Visibility Score is built on, where the "why" is most
-  // actionable (e.g. pricing/financing, reviews, repair).
-  if (!["Core General", "Repair & Maintenance", "Reviews & Price"].includes(params.query.category)) return run;
-  if (!["gemini_search", "chatgpt_search"].includes(params.surface)) return run;
-  if (run.rawAnswer.startsWith("Provider error:")) return run;
+const INSIGHT_CATEGORIES = ["Core General", "Repair & Maintenance", "Reviews & Price"];
 
-  const targetRank = run.mentions.find((mention) => mention.isTarget)?.rank ?? null;
-  if (targetRank && targetRank <= 5) return run;
-
-  try {
-    const question = `Why did you not recommend ${params.company.name}?`;
-    const answer = params.surface === "chatgpt_search"
-      ? await diagnoseChatGptMissingRecommendation({ ...params, originalAnswer: run.rawAnswer })
-      : await diagnoseGeminiMissingRecommendation({ ...params, surface: "gemini_search", originalAnswer: run.rawAnswer });
-
-    return {
-      ...run,
-      missingInsight: {
-        question,
-        answer,
-        createdAt: new Date().toISOString()
-      }
-    };
-  } catch (error) {
-    return {
-      ...run,
-      missingInsight: {
-        question: `Why did you not recommend ${params.company.name}?`,
-        answer: `Diagnostic unavailable: ${error instanceof Error ? error.message : "Unknown error"}`,
-        createdAt: new Date().toISOString()
-      }
-    };
+// Consensus target rank across an engine's repeat runs for ONE prompt — mirrors the
+// dashboard's buildConsensus: companies ranked by how OFTEN they appear, then avg position.
+function consensusTargetRank(runs: SurfaceRun[]): number | null {
+  const live = runs.filter((run) => !run.rawAnswer.startsWith("Provider error:"));
+  const groups = new Map<string, { isTarget: boolean; count: number; ranks: number[] }>();
+  for (const run of live) {
+    const seen = new Set<string>();
+    for (const mention of run.mentions) {
+      const key = mention.isTarget ? "__target" : (mention.companyName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const g = groups.get(key) ?? { isTarget: Boolean(mention.isTarget), count: 0, ranks: [] };
+      g.count += 1;
+      g.ranks.push(mention.rank);
+      groups.set(key, g);
+    }
   }
+  const ranked = Array.from(groups.values())
+    .map((g) => ({ isTarget: g.isTarget, count: g.count, avg: g.ranks.reduce((a, b) => a + b, 0) / g.ranks.length }))
+    .sort((a, b) => b.count - a.count || a.avg - b.avg);
+  const i = ranked.findIndex((r) => r.isTarget);
+  return i >= 0 ? i + 1 : null;
+}
+
+// After all runs complete: for each PRIMARY prompt × engine actually run, ask the
+// "why didn't AI recommend you?" follow-up ONCE — and only if the target is consensus-
+// missing (not in the top 5 across the 5 rounds). Attaches the answer to that prompt's
+// run #1 so it's stored once. ChatGPT uses gpt-5.5; the Google engine uses Gemini.
+export async function attachMissingInsights(
+  company: Company,
+  queries: Query[],
+  runs: SurfaceRun[],
+  surfaces: Surface[],
+  locations: Location[],
+  chatModel = "gpt-5.5"
+): Promise<void> {
+  const engines = surfaces.filter((s) => s === "gemini_search" || s === "chatgpt_search");
+  // 1. Find every (prompt, engine) that needs a follow-up (target consensus-missing).
+  const targets: Array<{ query: Query; surface: Surface; host: SurfaceRun; location: Location }> = [];
+  for (const query of queries) {
+    if (!INSIGHT_CATEGORIES.includes(query.category)) continue;
+    for (const surface of engines) {
+      const group = runs.filter((r) => r.queryId === query.id && r.surface === surface);
+      if (!group.some((r) => !r.rawAnswer.startsWith("Provider error:"))) continue;
+      const host = group.find((r) => r.runNumber === 1) ?? group[0];
+      if (!host || host.missingInsight) continue; // once per prompt; idempotent
+      const rank = consensusTargetRank(group);
+      if (rank && rank <= 5) continue; // shows up across the 5 rounds → no follow-up needed
+      const location = locations.find((l) => l.id === host.locationId) ?? ({ id: host.locationId, label: host.locationLabel } as Location);
+      targets.push({ query, surface, host, location });
+    }
+  }
+  // 2. Fire the diagnostics with bounded concurrency. Each writes a DISTINCT host run's
+  // missingInsight (no shared state), so parallelizing is safe and ~5x faster.
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(8, targets.length) }, async () => {
+      while (cursor < targets.length) {
+        const { query, surface, host, location } = targets[cursor++];
+        try {
+          const answer = surface === "chatgpt_search"
+            ? await diagnoseChatGptMissingRecommendation({ company, location, query, originalAnswer: host.rawAnswer, model: chatModel })
+            : await diagnoseGeminiMissingRecommendation({ company, location, query, surface: "gemini_search", originalAnswer: host.rawAnswer });
+          host.missingInsight = { question: `Why did you not recommend ${company.name}?`, answer, createdAt: new Date().toISOString() };
+        } catch (error) {
+          host.missingInsight = { question: `Why did you not recommend ${company.name}?`, answer: `Diagnostic unavailable: ${error instanceof Error ? error.message : "Unknown error"}`, createdAt: new Date().toISOString() };
+        }
+      }
+    })
+  );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runSurface } from "@/lib/runner";
+import { attachMissingInsights, runSurface } from "@/lib/runner";
 import { runCitations } from "@/lib/citations";
 import { citationDomain, classifyDomains } from "@/lib/domain-classifier";
 import { id as createId, readDb, writeDb } from "@/lib/store";
@@ -125,6 +125,17 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (completed % CHECKPOINT_EVERY === 0) persist();
   });
   await writeChain;
+
+  // "Why didn't AI recommend you?" follow-up — fired ONCE per primary prompt, only when
+  // the target is consensus-missing across all repeats (not off a single lucky round).
+  // ChatGPT diagnostics run on gpt-5.5; only the surfaces just run are considered.
+  try {
+    const insightSurfaces = (["gemini_search", "chatgpt_search"] as Surface[]).filter((s) => !onlySurfaces || onlySurfaces.has(s));
+    await attachMissingInsights(company, report.queries, report.runs, insightSurfaces, locations, "gpt-5.5");
+    await writeDb(db);
+  } catch {
+    // Non-fatal: the report is still valid without the diagnostics.
+  }
 
   // Classify the cited domains (platform/contractor/manufacturer/other) so the
   // dashboard can tag sources correctly. Learned mappings persist + reused across runs.

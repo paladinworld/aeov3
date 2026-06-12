@@ -179,7 +179,11 @@ async function generateGroundedContent(params: {
   location: Location;
 }): Promise<GeminiResponse> {
   const apiKey = getApiKey();
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  // Google AI Mode model: 3.5-flash surfaces community sources (Reddit ~52% of runs vs
+  // ~3% on 2.5-flash) — matching what real Gemini shows consumers. Extraction stays on the
+  // cheaper flash-lite via GEMINI_EXTRACTION_MODEL. Grounding on 3.x is cheaper too ($14/1K
+  // + 5K/mo free vs 2.x's $35/1K).
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const body =
     params.tool === "search"
@@ -200,21 +204,24 @@ async function generateGroundedContent(params: {
           }
         };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey
-    },
-    body: JSON.stringify(body)
-  });
-
-  const json = (await response.json()) as GeminiResponse & { error?: { message?: string } };
-  if (!response.ok) {
-    throw new Error(`Gemini ${params.tool} request failed: ${json.error?.message ?? response.statusText}`);
+  // Retry transient 503 "high demand"/overload spikes with exponential backoff —
+  // gemini-3.5-flash (newest model) gets capacity windows; this rides them out so a whole
+  // batch doesn't fail at once. ~2s,4s,8s,16s,32s ≈ up to ~1 min of retries per call.
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(body)
+    });
+    const json = (await response.json()) as GeminiResponse & { error?: { message?: string } };
+    if (response.ok) return json;
+    const msg = json.error?.message ?? response.statusText;
+    const transient = /demand|unavailable|overload|temporarily|try again|resource has been exhausted/i.test(msg);
+    if (!transient || attempt >= 5) {
+      throw new Error(`Gemini ${params.tool} request failed: ${msg}`);
+    }
+    await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
   }
-
-  return json;
 }
 
 async function extractMentions(params: {
@@ -395,12 +402,14 @@ function isLikelyTargetCompany(candidate: string, target: string) {
 
   if (!candidateNormalized || !targetNormalized) return false;
   if (candidateNormalized === targetNormalized) return true;
-  if (candidateNormalized.includes(targetNormalized) || targetNormalized.includes(candidateNormalized)) return true;
 
   const targetTokens = companyTokens(target);
   const candidateTokens = companyTokens(candidate);
   const sharedTokens = targetTokens.filter((token) => candidateTokens.includes(token));
 
+  // Substring match only counts when they ALSO share a distinctive (brand) token — otherwise
+  // a generic substring like "airplumb" wrongly matches "paschalairplumbingelectric".
+  if ((candidateNormalized.includes(targetNormalized) || targetNormalized.includes(candidateNormalized)) && sharedTokens.length >= 1) return true;
   if (sharedTokens.length >= 2) return true;
   return sharedTokens.length === 1 && sharedTokens[0].length >= 5 && candidateTokens[0] === sharedTokens[0];
 }
