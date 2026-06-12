@@ -66,7 +66,7 @@ const ENGINE_SURFACES = {
 // Overall AI Visibility Score weighting (by importance, NOT raw run count, so winning one
 // engine can't dominate). When an engine has no runs in a report (e.g. AI Mode not yet
 // collected), it's dropped and the remaining weights are renormalized.
-const ENGINE_WEIGHTS: Record<string, number> = { gemini: 0.35, google: 0.35, chatgpt: 0.3 };
+const ENGINE_WEIGHTS: Record<string, number> = { gemini: 0.4, google: 0.3, chatgpt: 0.3 };
 // Display order + labels for every scored engine, used by toggles, by-platform bars,
 // the leaderboard and the citation columns.
 const ENGINES = [
@@ -768,7 +768,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <PanelHead
           title="AI Visibility Score"
           subtitle="How often does AI recommend you overall?"
-          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. The overall score weights Google Gemini at 70% and ChatGPT at 30%, since Google drives most local home-service discovery today. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
+          tooltip="How visible your company is to AI — how often it recommends you, and how high up you appear, when people ask it for help choosing a provider. The overall score weights Google Gemini at 40%, Google AI Mode at 30%, and ChatGPT at 30% — Google surfaces make up 70% since Google drives most local home-service discovery today. Higher is better: 30%+ is High, 20–30% is Medium, under 20% is Low."
         />
         <div className="score-body">
           <div className="score-gauge">
@@ -794,7 +794,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </div>
             </div>
             <p className="gauge-cap">{primaryPayload.report.runs.length.toLocaleString()} queries run across {primaryPayload.report.queries.length} high-intent prompts</p>
-            <p className="gauge-cap">{surfaceShow.length >= 3 ? "Weighted toward Google Gemini & Google AI Mode over ChatGPT (35 / 35 / 30)." : "Weighted more toward Google Gemini than ChatGPT for the overall score."}</p>
+            <p className="gauge-cap">{surfaceShow.length >= 3 ? "Weighted toward Google Gemini, then Google AI Mode and ChatGPT (40 / 30 / 30)." : "Weighted more toward Google Gemini than ChatGPT for the overall score."}</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
@@ -2247,9 +2247,9 @@ function visibilityMetricsForName(payload: ReportPayload, runs: SurfaceRun[], na
 
 // Overall score = weighted blend of each engine's own visibility score, rather
 // than pooling raw runs (which over-weights whichever engine more prompts hit).
-// Weights: Google Gemini 35% / Google AI Mode 35% / ChatGPT 30%. Engines with no runs
+// Weights: Google Gemini 40% / Google AI Mode 30% / ChatGPT 30%. Engines with no runs
 // in this report are dropped and the remaining weights renormalized (so a report without
-// AI Mode blends Gemini/ChatGPT at 0.35/0.30 → ~54%/46%, not dragged down by a 0 third).
+// AI Mode blends Gemini/ChatGPT at 0.40/0.30 → ~57%/43%, not dragged down by a 0 third).
 function blendedVisibilityForName(payload: ReportPayload, name: string, isTarget: boolean): number {
   let weightSum = 0;
   let acc = 0;
