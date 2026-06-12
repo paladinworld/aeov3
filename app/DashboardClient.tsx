@@ -103,6 +103,42 @@ function EngineToggle({ payload, options, value, onChange }: { payload?: ReportP
     </div>
   );
 }
+
+type IntentFilter = "all" | "primary" | "secondary";
+
+// Labeled single-select dropdown (Platform / Type / Prompt Intent on the citations table).
+// One value at a time; the menu marks the active option with a check and closes on outside click.
+function FilterSelect<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: ReadonlyArray<readonly [T, string]>; onChange: (next: T) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (event: MouseEvent) => { if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const current = options.find(([key]) => key === value)?.[1] ?? "";
+  return (
+    <div className={"filter-select" + (open ? " open" : "")} ref={ref}>
+      <button type="button" className="fs-trigger" onClick={() => setOpen((o) => !o)}>
+        <span className="fs-label">{label}</span>
+        <span className="fs-value">{current}</span>
+        <Icon name="chevdown" size={14} />
+      </button>
+      {open ? (
+        <div className="fs-menu" role="listbox">
+          {options.map(([key, lbl]) => (
+            <button key={key} type="button" role="option" aria-selected={key === value} className={"fs-option" + (key === value ? " selected" : "")} onClick={() => { onChange(key); setOpen(false); }}>
+              <span className="fs-check">{key === value ? <Icon name="check" size={15} /> : null}</span>
+              {lbl}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const INTENT_LABELS: Record<string, string> = {
   best: "Best of",
   near_me: "Near me",
@@ -127,6 +163,7 @@ const ICONS: Record<string, string> = {
   arrow: "M5 12h14M12 5l7 7-7 7",
   chevron: "M9 18l6-6-6-6",
   chevdown: "M6 9l6 6 6-6",
+  check: "M20 6L9 17l-5-5",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
   menu: "M3 6h18M3 12h18M3 18h18",
@@ -1063,7 +1100,9 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
   // ChatGPT), layered with the type toggle. The table shows ONE Citations + ONE Share
   // column, reflecting the selected platform.
   const [tableFilter, setTableFilter] = useState<SurfaceFilter>("all");
-  const tableStats = useMemo(() => buildCitationStats(payload, tableFilter), [payload, tableFilter]);
+  const [intentFilter, setIntentFilter] = useState<IntentFilter>("all");
+  const tablePayload = useMemo(() => payloadByIntent(payload, intentFilter), [payload, intentFilter]);
+  const tableStats = useMemo(() => buildCitationStats(tablePayload, tableFilter), [tablePayload, tableFilter]);
 
   // Citation Rate: of the prompts whose answers cite any source, how many cite YOUR site.
   const citRate = useMemo(() => {
@@ -1100,7 +1139,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
   }, [rows]);
   useEffect(() => {
     if (didAutoExpand.current) setExpanded("");
-  }, [domType, tableFilter]);
+  }, [domType, tableFilter, intentFilter]);
 
   // Domain | Type | Citations | Share — single columns reflecting the selected platform.
   // Domain has a 150px floor so it never collapses into Type on narrow screens.
@@ -1146,17 +1185,22 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       <section className="panel">
         <PanelHead
           title="Top Cited Domains"
-          subtitle="Filter by platform and source type · click a column to sort · expand a domain for exact pages"
+          subtitle="Filter by platform, type, and prompt intent · click a column to sort · expand a domain for exact pages"
           right={
             <div className="cit-toggles">
-              <EngineToggle payload={payload} value={tableFilter} onChange={setTableFilter} />
-              <div className="segmented">
-                {([["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const).map(([key, label]) => (
-                  <button key={key} className={domType === key ? "active" : ""} onClick={() => setDomType(key)}>
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <FilterSelect label="Platform" value={tableFilter} options={engineFilterOptions(payload)} onChange={setTableFilter} />
+              <FilterSelect
+                label="Type"
+                value={domType}
+                options={[["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const}
+                onChange={setDomType}
+              />
+              <FilterSelect
+                label="Prompt Intent"
+                value={intentFilter}
+                options={[["all", "All"], ["primary", "Primary high-intent"], ["secondary", "Secondary"]] as const}
+                onChange={setIntentFilter}
+              />
             </div>
           }
         />
@@ -1983,6 +2027,20 @@ function primaryPayloadOf(payload: ReportPayload): ReportPayload {
       queries: primaryQueries,
       runs: payload.report.runs.filter((r) => ids.has(r.queryId))
     }
+  };
+}
+
+// A payload narrowed by prompt intent for the citations table: primary (high-intent),
+// secondary (everything else), or all. Mirrors primaryPayloadOf's empty-bucket fallback.
+function payloadByIntent(payload: ReportPayload, intent: IntentFilter): ReportPayload {
+  if (intent === "all") return payload;
+  if (intent === "primary") return primaryPayloadOf(payload);
+  const secondaryQueries = payload.report.queries.filter((q) => !isPrimaryCategory(q.category));
+  if (!secondaryQueries.length) return payload;
+  const ids = new Set(secondaryQueries.map((q) => q.id));
+  return {
+    ...payload,
+    report: { ...payload.report, queries: secondaryQueries, runs: payload.report.runs.filter((r) => ids.has(r.queryId)) }
   };
 }
 

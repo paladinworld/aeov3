@@ -76,7 +76,20 @@ button,input,select,textarea{font:inherit;color:inherit}
 .main{padding:28px 32px 56px;max-width:1240px;width:100%;margin:0 auto}
 .page-note{font-size:14px;color:var(--fg-caption);margin:0 0 6px;max-width:760px;line-height:var(--lh-normal)}
 .cit-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.cit-toggles{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.cit-toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.filter-select{position:relative}
+.fs-trigger{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--bg);border-radius:var(--radius-md);padding:7px 11px;font-size:12px;cursor:pointer;color:var(--fg);transition:border-color var(--dur),box-shadow var(--dur),background var(--dur)}
+.fs-trigger:hover{background:var(--bg-muted)}
+.filter-select.open .fs-trigger{border-color:color-mix(in oklab,var(--primary) 55%,var(--border));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary) 14%,transparent)}
+.fs-label{color:var(--fg-muted);font-weight:500}
+.fs-value{font-weight:600}
+.fs-trigger svg{transition:transform var(--dur);color:var(--fg-muted)}
+.filter-select.open .fs-trigger svg{transform:rotate(180deg)}
+.fs-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:30;min-width:210px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:0 10px 28px -8px rgba(0,0,0,.20),0 2px 6px -2px rgba(0,0,0,.12);padding:6px;display:flex;flex-direction:column;gap:2px}
+.fs-option{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;border-radius:6px;padding:8px 10px;font-size:13px;font-weight:500;color:var(--fg);cursor:pointer;transition:background var(--dur)}
+.fs-option:hover{background:var(--bg-muted)}
+.fs-option.selected{font-weight:600}
+.fs-check{display:inline-flex;align-items:center;justify-content:center;width:16px;flex:none;color:var(--primary)}
 .cit-note{font-size:12.5px;color:var(--fg-caption);background:var(--bg-muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 12px;margin:0;max-width:760px;line-height:1.5}
 .bench-note{font-size:12px;color:var(--fg-muted);margin:0 0 22px;line-height:1.5;max-width:760px}
 .view-stack{display:flex;flex-direction:column;gap:16px}
