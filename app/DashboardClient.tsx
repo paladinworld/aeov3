@@ -28,7 +28,7 @@ type ReportPayload = {
 };
 
 type View = "home" | "prompts" | "citations" | "competitors" | "sentiment" | "setup";
-type SurfaceFilter = "all" | "gemini" | "chatgpt";
+type SurfaceFilter = "all" | "gemini" | "google" | "chatgpt";
 type PromptTypeFilter = "all" | "intention" | "informational";
 
 const NAV: Record<View, string> = {
@@ -46,7 +46,7 @@ const defaultServices: Service[] = ["AC repair", "Furnace repair", "Emergency HV
 // recommend you" (AI visibility). The two scored surfaces are the AI answers —
 // Google's Search-grounded answer (AI Overview / Gemini) and ChatGPT. The
 // gemini_maps runs stay in the payload (reversible) but feed no score or display.
-const customerSurfaces = ["gemini_search", "chatgpt_search"] as const;
+const customerSurfaces = ["gemini_search", "google_ai_overview", "chatgpt_search"] as const;
 
 // When the data APIs answer 401 (gate is on and we have no valid cookie), send the
 // visitor to the sign-in page, preserving which report they were trying to open.
@@ -55,20 +55,54 @@ function redirectToAccess() {
   const id = new URLSearchParams(window.location.search).get("report");
   window.location.href = "/access" + (id ? `?report=${encodeURIComponent(id)}` : "");
 }
-// Two customer-facing engines, each = its AI answer. "Google" is the Search-grounded
-// AI answer (AI Overview / Gemini); ChatGPT is its own engine. The Maps local pack is
-// deliberately NOT part of "Google" here — it's local SEO, not AI visibility. Everything
-// the customer sees (gauge, by-platform bars, leaderboard) is grouped by these two engines.
+// The three customer-facing engines, each = its own AI answer surface. Google Gemini
+// (Search-grounded) and Google AI Mode are distinct Google products; ChatGPT is its own
+// engine. The Maps local pack is excluded — it's local SEO, not AI visibility.
 const ENGINE_SURFACES = {
   gemini: ["gemini_search"],
+  google: ["google_ai_overview"],
   chatgpt: ["chatgpt_search"]
 } as const;
-// Overall AI Visibility Score weighting. We blend the two engines by importance,
-// NOT by raw run count, so a company that wins only one engine can't top the
-// overall rank. Google (Maps local pack + AI Overviews) drives the majority of
-// local home-service discovery today, so it carries more weight than ChatGPT.
-const GEMINI_WEIGHT = 0.7;
-const CHATGPT_WEIGHT = 0.3;
+// Overall AI Visibility Score weighting (by importance, NOT raw run count, so winning one
+// engine can't dominate). When an engine has no runs in a report (e.g. AI Mode not yet
+// collected), it's dropped and the remaining weights are renormalized.
+const ENGINE_WEIGHTS: Record<string, number> = { gemini: 0.35, google: 0.35, chatgpt: 0.3 };
+// Display order + labels for every scored engine, used by toggles, by-platform bars,
+// the leaderboard and the citation columns.
+const ENGINES = [
+  { key: "gemini" as const, label: "Google Gemini", surfaces: ENGINE_SURFACES.gemini },
+  { key: "google" as const, label: "Google AI Mode", surfaces: ENGINE_SURFACES.google },
+  { key: "chatgpt" as const, label: "ChatGPT", surfaces: ENGINE_SURFACES.chatgpt }
+];
+// Engines that actually have runs in this report (so Google AI Mode appears only where
+// google_ai_overview data exists — no dead columns/toggles elsewhere).
+function enginesPresent(payload: ReportPayload) {
+  return ENGINES.filter((e) => payload.report.runs.some((r) => (e.surfaces as readonly string[]).includes(r.surface)));
+}
+function engineFilterOptions(payload: ReportPayload): Array<[SurfaceFilter, string]> {
+  return [["all", "All"], ...enginesPresent(payload).map((e) => [e.key, e.label] as [SurfaceFilter, string])];
+}
+function surfacesForFilter(filter: SurfaceFilter): readonly string[] {
+  if (filter === "gemini") return ENGINE_SURFACES.gemini;
+  if (filter === "google") return ENGINE_SURFACES.google;
+  if (filter === "chatgpt") return ENGINE_SURFACES.chatgpt;
+  return customerSurfaces;
+}
+
+// Shared platform toggle (All / Google Gemini / Google AI Mode / ChatGPT). Pass the
+// report payload so only engines with data show; or pass explicit `options`.
+function EngineToggle({ payload, options, value, onChange }: { payload?: ReportPayload; options?: Array<[SurfaceFilter, string]>; value: SurfaceFilter; onChange: (next: SurfaceFilter) => void }) {
+  const opts = options ?? (payload ? engineFilterOptions(payload) : ENGINES.map((e) => [e.key, e.label] as [SurfaceFilter, string]));
+  return (
+    <div className="segmented">
+      {opts.map(([key, label]) => (
+        <button key={key} className={value === key ? "active" : ""} onClick={() => onChange(key)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 const INTENT_LABELS: Record<string, string> = {
   best: "Best of",
   near_me: "Near me",
@@ -581,12 +615,12 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const gband = score100 >= 30 ? "High" : score100 >= 20 ? "Medium" : "Low";
 
   // By-platform uses the SAME composite Visibility Score as the leaderboard (one
-  // definition everywhere), grouped into the two engines — Google (Maps + AI
-  // Overview) and ChatGPT — also on primary prompts so the bars match the gauge.
-  const surfaceShow = (["gemini", "chatgpt"] as const).map((engine) => ({
-    surface: engine,
-    label: engine === "gemini" ? "Google Gemini" : "ChatGPT",
-    rate: visibilityMetricsForName(primaryPayload, mentionShareRuns(primaryPayload.report.runs, engine), payload.company.name, true).visibility
+  // definition everywhere), grouped by engine — only the engines present in this report,
+  // on primary prompts so the bars match the gauge.
+  const surfaceShow = enginesPresent(primaryPayload).map((engine) => ({
+    surface: engine.key,
+    label: engine.label,
+    rate: visibilityMetricsForName(primaryPayload, mentionShareRuns(primaryPayload.report.runs, engine.key), payload.company.name, true).visibility
   }));
 
   // Share of voice
@@ -632,7 +666,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   return (
     <div className="view-stack">
       <p className="page-note">
-        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines (Google Gemini, ChatGPT).
+        {primaryLocation(payload.company)} visibility across {stats.totalQueries} HVAC prompts and {surfaceShow.length} AI engines ({surfaceShow.map((s) => s.label).join(", ")}).
       </p>
       <p className="bench-note">
         Directional reference only. AI results vary by each query, so this won&apos;t match exactly what every consumer sees.
@@ -760,13 +794,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
             title="Citation Sources"
             subtitle="Which websites does AI rely on to answer?"
             right={
-              <div className="segmented">
-                {(["all", "gemini", "chatgpt"] as const).map((option) => (
-                  <button key={option} className={citFilter === option ? "active" : ""} onClick={() => setCitFilter(option)}>
-                    {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
-                  </button>
-                ))}
-              </div>
+              <EngineToggle payload={payload} value={citFilter} onChange={setCitFilter} />
             }
           />
           <div>
@@ -803,6 +831,11 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
 function PromptsView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
   const [cat, setCat] = useState("All");
   const [expanded, setExpanded] = useState("");
+
+  // Per-engine rank columns — only the engines present in this report (Google AI Mode
+  // appears only where AI Mode data exists). Grid widths set inline to match.
+  const engines = useMemo(() => enginesPresent(payload), [payload]);
+  const promptCols = `minmax(0,1fr) 106px${engines.map(() => " 60px").join("")} 112px`;
 
   const summary = payload.summary;
   const topOneRate = topOneRateOf(payload);
@@ -851,11 +884,12 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
         </div>
 
         <div className="prompt-table">
-          <div className="prompt-head">
+          <div className="prompt-head" style={{ gridTemplateColumns: promptCols }}>
             <span>Prompt</span>
             <span>Intent</span>
-            <span>Google Gemini</span>
-            <span>ChatGPT</span>
+            {engines.map((engine) => (
+              <span key={engine.key} className="cell-center">{engine.label}</span>
+            ))}
             <span>#1 competitor</span>
           </div>
           {([
@@ -873,7 +907,7 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                 </div>
                 {tierRows.map((row) => (
                   <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")}>
-                    <button className="prompt-row" onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
+                    <button className="prompt-row" style={{ gridTemplateColumns: promptCols }} onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
                       <span className="prompt-text">
                         <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
                         <span className="label">{row.query.text}</span>
@@ -881,12 +915,11 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                       <span>
                         <Badge>{INTENT_LABELS[row.query.intent] || row.query.intent}</Badge>
                       </span>
-                      <span className="cell-center">
-                        <EngineRankCell runs={row.runs} surfaces={ENGINE_SURFACES.gemini} />
-                      </span>
-                      <span className="cell-center">
-                        <EngineRankCell runs={row.runs} surfaces={ENGINE_SURFACES.chatgpt} />
-                      </span>
+                      {engines.map((engine) => (
+                        <span key={engine.key} className="cell-center">
+                          <EngineRankCell runs={row.runs} surfaces={engine.surfaces} />
+                        </span>
+                      ))}
                       <span className="comp-name">{row.topCompetitor || "—"}</span>
                     </button>
                     {expanded === row.query.id ? <PromptDetails row={row} /> : null}
@@ -910,16 +943,19 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
 // Grouping by platform makes each engine's story self-contained (and makes clear
 // that, e.g., a ChatGPT "few reviews" note is about the open web, not Google reviews).
 const PROMPT_PLATFORMS = [
-  // Google = the Search-grounded AI answer (AI Overview / Gemini). The Maps local pack
-  // is excluded from the report, so the panel shows the AI answer + the web pages it cited.
+  // Ordered Google Gemini → Google AI Mode → ChatGPT. Each panel shows that engine's AI
+  // answer + the web pages it cited (Maps local pack is excluded from the report).
   { key: "gemini", responseSurfaces: ["gemini_search"], citeSurfaces: ["gemini_search"] },
+  { key: "google", responseSurfaces: ["google_ai_overview"], citeSurfaces: ["google_ai_overview"] },
   { key: "chatgpt", responseSurfaces: ["chatgpt_search"], citeSurfaces: ["chatgpt_search"] }
 ] as const;
 
 function PromptDetails({ row }: { row: PromptRow }) {
+  // Only show a column for engines that actually answered this prompt.
+  const platforms = PROMPT_PLATFORMS.filter((pf) => row.runs.some((r) => (pf.responseSurfaces as readonly string[]).includes(r.surface)));
   return (
-    <div className="prompt-details">
-      {PROMPT_PLATFORMS.map((pf) => {
+    <div className="prompt-details" style={{ gridTemplateColumns: `repeat(${platforms.length || 1}, minmax(0, 1fr))` }}>
+      {platforms.map((pf) => {
         const surfaces = pf.responseSurfaces as readonly string[];
         const { ranked, targetRank: consensusRank } = buildConsensus(row.runs, surfaces);
         const inTop5 = Boolean(consensusRank && consensusRank <= 5);
@@ -1002,9 +1038,21 @@ function PromptDetails({ row }: { row: PromptRow }) {
    Citations
    ──────────────────────────────────────────────────────────── */
 function CitationsView({ payload }: { payload: ReportPayload }) {
-  const [cFilter, setCFilter] = useState<SurfaceFilter>("all");
   const [domType, setDomType] = useState<"all" | SourceType>("all");
-  const cit = useMemo(() => buildCitationStats(payload, cFilter), [payload, cFilter]);
+  // Toggle now lives ONLY on the "Where AI Gets Its Answers" panel and affects only it.
+  const [whereFilter, setWhereFilter] = useState<SurfaceFilter>("all");
+  // Everything else (metrics, the domain table) is engine-agnostic; per-engine detail
+  // lives in the side-by-side columns of the table below.
+  const cit = useMemo(() => buildCitationStats(payload, "all"), [payload]);
+  const whereStats = useMemo(() => buildCitationStats(payload, whereFilter), [payload, whereFilter]);
+
+  // One column per engine that actually has runs in this payload.
+  const engines = useMemo(
+    // Ordered Google Gemini → Google AI Mode → ChatGPT; a column shows only where that engine has runs.
+    () => ENGINES.map((engine) => ({ ...engine, stats: domainCitationCounts(payload, engine.surfaces) })).filter((engine) => engine.stats.hasRuns),
+    [payload]
+  );
+
   // Citation Rate: of the prompts whose answers cite any source, how many cite YOUR site.
   const citRate = useMemo(() => {
     const cited = new Set<string>();
@@ -1012,31 +1060,57 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
     cit.domainDetails.forEach((d) => (d.urls || []).forEach((u) => (u.prompts || []).forEach((p) => { cited.add(p); if (d.owned) owned.add(p); })));
     return { owned: owned.size, cited: cited.size, rate: cited.size ? owned.size / cited.size : 0 };
   }, [cit]);
-  const filteredDomains = useMemo(
-    () => (domType === "all" ? cit.domainDetails : cit.domainDetails.filter((row) => row.type === domType)),
-    [cit, domType]
-  );
-  const [expanded, setExpanded] = useState("");
 
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "total", dir: "desc" });
+  const onSort = (key: string) => setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" }));
+  const arrow = (key: string) => (sort.key === key ? (sort.dir === "desc" ? " ↓" : " ↑") : "");
+
+  // Domain row universe = the UNION of domains across every present engine, so a domain
+  // cited only by one engine (e.g. Google AI Mode) still gets a row to compare against.
+  // Type + expandable URLs come from the scored-engine detail when available.
+  const ownedDomain = useMemo(() => domainFromValue(payload.company.website), [payload]);
+  const detailByDomain = useMemo(() => new Map(cit.domainDetails.map((d) => [d.domain, d])), [cit]);
+  const rows = useMemo(() => {
+    const domains = new Set<string>();
+    engines.forEach((engine) => engine.stats.counts.forEach((_, domain) => domains.add(domain)));
+    let list = Array.from(domains).map((domain) => {
+      const detail = detailByDomain.get(domain);
+      const type = detail?.type ?? classifyCitationDomain(domain, ownedDomain, payload.report.domainTypes);
+      const perEngine = Object.fromEntries(
+        engines.map((engine) => {
+          const count = engine.stats.counts.get(domain) ?? 0;
+          return [engine.key, { count, share: engine.stats.total ? count / engine.stats.total : 0 }];
+        })
+      ) as Record<string, { count: number; share: number }>;
+      const total = engines.reduce((sum, engine) => sum + (engine.stats.counts.get(domain) ?? 0), 0);
+      return { domain, type, urls: detail?.urls ?? [], perEngine, total };
+    });
+    if (domType !== "all") list = list.filter((row) => row.type === domType);
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return list.sort((a, b) => {
+      if (sort.key === "domain") return a.domain.localeCompare(b.domain) * dir;
+      // count/share columns share the same per-engine ordering (share is monotonic in count),
+      // so a "key#share" sort resolves to that engine's count.
+      const base = sort.key.replace("#share", "");
+      const get = (row: (typeof list)[number]) => (sort.key === "total" ? row.total : row.perEngine[base]?.count ?? 0);
+      return (get(a) - get(b)) * dir || a.domain.localeCompare(b.domain);
+    });
+  }, [engines, detailByDomain, ownedDomain, payload, domType, sort]);
+
+  const [expanded, setExpanded] = useState("");
   useEffect(() => {
-    setExpanded(filteredDomains[0]?.domain ?? "");
-  }, [filteredDomains]);
+    setExpanded(rows[0]?.domain ?? "");
+  }, [rows]);
+
+  // Domain + Type, then all per-engine CITATION columns grouped together, then all
+  // per-engine SHARE columns grouped together (counts next to counts, shares next to shares).
+  const gridCols = `minmax(0,1fr) 88px${engines.map(() => " 82px").join("")}${engines.map(() => " 74px").join("")}`;
 
   return (
     <div className="view-stack">
       <p className="page-note">
         Citation stats use the sources AI cites as supporting authority. Platform sources are directories, review sites, trust profiles, and editorial lists; competitor sources are other HVAC company websites.
       </p>
-
-      <div className="cit-controls">
-        <div className="segmented">
-          {([["all", "All"], ["gemini", "Google Gemini"], ["chatgpt", "ChatGPT"]] as const).map(([key, label]) => (
-            <button key={key} className={cFilter === key ? "active" : ""} onClick={() => setCFilter(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <section className="metric-grid four">
         <MetricCard label="Unique Sources" value={String(cit.uniqueSources)} helper="real citation domains" />
@@ -1046,10 +1120,16 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       </section>
 
       <section className="panel">
-        <PanelHead title="Where AI Gets Its Answers" subtitle="Citation volume by source type" />
+        <PanelHead
+          title="Where AI Gets Its Answers"
+          subtitle="Citation volume by source type"
+          right={
+            <EngineToggle payload={payload} value={whereFilter} onChange={setWhereFilter} />
+          }
+        />
         <div className="panel-body">
           <div className="coverage">
-            {cit.typeRows.map((row) => (
+            {whereStats.typeRows.map((row) => (
               <div key={row.type} className={"coverage-row citation-type-row " + row.type.toLowerCase()}>
                 <span>{row.type}</span>
                 <Track value={row.share} />
@@ -1066,7 +1146,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
       <section className="panel">
         <PanelHead
           title="Top Cited Domains"
-          subtitle="Expand a domain to see the exact cited pages"
+          subtitle="Per-engine citations, side by side · click a column to sort · expand a domain for exact pages"
           right={
             <div className="segmented">
               {([["all", "All"], ["Competitor", "Competitor"], ["Platform", "Platform"], ["Owned", "Owned"]] as const).map(([key, label]) => (
@@ -1078,22 +1158,31 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
           }
         />
         <div className="src-table">
-          <div className="src-head">
-            <span>Domain</span>
-            <span>Type</span>
-            <span>Citations</span>
-            <span>Share</span>
+          <div className="src-head-grp" style={{ gridTemplateColumns: gridCols }}>
+            <span style={{ gridColumn: "1 / 3" }} />
+            <span className="shg" style={{ gridColumn: `3 / span ${engines.length}` }}>Citations</span>
+            <span className="shg" style={{ gridColumn: `${3 + engines.length} / span ${engines.length}` }}>Share of citations</span>
           </div>
-          {!filteredDomains.length ? (
+          <div className="src-head" style={{ gridTemplateColumns: gridCols }}>
+            <button type="button" className="src-sort" onClick={() => onSort("domain")}>Domain{arrow("domain")}</button>
+            <span>Type</span>
+            {engines.map((engine, i) => (
+              <button key={"c" + engine.key} type="button" className={"src-sort num" + (i === 0 ? " grp-start" : "") + (sort.key === engine.key ? " is-active" : "")} onClick={() => onSort(engine.key)} title={`Sort by ${engine.label} citations`}>{engine.label}{arrow(engine.key)}</button>
+            ))}
+            {engines.map((engine, i) => (
+              <button key={"s" + engine.key} type="button" className={"src-sort num" + (i === 0 ? " grp-start" : "") + (sort.key === engine.key + "#share" ? " is-active" : "")} onClick={() => onSort(engine.key + "#share")} title={`Sort by ${engine.label} share`}>{engine.label}{arrow(engine.key + "#share")}</button>
+            ))}
+          </div>
+          {!rows.length ? (
             <p className="muted" style={{ padding: "12px 0" }}>
               No {domType === "all" ? "" : domType.toLowerCase() + " "}sources cited for this selection.
             </p>
           ) : null}
-          {filteredDomains.map((row) => {
+          {rows.map((row) => {
             const open = expanded === row.domain;
             return (
               <div key={row.domain} className="dom-group">
-                <button className={"dom-row" + (open ? " expanded" : "")} onClick={() => setExpanded(open ? "" : row.domain)}>
+                <button className={"dom-row" + (open ? " expanded" : "")} style={{ gridTemplateColumns: gridCols }} onClick={() => setExpanded(open ? "" : row.domain)}>
                   <strong>
                     <i>{open ? "⌄" : "›"}</i>
                     {row.domain}
@@ -1101,8 +1190,14 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
                   <span>
                     <Badge tone={row.type}>{row.type}</Badge>
                   </span>
-                  <span>{row.count}</span>
-                  <span>{pct(row.share)}</span>
+                  {engines.map((engine, i) => {
+                    const cell = row.perEngine[engine.key];
+                    return <span key={"c" + engine.key} className={"num" + (i === 0 ? " grp-start" : "") + (cell.count ? "" : " is-zero")}>{cell.count}</span>;
+                  })}
+                  {engines.map((engine, i) => {
+                    const cell = row.perEngine[engine.key];
+                    return <span key={"s" + engine.key} className={"num" + (i === 0 ? " grp-start" : "") + (cell.count ? "" : " is-zero")}>{pct(cell.share)}</span>;
+                  })}
                 </button>
                 {open ? (
                   <div className="url-list">
@@ -1184,13 +1279,7 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
           title="Top Citation Sources — by Prompt"
           subtitle="The 10 most-cited sources and the prompts that cite each (expand a row)"
           right={
-            <div className="segmented">
-              {(["all", "gemini", "chatgpt"] as const).map((option) => (
-                <button key={option} className={cf === option ? "active" : ""} onClick={() => setCf(option)}>
-                  {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
-                </button>
-              ))}
-            </div>
+            <EngineToggle payload={payload} value={cf} onChange={setCf} />
           }
         />
         <div className="src-head">
@@ -1262,13 +1351,7 @@ function SentimentView({ payload, stats }: { payload: ReportPayload; stats: Repo
       <section className="sentiment-hero">
         <div className="sent-head">
           <span className="ov">Overall AI sentiment — {s.label}</span>
-          <div className="segmented">
-            {(["all", "gemini", "chatgpt"] as const).map((option) => (
-              <button key={option} className={sFilter === option ? "active" : ""} onClick={() => setSFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
-              </button>
-            ))}
-          </div>
+          <EngineToggle payload={payload} value={sFilter} onChange={setSFilter} />
         </div>
         <strong className="sentiment-score">{signed(s.score)}</strong>
         <div className="sent-meter">
@@ -1690,13 +1773,11 @@ function Leaderboard({
         title={title}
         subtitle={subtitle}
         right={
-          <div className="segmented">
-            {(["all", "gemini", "chatgpt"] as const).map((option) => (
-              <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
-              </button>
-            ))}
-          </div>
+          <EngineToggle
+            options={[["all", "All"], ...ENGINES.filter((e) => (data[e.key]?.length ?? 0) > 0).map((e) => [e.key, e.label] as [SurfaceFilter, string])]}
+            value={filter}
+            onChange={setFilter}
+          />
         }
       />
       <div className="lb-list">
@@ -1733,15 +1814,7 @@ function CategoryCoveragePanel({ payload, onMore, moreLabel }: { payload: Report
         title="Coverage by Question Type"
         subtitle="Which kinds of questions do you show up for?"
         tooltip="The share of prompts in each category where you appear at least once. This is coverage (breadth of presence) — not the weighted Visibility Score, which also factors how often and how high up you're mentioned."
-        right={
-          <div className="segmented">
-            {(["all", "gemini", "chatgpt"] as const).map((option) => (
-              <button key={option} className={filter === option ? "active" : ""} onClick={() => setFilter(option)}>
-                {option === "all" ? "All" : option === "gemini" ? "Google Gemini" : "ChatGPT"}
-              </button>
-            ))}
-          </div>
-        }
+        right={<EngineToggle payload={payload} value={filter} onChange={setFilter} />}
       />
       <div className="cov-list">
         {coverage.map((row) => (
@@ -2024,7 +2097,7 @@ function buildCategoryCoverage(payload: ReportPayload, surfaceFilter: SurfaceFil
   // Gemini surfaces (maps + search), not maps-only. Otherwise gemini_search coverage
   // counts toward "All" but neither engine tab, making All look ~100% while each
   // engine reads far lower (they can't sum to a union that drops a whole surface).
-  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
+  const surfaces: readonly string[] = surfacesForFilter(surfaceFilter);
   const rows = payload.report.queries.map((query) => {
     const runs = payload.report.runs.filter((run) => run.queryId === query.id && surfaces.includes(run.surface));
     return { category: displayCategory(query), hasTarget: runs.some((run) => targetRank(run) !== null) };
@@ -2051,12 +2124,12 @@ function buildLeaderboardData(payload: ReportPayload): Record<SurfaceFilter, Men
           : visibilityMetricsForName(payload, runs, row.name, row.isTarget).visibility
     }));
   };
-  return { all: make("all"), gemini: make("gemini"), chatgpt: make("chatgpt") };
+  return { all: make("all"), gemini: make("gemini"), google: make("google"), chatgpt: make("chatgpt") };
 }
 
 function mentionShareRuns(runs: SurfaceRun[], filter: SurfaceFilter) {
   const surfaces: readonly string[] =
-    filter === "gemini" ? ENGINE_SURFACES.gemini : filter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
+    surfacesForFilter(filter);
   return runs.filter((run) => surfaces.includes(run.surface));
 }
 
@@ -2127,12 +2200,20 @@ function visibilityMetricsForName(payload: ReportPayload, runs: SurfaceRun[], na
 }
 
 // Overall score = weighted blend of each engine's own visibility score, rather
-// than pooling raw runs (which over-weights ChatGPT because more prompts hit it).
-// A ChatGPT-only company therefore caps at CHATGPT_WEIGHT of the overall score.
+// than pooling raw runs (which over-weights whichever engine more prompts hit).
+// Weights: Google Gemini 35% / Google AI Mode 35% / ChatGPT 30%. Engines with no runs
+// in this report are dropped and the remaining weights renormalized (so a report without
+// AI Mode blends Gemini/ChatGPT at 0.35/0.30 → ~54%/46%, not dragged down by a 0 third).
 function blendedVisibilityForName(payload: ReportPayload, name: string, isTarget: boolean): number {
-  const gemini = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "gemini"), name, isTarget).visibility;
-  const chatgpt = visibilityMetricsForName(payload, mentionShareRuns(payload.report.runs, "chatgpt"), name, isTarget).visibility;
-  return gemini * GEMINI_WEIGHT + chatgpt * CHATGPT_WEIGHT;
+  let weightSum = 0;
+  let acc = 0;
+  for (const engine of ENGINES) {
+    const runs = mentionShareRuns(payload.report.runs, engine.key);
+    if (!runs.length) continue;
+    acc += visibilityMetricsForName(payload, runs, name, isTarget).visibility * ENGINE_WEIGHTS[engine.key];
+    weightSum += ENGINE_WEIGHTS[engine.key];
+  }
+  return weightSum ? acc / weightSum : 0;
 }
 
 function topOneRateOf(payload: ReportPayload) {
@@ -2154,7 +2235,7 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
   const domainRuns = new Map<string, Set<string>>();
   const urlRuns = new Map<string, Map<string, { title: string; url: string; runs: Set<string>; prompts: Set<string> }>>();
 
-  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
+  const surfaces: readonly string[] = surfacesForFilter(surfaceFilter);
   const queryById = new Map(payload.report.queries.map((query) => [query.id, query]));
   const citationRuns = payload.report.runs.filter(
     (item) =>
@@ -2231,6 +2312,33 @@ function buildCitationStats(payload: ReportPayload, surfaceFilter: SurfaceFilter
   };
 }
 
+// Per-engine domain citation counts, using the SAME distinct-run-per-domain counting
+// as buildCitationStats so the side-by-side columns agree with the rest of the page.
+// share = a domain's runs / that engine's total domain-runs.
+function domainCitationCounts(payload: ReportPayload, surfaces: readonly string[]) {
+  const domainRuns = new Map<string, Set<string>>();
+  const runs = payload.report.runs.filter(
+    (run) => !run.rawAnswer.startsWith("Provider error:") && surfaces.includes(run.surface)
+  );
+  for (const run of runs) {
+    const domains = new Set<string>();
+    for (const citation of runCitations(run)) {
+      const domain = displayCitationDomain(citation);
+      if (domain) domains.add(domain);
+    }
+    const runKey = `${run.queryId}:${run.runNumber}:${run.surface}`;
+    for (const domain of domains) {
+      if (!domainRuns.has(domain)) domainRuns.set(domain, new Set());
+      domainRuns.get(domain)?.add(runKey);
+    }
+  }
+  const total = Array.from(domainRuns.values()).reduce((sum, set) => sum + set.size, 0);
+  const counts = new Map<string, number>();
+  domainRuns.forEach((set, domain) => counts.set(domain, set.size));
+  return { counts, total, hasRuns: runs.length > 0 };
+}
+
+
 function buildPromptCitationRows(row: PromptRow, surfaces?: readonly string[]): PromptCitationRow[] {
   const citationMap = new Map<string, PromptCitationRow>();
   for (const run of row.runs) {
@@ -2256,7 +2364,7 @@ function buildPromptCitationRows(row: PromptRow, surfaces?: readonly string[]): 
 }
 
 function buildSentimentStats(payload: ReportPayload, stats: ReportStats, surfaceFilter: SurfaceFilter = "all"): SentimentStats {
-  const surfaces: readonly string[] = surfaceFilter === "gemini" ? ENGINE_SURFACES.gemini : surfaceFilter === "chatgpt" ? ENGINE_SURFACES.chatgpt : customerSurfaces;
+  const surfaces: readonly string[] = surfacesForFilter(surfaceFilter);
   const runs = surfaces ? payload.report.runs.filter((run) => surfaces.includes(run.surface)) : payload.report.runs;
   const targetContexts: MentionContext[] = runs.flatMap((run) =>
     run.mentions.filter((mention) => mention.isTarget).map((mention) => ({ mention, answer: run.rawAnswer, surface: run.surface, companyName: payload.company.name }))
@@ -2509,7 +2617,10 @@ function signed(value: number) {
 }
 
 function band(value: number, hi: number, md: number) {
-  return value >= hi ? "High" : value >= md ? "Medium" : "Low";
+  // Band on the same rounded percentage the label shows, so a bar reading "20%"
+  // (e.g. a raw 0.1996) gets the 20% color band, not the sub-20% one.
+  const v = Math.round(value * 100);
+  return v >= Math.round(hi * 100) ? "High" : v >= Math.round(md * 100) ? "Medium" : "Low";
 }
 
 function ordinal(n: number) {
@@ -2530,6 +2641,7 @@ function surfaceSource(surface: string): { label: string; basis: string } {
   if (surface === "chatgpt_search") return { label: "ChatGPT", basis: "from open-web search & cited pages" };
   if (surface === "gemini_maps") return { label: "Google Gemini", basis: "from Google Maps & local reviews" };
   if (surface === "gemini_search") return { label: "Google Gemini", basis: "from Google web search" };
+  if (surface === "google_ai_overview") return { label: "Google AI Mode", basis: "from Google AI Mode search" };
   return { label: shortSurface(surface), basis: "" };
 }
 

@@ -387,6 +387,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .isrc-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.01em;color:#fff;padding:3px 10px;border-radius:999px}
 .isrc-chatgpt_search{background:#0f9d76}
 .isrc-gemini_maps,.isrc-gemini_search{background:#3b6fe0}
+.isrc-google_ai_overview{background:#7b54c4}
 .isrc-note{font-size:12px;color:var(--fg-muted)}
 .insight-intro{font-size:12.5px;color:var(--fg-caption);margin:0;line-height:1.55}
 .insight-bullets{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
@@ -419,6 +420,22 @@ button,input,select,textarea{font:inherit;color:inherit}
 .url-list{display:flex;flex-direction:column;gap:0;background:color-mix(in oklab,var(--bg-muted) 40%,transparent);padding:6px 20px 14px}
 .url-row{display:grid;grid-template-columns:minmax(0,1fr) 130px 90px 80px;gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
 .url-row:last-child{border-bottom:0}
+/* Sortable headers + side-by-side per-engine columns in Top Cited Domains.
+   Columns are grouped by metric: all Citations together, then all Share together. */
+.src-head-grp{display:grid;gap:12px;padding:9px 20px 0;align-items:end}
+.src-head-grp .shg{justify-self:center;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--fg-muted);padding-bottom:2px;border-bottom:1px solid var(--border)}
+.src-sort{border:0;background:none;padding:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:2px;white-space:nowrap;transition:color var(--dur)}
+.src-sort:hover{color:var(--fg)}
+.src-head{align-items:end}
+.src-head .src-sort.is-active{color:var(--fg);font-weight:600}
+/* engine header cells wrap to two lines (e.g. "Google AI Mode") instead of overflowing
+   their narrow column; right-aligned, bottom-aligned with the single-line headers. */
+.src-head .num{display:block;white-space:normal;text-align:right;line-height:1.2;align-self:end}
+.dom-row .num{text-align:right}
+.dom-row .num{font-size:13px;font-variant-numeric:tabular-nums}
+.dom-row .num.is-zero{color:var(--fg-placeholder)}
+/* divider before the first column of each metric group (Citations | Share) */
+.grp-start{box-shadow:inset 1px 0 var(--border);padding-left:9px}
 .url-row .u-main{min-width:0;grid-column:1 / 3}
 .url-row .u-main strong{display:block;font-size:12.5px;font-weight:500;color:var(--fg);margin-bottom:2px}
 .url-row .u-main code{font-size:11px;color:var(--accent);font-family:var(--font-mono);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

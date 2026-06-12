@@ -423,7 +423,15 @@ function companyTokens(value: string) {
     "home",
     "homes",
     "inc",
-    "llc"
+    "llc",
+    "all",
+    "conditioning",
+    "conditioner",
+    "conditioners",
+    "conditioned",
+    "comfort",
+    "co",
+    "corp"
   ]);
 
   return value

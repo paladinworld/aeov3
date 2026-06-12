@@ -29,6 +29,8 @@ export async function runSurface(params: {
   query: Query;
   surface: Surface;
   runNumber: number;
+  model?: string; // ChatGPT-answer model override (per-prompt, e.g. gpt-5.5 primary / gpt-5 secondary)
+  searchContext?: "low" | "medium" | "high"; // web_search context budget (medium primary / low secondary)
 }): Promise<SurfaceRun> {
   let run: SurfaceRun;
 
@@ -58,9 +60,10 @@ async function maybeAttachMissingInsight(params: {
   runNumber: number;
 }, run: SurfaceRun): Promise<SurfaceRun> {
   if (params.runNumber !== 1) return run;
-  // Buckets that trigger the "why didn't AI recommend you?" follow-up. Product/Brand
-  // is highly actionable (often "not an authorized dealer"). Add buckets here to expand.
-  if (!["Core General", "Product / Brand"].includes(params.query.category)) return run;
+  // Buckets that trigger the "why didn't AI recommend you?" follow-up: the PRIMARY
+  // high-intent categories the Visibility Score is built on, where the "why" is most
+  // actionable (e.g. pricing/financing, reviews, repair).
+  if (!["Core General", "Repair & Maintenance", "Reviews & Price"].includes(params.query.category)) return run;
   if (!["gemini_search", "chatgpt_search"].includes(params.surface)) return run;
   if (run.rawAnswer.startsWith("Provider error:")) return run;
 
