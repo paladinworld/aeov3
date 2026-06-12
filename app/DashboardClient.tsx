@@ -496,7 +496,7 @@ function buildHomeAdvice(input: {
   }
   if (sovCount > 0) {
     insights.push({
-      tone: sov >= 0.1 ? "good" : "neutral",
+      tone: sov >= 0.1 ? "good" : sov >= 0.05 ? "neutral" : "warn",
       lead: `Share of voice ${pct(sov)}${sovRank > 0 ? ` (#${sovRank} of ${sovCount})` : ""}`,
       body: `Of every company mention AI makes in your market, this is the slice that names you.`
     });
