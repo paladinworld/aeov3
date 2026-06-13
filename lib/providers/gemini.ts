@@ -1,6 +1,7 @@
 import { Company, CompanyMention, Citation, Location, Query, SurfaceRun, TargetedSentimentRun } from "../types";
 import { id } from "../store";
 import { mockSurfaceRun } from "./mock";
+import { GoogleAuth } from "google-auth-library";
 
 type GeminiCandidate = {
   content?: {
@@ -17,6 +18,41 @@ type GeminiCandidate = {
 type GeminiResponse = {
   candidates?: GeminiCandidate[];
 };
+
+// ── Gemini backend: Developer API (default) or Vertex AI (opt-in) ───────────────
+// GEMINI_BACKEND=vertex routes grounded calls through Vertex AI, which has no daily
+// grounding cap (pay-per-use) and authenticates with ADC (Application Default
+// Credentials) instead of an API key — needed where org policy disallows keys. The
+// request body, response parsing, ChatGPT, and AI Mode are all unchanged, and the
+// default stays the Developer API, so this is purely additive and reversible.
+const VERTEX = process.env.GEMINI_BACKEND === "vertex";
+const VERTEX_LOCATION = process.env.GEMINI_VERTEX_LOCATION || "us-central1";
+const VERTEX_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || process.env.VERTEX_PROJECT_ID || "";
+let _vertexAuth: GoogleAuth | null = null;
+let _vertexToken: { token: string; exp: number } | null = null;
+async function vertexAccessToken(): Promise<string> {
+  if (_vertexToken && _vertexToken.exp > Date.now()) return _vertexToken.token;
+  _vertexAuth ??= new GoogleAuth({ scopes: "https://www.googleapis.com/auth/cloud-platform" });
+  const client = await _vertexAuth.getClient();
+  const res = await client.getAccessToken();
+  const token = (typeof res === "string" ? res : res?.token) || "";
+  if (!token) throw new Error("Vertex ADC returned no access token — run `gcloud auth application-default login`");
+  _vertexToken = { token, exp: Date.now() + 45 * 60 * 1000 }; // ADC tokens last ~1h; refresh at 45m
+  return token;
+}
+function geminiEndpoint(model: string): string {
+  if (!VERTEX) return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  if (!VERTEX_PROJECT) throw new Error("GEMINI_BACKEND=vertex requires GOOGLE_CLOUD_PROJECT (or VERTEX_PROJECT_ID) to be set");
+  // 3.x models (gemini-3.5-flash) are served from the "global" location, whose host has NO
+  // region prefix; regional models use {location}-aiplatform.googleapis.com.
+  const host = VERTEX_LOCATION === "global" ? "https://aiplatform.googleapis.com" : `https://${VERTEX_LOCATION}-aiplatform.googleapis.com`;
+  return `${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
+}
+async function geminiHeaders(apiKey: string): Promise<Record<string, string>> {
+  return VERTEX
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${await vertexAccessToken()}` }
+    : { "Content-Type": "application/json", "x-goog-api-key": apiKey };
+}
 
 export async function runGeminiMaps(params: {
   company: Company;
@@ -184,7 +220,7 @@ async function generateGroundedContent(params: {
   // cheaper flash-lite via GEMINI_EXTRACTION_MODEL. Grounding on 3.x is cheaper too ($14/1K
   // + 5K/mo free vs 2.x's $35/1K).
   const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const endpoint = geminiEndpoint(model);
   const body =
     params.tool === "search"
       ? {
@@ -210,7 +246,7 @@ async function generateGroundedContent(params: {
   for (let attempt = 0; ; attempt++) {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      headers: await geminiHeaders(apiKey),
       body: JSON.stringify(body)
     });
     const json = (await response.json()) as GeminiResponse & { error?: { message?: string } };
@@ -235,13 +271,10 @@ async function extractMentions(params: {
   try {
     const apiKey = getApiKey();
     const model = process.env.GEMINI_EXTRACTION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const endpoint = geminiEndpoint(model);
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
+      headers: await geminiHeaders(apiKey),
       body: JSON.stringify({
         contents: [
           {

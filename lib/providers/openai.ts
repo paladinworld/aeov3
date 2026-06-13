@@ -329,19 +329,20 @@ function extractText(response: OpenAIResponse) {
 
 function extractCitations(response: OpenAIResponse): Citation[] {
   const items = response.output ?? [];
-  // Inline footnotes the model tied to specific sentences...
+  // ONLY the inline footnotes the model tied to specific sentences — i.e. the sources it
+  // actually cited to make its recommendation. We deliberately do NOT add the web_search
+  // "Sources" panel (item.action.sources): that's every page the tool *browsed* while
+  // researching, and it's ~90% noise (national-brand Wikipedia, out-of-market Reddit, .gov
+  // license lookups, even arxiv/edu pages) that the model never cited. Including it buried
+  // the real local competitors and inflated counts ~14x.
   const fromAnnotations = items
     .flatMap((item) => item.content ?? [])
     .flatMap((content) => content.annotations ?? [])
     .map((annotation) => ({ url: annotation.url, title: annotation.title }));
-  // ...plus every page the web_search actually opened (ChatGPT's "Sources" panel).
-  // Capturing only annotations dropped ~⅔ of sources — notably directories/aggregators
-  // (serviceagent, bestprosintown, expertise, etc.) the model consulted but didn't inline-cite.
-  const fromSources = items.flatMap((item) => item.action?.sources ?? []).map((source) => ({ url: source.url, title: source.title }));
 
   const seen = new Set<string>();
   const citations: Citation[] = [];
-  for (const ref of [...fromAnnotations, ...fromSources]) {
+  for (const ref of fromAnnotations) {
     if (!ref.url || seen.has(ref.url)) continue;
     seen.add(ref.url);
     citations.push({ title: ref.title ?? ref.url, url: ref.url, domain: domainFromUrl(ref.url) });
