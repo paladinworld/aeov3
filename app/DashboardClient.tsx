@@ -194,6 +194,9 @@ export default function Home() {
   const [repeatRuns, setRepeatRuns] = useState(1);
   const [activeReport, setActiveReport] = useState<ReportPayload | null>(null);
   const [view, setView] = useState<View>("home");
+  // Session cache of fetched report payloads — switching back to a market is instant,
+  // and we prefetch the account's other markets so the first switch is instant too.
+  const reportCache = useRef<Map<string, ReportPayload>>(new Map());
   const [shareCopied, setShareCopied] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -246,6 +249,21 @@ export default function Home() {
       .sort((a, b) => a.area.localeCompare(b.area))
       .map(({ reportId, area }) => ({ reportId, area }));
   }, [activeReport?.company, activeReport?.report.id, companies, reports]);
+
+  // Prefetch the account's other markets into the cache (background, fire-and-forget) so
+  // the first switch to any sibling is instant. Browsers cap concurrent fetches, so this
+  // self-throttles. Skips anything already cached.
+  useEffect(() => {
+    for (const opt of serviceAreaOptions) {
+      if (reportCache.current.has(opt.reportId)) continue;
+      fetch(`/api/reports/${opt.reportId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((p: ReportPayload | null) => {
+          if (p?.report?.queries && p.company) reportCache.current.set(opt.reportId, p);
+        })
+        .catch(() => {});
+    }
+  }, [serviceAreaOptions]);
 
   async function switchServiceArea(reportId: string) {
     if (reportId === activeReport?.report.id) return;
@@ -305,6 +323,13 @@ export default function Home() {
   }
 
   async function loadReport(reportId: string) {
+    const cached = reportCache.current.get(reportId);
+    if (cached) {
+      // Already fetched (or prefetched) this session — instant, no network, no spinner.
+      setActiveReport(cached);
+      setSelectedCompanyId(cached.company.id);
+      return;
+    }
     setLoadingReport(true);
     try {
       const response = await fetch(`/api/reports/${reportId}`);
@@ -317,6 +342,7 @@ export default function Home() {
         console.error("Invalid report payload", payload);
         return;
       }
+      reportCache.current.set(reportId, payload);
       setActiveReport(payload);
       setSelectedCompanyId(payload.company.id);
     } finally {
