@@ -8,6 +8,9 @@ export const dashboardStyles = `
 *{box-sizing:border-box}
 /* Global UI density — matches the Claude design-tool view (~90%). Tune to taste. */
 .aeo3{zoom:0.95}
+@media(max-width:768px){.aeo3{zoom:1}}
+/* mobile: contain any stray horizontal overflow in the view content (NOT the page/FAB) */
+@media(max-width:768px){.view-stack{overflow-x:clip}}
 .aeo3 .app{min-height:calc(100vh / 0.9)}
 button,input,select,textarea{font:inherit;color:inherit}
 .aeo3 a{color:var(--primary);text-decoration:none}
@@ -562,18 +565,19 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .crumb>:first-child{display:none}
   .main{padding:16px 14px 44px}
   .top-actions{gap:8px}
-  .last-run{font-size:11px}
-  .last-run>:first-child{display:none}
+  .last-run{display:none}
   .btn{padding:7px 10px}
   /* stack panels */
   .metric-grid.four,.metric-grid.five,.metric-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}
   .two-col,.dashboard-grid,.score-body,.prompt-details,.comp-quote-grid,.setup-grid,.radar-layout,.hero-score{grid-template-columns:1fr}
   .score-platforms{border-left:0;border-top:1px solid var(--border)}
-  .coverage-row{grid-template-columns:96px 1fr max-content;gap:10px}
-  /* prompt table: trim to Prompt + Gemini + ChatGPT ranks (hide Intent/Best/#1-competitor), no scroll */
-  .prompt-head,.prompt-row{grid-template-columns:minmax(0,1fr) 50px 50px;min-width:0}
-    .prompt-head>:nth-child(2),.prompt-head>:nth-child(5),
-  .prompt-row>:nth-child(2),.prompt-row>:nth-child(5){display:none}
+  .coverage-row{grid-template-columns:minmax(140px,46%) minmax(36px,1fr) max-content;gap:8px}
+  .cov-cat{grid-template-columns:auto minmax(0,1fr);gap:6px}
+  /* prompt table -> horizontal scroll (inline grid cols can't collapse; scroll the wide table, like Top Cited Domains) */
+  .prompt-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .prompt-head,.prompt-tier-head,.prompt-record,.prompt-row{min-width:600px}
+  /* expanded citation columns stack one-per-row inside the scrolled record */
+  .prompt-details{grid-template-columns:1fr !important}
   /* citations table -> horizontal scroll (the grouped per-engine table is wide; let it
      scroll as one unit so Domain keeps its width and never overlaps Type) */
   .src-table{overflow-x:auto;-webkit-overflow-scrolling:touch}

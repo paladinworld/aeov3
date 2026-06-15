@@ -212,6 +212,7 @@ export default function Home() {
     }
   }, []);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareLink, setShareLink] = useState("");
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -381,9 +382,18 @@ export default function Home() {
     setView("prompts");
   }
 
+  // Pre-fetch a no-login magic view link when the Share menu opens, so Copy / Gmail are instant.
+  async function fetchShareLink(reportId: string) {
+    try {
+      const res = await fetch(`/api/reports/${reportId}/share-link`);
+      const data = (await res.json()) as { url?: string };
+      if (data.url) setShareLink(data.url);
+    } catch {}
+  }
+
   function copyShareLink() {
     if (!activeReport) return;
-    const url = `${window.location.origin}/share/${activeReport.report.id}`;
+    const url = shareLink || `${window.location.origin}/?report=${activeReport.report.id}`;
     navigator.clipboard?.writeText(url).catch(() => {});
     setShareCopied(true);
     window.setTimeout(() => setShareCopied(false), 1500);
@@ -397,9 +407,9 @@ export default function Home() {
 
   function openEmailDraft() {
     if (!activeReport) return;
-    const url = `${window.location.origin}/share/${activeReport.report.id}`;
+    const url = shareLink || `${window.location.origin}/?report=${activeReport.report.id}`;
     const subject = `AI visibility audit for ${activeReport.company.name}`;
-    const body = `Here is the AI visibility audit for ${activeReport.company.name}:\n\n${url}`;
+    const body = `Here is the AI visibility audit for ${activeReport.company.name} — just open the link to view it (no sign-in needed):\n\n${url}`;
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -480,7 +490,7 @@ export default function Home() {
                   {activeReport ? (
                     <div className="share-tools">
                       <div className="share-wrap">
-                        <button className="btn" onClick={() => setShareMenuOpen((open) => !open)}>
+                        <button className="btn" onClick={() => { const opening = !shareMenuOpen; setShareMenuOpen(opening); if (opening) fetchShareLink(activeReport.report.id); }}>
                           <Icon name={shareCopied ? "copy" : "share"} size={13} />
                           {shareCopied ? "Copied" : "Share report"}
                           <Icon name="chevdown" size={12} />
@@ -488,7 +498,10 @@ export default function Home() {
                         {shareMenuOpen ? (
                           <div className="share-menu">
                             <button onClick={() => { copyShareLink(); setShareMenuOpen(false); }}>
-                              <Icon name="copy" size={14} /> Copy link
+                              <Icon name="copy" size={14} /> Copy view link
+                            </button>
+                            <button onClick={() => { openEmailDraft(); setShareMenuOpen(false); }}>
+                              <Icon name="mail" size={14} /> Email via Gmail
                             </button>
                             <button onClick={downloadPdf}>
                               <Icon name="download" size={14} /> Download PDF
@@ -496,10 +509,6 @@ export default function Home() {
                           </div>
                         ) : null}
                       </div>
-                      <button className="btn" onClick={openEmailDraft}>
-                        <Icon name="mail" size={13} />
-                        Gmail
-                      </button>
                     </div>
                   ) : null}
                 </div>

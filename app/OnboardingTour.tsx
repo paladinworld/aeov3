@@ -125,6 +125,22 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, finish]);
 
+  // If the viewport shrinks to mobile mid-tour, drop the walkthrough (mobile = FAB only).
+  useEffect(() => {
+    if (mobile && phase === "tour") setPhase("fab");
+  }, [mobile, phase]);
+
+  // Close the help menu on tab navigation, outside-click, or Esc.
+  useEffect(() => { setMenuOpen(false); }, [view]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".tour-launcher")) setMenuOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [menuOpen]);
+
   if (phase === "idle" || typeof document === "undefined") return null;
 
   const last = i === STEPS.length - 1;
@@ -161,7 +177,7 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
     <>
       <style>{TOUR_CSS}</style>
 
-      {phase === "tour" && box ? (
+      {phase === "tour" && box && !mobile ? (
         <div className="tour-layer" role="dialog" aria-modal="true" aria-label="Product tour">
           <div className="tour-spot" style={{ left: box.l - PAD, top: box.t - PAD, width: box.w + PAD * 2, height: box.h + PAD * 2 }} />
           <div className={"tour-card" + (mobile ? " sheet" : "")} style={cardStyle}>
@@ -259,6 +275,6 @@ const TOUR_CSS = `
 .tour-mdiv{height:1px;background:var(--border,#EFEFEF);margin:4px 8px;}
 .tour-fabhint{position:absolute;right:64px;bottom:14px;white-space:nowrap;background:var(--netic-green-ink,#173F33);color:var(--netic-cream,#FFFDF5);font-size:12.5px;font-weight:500;padding:8px 12px;border-radius:8px;box-shadow:0 10px 24px -8px rgba(0,0,0,0.4);}
 .tour-fabhint:after{content:"";position:absolute;right:-5px;top:50%;transform:translateY(-50%) rotate(45deg);width:10px;height:10px;background:var(--netic-green-ink,#173F33);}
-@media (max-width:768px){.tour-launcher{bottom:84px;right:18px;}}
+@media (max-width:768px){.tour-launcher{bottom:84px;right:22px;}}
 @media (prefers-reduced-motion: reduce){.tour-spot,.tour-card,.tour-card.sheet,.tour-menu{transition:none!important;animation:none!important;}}
 `;
