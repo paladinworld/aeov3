@@ -527,6 +527,13 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 @keyframes aeo-spin{to{transform:rotate(360deg)}}
 .empty-state h2{font-size:18px;font-weight:600;margin:0}
 .empty-state p{font-size:13px;color:var(--fg-muted);margin:0 0 8px;max-width:420px}
+/* "Report is brewing": breathing icon + indeterminate progress bar so it reads as actively loading, not stuck. */
+.empty-state.brewing .es-icon{animation:brew-pulse 1.9s ease-in-out infinite}
+@keyframes brew-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in oklab,var(--primary) 30%,transparent)}55%{box-shadow:0 0 0 9px color-mix(in oklab,var(--primary) 0%,transparent)}}
+.brew-bar{position:relative;width:180px;max-width:62%;height:4px;margin-top:2px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--primary) 12%,transparent);overflow:hidden}
+.brew-bar i{position:absolute;top:0;left:0;height:100%;width:38%;border-radius:inherit;background:var(--primary);animation:brew-slide 1.4s var(--ease-out) infinite}
+@keyframes brew-slide{0%{left:-38%}100%{left:100%}}
+@media(prefers-reduced-motion:reduce){.empty-state.brewing .es-icon,.brew-bar i{animation:none}.brew-bar i{left:31%}}
 
 /* ── Mobile nav (drawer) — hidden on desktop ── */
 .nav-toggle{display:none;align-items:center;justify-content:center;width:36px;height:36px;margin-left:-6px;border:0;background:none;color:var(--fg);border-radius:var(--radius-md);cursor:pointer;flex:0 0 auto}

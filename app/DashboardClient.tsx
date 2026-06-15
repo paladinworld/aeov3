@@ -1681,10 +1681,11 @@ function LoadingState() {
 
 function EmptyState() {
   return (
-    <section className="panel empty-state">
+    <section className="panel empty-state brewing">
       <span className="es-icon"><Icon name="clock" size={20} /></span>
       <h2>Your report is brewing</h2>
       <p>The data may take a couple of minutes to load. Please check back shortly.</p>
+      <span className="brew-bar" aria-hidden="true"><i /></span>
     </section>
   );
 }
