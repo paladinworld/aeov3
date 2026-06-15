@@ -198,17 +198,14 @@ export default function Home() {
   // Session cache of fetched report payloads — switching back to a market is instant,
   // and we prefetch the account's other markets so the first switch is instant too.
   const reportCache = useRef<Map<string, ReportPayload>>(new Map());
-  // Onboarding tour — flag-gated. Enable locally with ?tour=1 (force-restart) or
-  // NEXT_PUBLIC_TOUR=1. Off by default so prod is untouched.
-  const [tourOn, setTourOn] = useState(false);
+  // Onboarding tour — live for everyone: auto-runs once on first desktop visit, then the
+  // help FAB stays (mobile shows the FAB only). ?tour=1 force-restarts it (for QA).
+  const [tourOn, setTourOn] = useState(true);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).has("tour")) {
       localStorage.removeItem("netic_aivt_tour_done");
       localStorage.removeItem("netic_aivt_tour_step");
-      setTourOn(true);
-    } else if (process.env.NEXT_PUBLIC_TOUR === "1") {
-      setTourOn(true);
     }
   }, []);
   const [shareCopied, setShareCopied] = useState(false);

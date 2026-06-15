@@ -11,6 +11,8 @@ export const dashboardStyles = `
 @media(max-width:768px){.aeo3{zoom:1}}
 /* mobile: contain any stray horizontal overflow in the view content (NOT the page/FAB) */
 @media(max-width:768px){.view-stack{overflow-x:clip}}
+/* mobile: 16px area switcher so it's readable and iOS doesn't zoom the page on focus */
+@media(max-width:768px){.acct select{font-size:16px}}
 .aeo3 .app{min-height:calc(100vh / 0.9)}
 button,input,select,textarea{font:inherit;color:inherit}
 .aeo3 a{color:var(--primary);text-decoration:none}
