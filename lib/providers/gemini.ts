@@ -260,7 +260,7 @@ async function generateGroundedContent(params: {
   }
 }
 
-async function extractMentions(params: {
+export async function extractMentions(params: {
   answer: string;
   citations: Citation[];
   targetCompanyName: string;
