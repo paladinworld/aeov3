@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { HVAC_SERVICES } from "@/lib/constants";
 import { runCitations } from "@/lib/citations";
+import OnboardingTour from "./OnboardingTour";
 import {
   Citation,
   Company,
@@ -197,6 +198,19 @@ export default function Home() {
   // Session cache of fetched report payloads — switching back to a market is instant,
   // and we prefetch the account's other markets so the first switch is instant too.
   const reportCache = useRef<Map<string, ReportPayload>>(new Map());
+  // Onboarding tour — flag-gated. Enable locally with ?tour=1 (force-restart) or
+  // NEXT_PUBLIC_TOUR=1. Off by default so prod is untouched.
+  const [tourOn, setTourOn] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).has("tour")) {
+      localStorage.removeItem("netic_aivt_tour_done");
+      localStorage.removeItem("netic_aivt_tour_step");
+      setTourOn(true);
+    } else if (process.env.NEXT_PUBLIC_TOUR === "1") {
+      setTourOn(true);
+    }
+  }, []);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -435,10 +449,10 @@ export default function Home() {
               </Navi>
             </NavGroup>
             <NavGroup label="Visibility">
-              <Navi icon="prompts" active={view === "prompts"} count={total} onClick={() => goView("prompts")}>
+              <Navi icon="prompts" active={view === "prompts"} count={total} onClick={() => goView("prompts")} dataTour="nav-prompts">
                 Prompts
               </Navi>
-              <Navi icon="citations" active={view === "citations"} onClick={() => goView("citations")}>
+              <Navi icon="citations" active={view === "citations"} onClick={() => goView("citations")} dataTour="nav-citations">
                 Citations
               </Navi>
               <Navi icon="competitors" active={view === "competitors"} onClick={() => goView("competitors")}>
@@ -539,6 +553,7 @@ export default function Home() {
           </button>
         </div>
       ) : null}
+      {tourOn ? <OnboardingTour ready={!!activeReport} view={view} setView={(v) => setView(v as View)} /> : null}
     </>
   );
 }
@@ -743,7 +758,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </p>
 
       {advice.insights.length || advice.improvements.length ? (
-        <div className="panel key-insights">
+        <div className="panel key-insights" data-tour="insights">
           <div className="ki-head">
             <span className="ki-icon"><Icon name="spark" size={15} /></span>
             <h2>Key Insights &amp; Actions</h2>
@@ -790,7 +805,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         </div>
       ) : null}
 
-      <div className="panel score-panel">
+      <div className="panel score-panel" data-tour="score">
         <PanelHead
           title="AI Visibility Score"
           subtitle="How often does AI recommend you overall?"
@@ -853,7 +868,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <MetricCard label="First Mention Rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
       </section>
 
-      <section className="dashboard-grid">
+      <section className="dashboard-grid" data-tour="leaderboard">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
         <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sovFilter} setFilter={setSovFilter} mode="sov" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
       </section>
@@ -945,7 +960,7 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
         <MetricCard label="Top Competitor" value={topCompetitor ? topCompetitor.name : "—"} valueSm helper={topCompetitor ? pct(topCompetitor.visibilityRate) + " visibility" : ""} />
       </section>
 
-      <CategoryCoveragePanel payload={payload} />
+      <div data-tour="coverage"><CategoryCoveragePanel payload={payload} /></div>
 
       <section className="panel">
         <div className="intent-pills">
@@ -981,9 +996,9 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                   {tier.header}
                   <span className="tier-count">{tierRows.length}</span>
                 </div>
-                {tierRows.map((row) => (
-                  <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")}>
-                    <button className="prompt-row" style={{ gridTemplateColumns: promptCols }} onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
+                {tierRows.map((row, ridx) => (
+                  <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")} data-tour={tier.primary && ridx === 0 ? "prompt-row" : undefined}>
+                    <button className="prompt-row" style={{ gridTemplateColumns: promptCols }} data-tour-expand={tier.primary && ridx === 0 ? "" : undefined} onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
                       <span className="prompt-text">
                         <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
                         <span className="label">{row.query.text}</span>
@@ -1184,7 +1199,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
         <MetricCard label="Platform Source Share" value={pct(cit.platformShare)} helper="directories, reviews, editorial" />
       </section>
 
-      <section className="panel">
+      <section className="panel" data-tour="sources">
         <PanelHead
           title="Where AI Gets Its Answers"
           subtitle="Citation volume by source type"
@@ -1242,11 +1257,11 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
               No {domType === "all" ? "" : domType.toLowerCase() + " "}sources cited for this selection.
             </p>
           ) : null}
-          {rows.map((row) => {
+          {rows.map((row, dridx) => {
             const open = expanded === row.domain;
             return (
-              <div key={row.domain} className="dom-group">
-                <button className={"dom-row" + (open ? " expanded" : "")} style={{ gridTemplateColumns: gridCols }} onClick={() => setExpanded(open ? "" : row.domain)}>
+              <div key={row.domain} className="dom-group" data-tour={dridx === 0 ? "top-domains" : undefined}>
+                <button className={"dom-row" + (open ? " expanded" : "")} style={{ gridTemplateColumns: gridCols }} data-tour-expand={dridx === 0 ? "" : undefined} onClick={() => setExpanded(open ? "" : row.domain)}>
                   <strong>
                     <i>{open ? "⌄" : "›"}</i>
                     <span className="dom-name">{row.domain}</span>
@@ -1680,9 +1695,9 @@ function NavGroup({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function Navi({ icon, active, count, onClick, children }: { icon: string; active?: boolean; count?: number; onClick?: () => void; children: React.ReactNode }) {
+function Navi({ icon, active, count, onClick, children, dataTour }: { icon: string; active?: boolean; count?: number; onClick?: () => void; children: React.ReactNode; dataTour?: string }) {
   return (
-    <button className={"navi" + (active ? " active" : "")} onClick={onClick}>
+    <button className={"navi" + (active ? " active" : "")} onClick={onClick} data-tour={dataTour}>
       <Icon name={icon} size={16} />
       <span>{children}</span>
       {typeof count === "number" ? <span className="count">{count}</span> : null}
