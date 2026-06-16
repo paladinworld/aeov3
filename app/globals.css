@@ -140,7 +140,13 @@
   color-scheme: light;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  /* iOS Safari only honors text-size-adjust when set directly on the element (inheriting
+     it from html doesn't stop the autosizer), so disable text-boosting on every element. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 html, body {
   margin: 0;
   padding: 0;
