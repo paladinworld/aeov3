@@ -126,6 +126,24 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, finish]);
 
+  // Lock USER scrolling during the walkthrough so the page doesn't drift behind the
+  // overlay. We swallow wheel/touch/scroll-key input but leave programmatic scrolling
+  // alone, so the tour's own scrollIntoView() still brings each step's target into view.
+  useEffect(() => {
+    if (phase !== "tour") return;
+    const SCROLL_KEYS = new Set([" ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown"]);
+    const stop = (e: Event) => e.preventDefault();
+    const onScrollKey = (e: KeyboardEvent) => { if (SCROLL_KEYS.has(e.key)) e.preventDefault(); };
+    window.addEventListener("wheel", stop, { passive: false });
+    window.addEventListener("touchmove", stop, { passive: false });
+    window.addEventListener("keydown", onScrollKey, { passive: false });
+    return () => {
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchmove", stop);
+      window.removeEventListener("keydown", onScrollKey);
+    };
+  }, [phase]);
+
   // If the viewport shrinks to mobile mid-tour, drop the walkthrough (mobile = FAB only).
   useEffect(() => {
     if (mobile && phase === "tour") setPhase("fab");
