@@ -980,6 +980,11 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
 /* ──────────────────────────────────────────────────────────────
    Prompts
    ──────────────────────────────────────────────────────────── */
+// Module-level so it survives the Prompts view unmounting/remounting (navigating away
+// and back): the first row auto-expands only the FIRST time the view is opened this page
+// session, not on every visit. Resets on a full page reload.
+let promptsFirstExpandDone = false;
+
 function PromptsView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
   const [cat, setCat] = useState("All");
   const [expanded, setExpanded] = useState("");
@@ -1002,19 +1007,23 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
     return stats.promptRows.filter((row) => cat === "All" || displayCategory(row.query) === cat);
   }, [cat, stats.promptRows]);
 
-  // Auto-expand the first row ONCE, on initial load (the default "All" view). After that,
-  // changing the category filter (or switching back to All) collapses everything so the
-  // list is easy to scroll — it does not re-expand.
-  const didAutoExpand = useRef(false);
+  // Auto-expand the first row the FIRST time the Prompts view is opened this page session,
+  // and ONLY under the default "All" filter (so picking a category never auto-expands).
+  // The flag is module-level, so revisiting the view won't re-expand. Any real category
+  // change collapses everything so filtered views start clean.
   useEffect(() => {
-    if (!didAutoExpand.current && visible.length) {
+    if (!promptsFirstExpandDone && cat === "All" && visible.length) {
       setExpanded(visible[0].query.id);
-      didAutoExpand.current = true;
+      promptsFirstExpandDone = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+  const prevCat = useRef(cat);
   useEffect(() => {
-    if (didAutoExpand.current) setExpanded("");
+    if (prevCat.current !== cat) {
+      setExpanded("");
+      prevCat.current = cat;
+    }
   }, [cat]);
 
   return (
