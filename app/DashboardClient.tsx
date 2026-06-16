@@ -463,6 +463,15 @@ export default function Home() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: dashboardStyles }} />
+      {!bannerDismissed ? (
+        <div className="mobile-banner" role="status">
+          <Icon name="desktop" size={16} />
+          <span>This dashboard is best viewed on a desktop. The mobile layout isn&rsquo;t fully optimized yet.</span>
+          <button aria-label="Dismiss" onClick={() => setBannerDismissed(true)}>
+            <Icon name="close" size={15} />
+          </button>
+        </div>
+      ) : null}
       <div className="aeo3">
         <div className="app">
           <div className={"nav-overlay" + (navOpen ? " show" : "")} onClick={() => setNavOpen(false)} />
@@ -611,15 +620,6 @@ export default function Home() {
           </section>
         </div>
       </div>
-      {!bannerDismissed ? (
-        <div className="mobile-banner" role="status">
-          <Icon name="desktop" size={16} />
-          <span>This dashboard is best viewed on a desktop. The mobile layout isn&rsquo;t fully optimized yet.</span>
-          <button aria-label="Dismiss" onClick={() => setBannerDismissed(true)}>
-            <Icon name="close" size={15} />
-          </button>
-        </div>
-      ) : null}
       {tourOn ? <OnboardingTour ready={!!activeReport} view={view} setView={(v) => setView(v as View)} /> : null}
     </>
   );

@@ -148,4 +148,8 @@ html, body {
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Stop iOS Safari from auto-inflating text inside wide containers (e.g. the
+     horizontal-scroll prompt table), which blew up the answer-excerpt font on mobile. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }

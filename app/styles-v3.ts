@@ -596,7 +596,7 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .prompt-tools{flex-wrap:wrap;gap:8px}
   .search{min-width:0;max-width:none;width:100%}
   .segmented{flex-wrap:wrap}
-  .mobile-banner{display:flex;align-items:center;gap:10px;position:fixed;left:0;right:0;bottom:0;z-index:90;background:var(--primary);color:#fff;padding:12px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 -3px 14px rgba(0,0,0,.2)}
+  .mobile-banner{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:90;background:var(--primary);color:#fff;padding:12px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 3px 14px rgba(0,0,0,.2)}
   .mobile-banner svg{flex:0 0 auto;opacity:.92}
   .mobile-banner span{flex:1}
   .mobile-banner button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:6px;padding:5px;cursor:pointer}
