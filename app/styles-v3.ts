@@ -392,7 +392,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .answer-card ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
 .answer-card ol li{font-size:13px;color:var(--fg)}
 .answer-card ol li.you{font-weight:600;color:var(--primary)}
-.answer-excerpt{font-size:12.5px;color:var(--fg-caption);line-height:1.5;margin:0;border-left:2px solid var(--border);padding-left:10px}
+.answer-excerpt{font-size:12.5px;color:var(--fg-caption);line-height:1.5;margin:0;border-left:2px solid var(--border);padding-left:10px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .missing-list{display:flex;flex-direction:column;gap:10px}
 .missing-row{display:flex;flex-direction:column;gap:3px}
 .missing-row strong{font-size:12px;color:var(--fg)}
