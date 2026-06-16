@@ -21,13 +21,15 @@ export async function GET(request: Request) {
   }
 
   // Land on the requested report if this grant covers it; otherwise admin → home,
-  // a scoped grant → its first report.
+  // a scoped grant → its first report. Keep the token in the URL (`&t=…`) so the
+  // landed-on URL is itself a re-shareable no-login link (the report APIs accept `?t=`).
+  const tq = `&t=${encodeURIComponent(token)}`;
   const target =
     reportId && grantsReport(grant, reportId)
-      ? `/?report=${encodeURIComponent(reportId)}`
+      ? `/?report=${encodeURIComponent(reportId)}${tq}`
       : isAdmin(grant)
         ? "/"
-        : `/?report=${encodeURIComponent(grantedReportIds(grant)[0] ?? "")}`;
+        : `/?report=${encodeURIComponent(grantedReportIds(grant)[0] ?? "")}${tq}`;
 
   const res = NextResponse.redirect(new URL(target, request.url));
   res.cookies.set(ACCESS_COOKIE, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 365 * 86400 });

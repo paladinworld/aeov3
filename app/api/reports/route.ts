@@ -3,7 +3,7 @@ import { z } from "zod";
 import { generateHvacQueries } from "@/lib/query-generator";
 import { id, readDb, readReportById, readReportsLight, writeDb } from "@/lib/store";
 import { Report } from "@/lib/types";
-import { accessEnabled, currentGrant, grantedReportIds, isAdmin } from "@/lib/access";
+import { accessEnabled, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
 
 const createReportSchema = z.object({
   companyId: z.string(),
@@ -13,12 +13,13 @@ const createReportSchema = z.object({
   queryLimit: z.number().int().min(1).max(50).optional()
 });
 
-export async function GET() {
-  // Scope: admin (or gate off) sees the full report list; a client cookie sees ONLY
+export async function GET(request: Request) {
+  // Scope: admin (or gate off) sees the full report list; a client grant sees ONLY
   // the reports it was granted, so the picker can't enumerate other clients. An
   // account may span several markets, so return all of them (one per service area).
+  // Grant = access cookie OR `?t=<token>` (so no-login share URLs build the dropdowns).
   if (accessEnabled()) {
-    const grant = await currentGrant();
+    const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t"));
     if (!grant) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     if (!isAdmin(grant)) {
       const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));

@@ -56,6 +56,14 @@ function redirectToAccess() {
   const id = new URLSearchParams(window.location.search).get("report");
   window.location.href = "/access" + (id ? `?report=${encodeURIComponent(id)}` : "");
 }
+
+// No-login share URLs look like `/?report=<id>&t=<token>`. Forward that token on the
+// read API calls so the report + dropdowns resolve without a cookie or redirect.
+function withToken(path: string): string {
+  if (typeof window === "undefined") return path;
+  const t = new URLSearchParams(window.location.search).get("t");
+  return t ? path + (path.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(t) : path;
+}
 // The three customer-facing engines, each = its own AI answer surface. Google Gemini
 // (Search-grounded) and Google AI Mode are distinct Google products; ChatGPT is its own
 // engine. The Maps local pack is excluded — it's local SEO, not AI visibility.
@@ -303,7 +311,7 @@ export default function Home() {
     const ids = new Set([...serviceAreaOptions.map((o) => o.reportId), ...verticalOptions.map((o) => o.reportId)]);
     for (const reportId of ids) {
       if (reportCache.current.has(reportId)) continue;
-      fetch(`/api/reports/${reportId}`)
+      fetch(withToken(`/api/reports/${reportId}`))
         .then((r) => (r.ok ? r.json() : null))
         .then((p: ReportPayload | null) => {
           if (p?.report?.queries && p.company) reportCache.current.set(reportId, p);
@@ -352,7 +360,7 @@ export default function Home() {
   const reportStats = useMemo(() => (viewPayload ? buildReportStats(viewPayload) : null), [viewPayload]);
 
   async function refresh() {
-    const [companyResponse, reportResponse] = await Promise.all([fetch("/api/companies"), fetch("/api/reports")]);
+    const [companyResponse, reportResponse] = await Promise.all([fetch(withToken("/api/companies")), fetch(withToken("/api/reports"))]);
     if (companyResponse.status === 401 || reportResponse.status === 401) {
       redirectToAccess();
       return;
@@ -381,7 +389,7 @@ export default function Home() {
     }
     setLoadingReport(true);
     try {
-      const response = await fetch(`/api/reports/${reportId}`);
+      const response = await fetch(withToken(`/api/reports/${reportId}`));
       if (response.status === 401) {
         redirectToAccess();
         return;

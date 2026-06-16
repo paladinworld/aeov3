@@ -3,7 +3,7 @@ import { z } from "zod";
 import { HVAC_SERVICES } from "@/lib/constants";
 import { id, readCompanies, readDb, readReportById, writeDb } from "@/lib/store";
 import { Company, Service } from "@/lib/types";
-import { accessEnabled, currentGrant, grantedReportIds, isAdmin } from "@/lib/access";
+import { accessEnabled, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
 
 const locationSchema = z.object({
   label: z.string().min(1),
@@ -23,13 +23,14 @@ const companySchema = z.object({
   locations: z.array(locationSchema).min(1)
 });
 
-export async function GET() {
-  // Scope: admin (or gate off) sees all companies; a client cookie sees ONLY the
+export async function GET(request: Request) {
+  // Scope: admin (or gate off) sees all companies; a client grant sees ONLY the
   // companies behind the reports it was granted — never the rest of the roster.
   // A client account can span several markets (e.g. 6 service areas), so return
   // all of them — that's what powers the service-area dropdown.
+  // Grant = access cookie OR `?t=<token>` (so no-login share URLs resolve the account).
   if (accessEnabled()) {
-    const grant = await currentGrant();
+    const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t"));
     if (!grant) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     if (!isAdmin(grant)) {
       const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));
