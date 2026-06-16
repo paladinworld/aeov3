@@ -125,6 +125,7 @@ export type TargetedSentimentRun = {
 export type Report = {
   id: string;
   companyId: string;
+  vertical?: string; // service vertical (HVAC | Plumbing | Electrical…); absent = "HVAC". Toggled in the sidebar.
   locationIds: string[];
   repeatRuns: number;
   queries: Query[];

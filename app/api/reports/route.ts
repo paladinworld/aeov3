@@ -8,6 +8,7 @@ import { accessEnabled, currentGrant, grantedReportIds, isAdmin } from "@/lib/ac
 const createReportSchema = z.object({
   companyId: z.string(),
   locationIds: z.array(z.string()).min(1),
+  vertical: z.string().optional(),
   repeatRuns: z.number().int().min(1).max(10).default(3),
   queryLimit: z.number().int().min(1).max(50).optional()
 });
@@ -24,7 +25,7 @@ export async function GET() {
       return NextResponse.json(
         found
           .filter((f): f is NonNullable<typeof f> => Boolean(f))
-          .map((f) => ({ id: f.report.id, companyId: f.report.companyId, status: f.report.status, createdAt: f.report.createdAt }))
+          .map((f) => ({ id: f.report.id, companyId: f.report.companyId, status: f.report.status, createdAt: f.report.createdAt, vertical: f.report.vertical ?? "HVAC" }))
       );
     }
   }
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
   const report: Report = {
     id: id("report"),
     companyId: company.id,
+    vertical: parsed.vertical ?? "HVAC",
     locationIds: parsed.locationIds,
     repeatRuns: parsed.repeatRuns,
     queries: generateHvacQueries(company).slice(0, parsed.queryLimit ?? 40),

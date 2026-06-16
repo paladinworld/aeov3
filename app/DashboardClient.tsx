@@ -233,51 +233,88 @@ export default function Home() {
   // Single fixed company (the default account); the sidebar dropdown switches SERVICE AREA.
   const [selectedLocationId, setSelectedLocationId] = useState("");
 
-  // Service areas for the active brand. Each area is its own report (per company×area),
-  // so switching the dropdown loads a different report rather than filtering in place.
-  const serviceAreaOptions = useMemo(() => {
+  // The active brand's reports form a (service area × vertical) matrix — each cell is one
+  // report. The two sidebar dropdowns navigate it: Service Area picks the row, Vertical
+  // picks the column, each loading a different report rather than filtering in place.
+  const activeArea = primaryLocation(activeReport?.company) ?? "—";
+  const activeVertical = activeReport?.report.vertical ?? "HVAC";
+
+  const brandMatrix = useMemo(() => {
     const active = activeReport?.company;
-    if (!active) return [] as Array<{ reportId: string; area: string }>;
+    const empty = { areas: [] as string[], byKey: new Map<string, { reportId: string; status: Report["status"]; runs: number; createdAt: string }>() };
+    if (!active) return empty;
     const brand = canonicalCompanyName(active.name);
     const byId = new Map(companies.map((item) => [item.id, item]));
-    const byArea = new Map<string, { reportId: string; area: string; status: Report["status"]; runs: number; createdAt: string }>();
     const activeId = activeReport?.report.id;
+    const areas: string[] = [];
+    const byKey = new Map<string, { reportId: string; status: Report["status"]; runs: number; createdAt: string }>();
     for (const report of reports) {
       const owner = byId.get(report.companyId);
       if (!owner || canonicalCompanyName(owner.name) !== brand) continue;
       const area = primaryLocation(owner) ?? "—";
-      const prev = byArea.get(area);
-      if (prev && prev.reportId === activeId) continue; // active report already owns this area
+      const vertical = report.vertical ?? "HVAC";
+      if (!areas.includes(area)) areas.push(area);
+      const key = area + "||" + vertical;
+      const prev = byKey.get(key);
+      if (prev && prev.reportId === activeId) continue; // active report already owns this cell
       const runs = (report as Report & { runCount?: number }).runCount ?? report.runs?.length ?? 0;
-      const isActive = report.id === activeId;
       const better =
-        isActive ||
+        report.id === activeId ||
         !prev ||
         (report.status === "complete" && prev.status !== "complete") ||
         (report.status === prev.status && (runs > prev.runs || (runs === prev.runs && report.createdAt > prev.createdAt)));
-      if (better) byArea.set(area, { reportId: report.id, area, status: report.status, runs, createdAt: report.createdAt });
+      if (better) byKey.set(key, { reportId: report.id, status: report.status, runs, createdAt: report.createdAt });
     }
-    return Array.from(byArea.values())
-      .sort((a, b) => a.area.localeCompare(b.area))
-      .map(({ reportId, area }) => ({ reportId, area }));
+    return { areas, byKey };
   }, [activeReport?.company, activeReport?.report.id, companies, reports]);
+
+  // Service areas — one row per market, pointing at the current vertical's report (falling
+  // back to HVAC / whatever vertical that market has). The active market leads the list.
+  const serviceAreaOptions = useMemo(() => {
+    const { areas, byKey } = brandMatrix;
+    const pick = (area: string) =>
+      byKey.get(area + "||" + activeVertical)?.reportId ??
+      byKey.get(area + "||HVAC")?.reportId ??
+      [...byKey.entries()].find(([k]) => k.startsWith(area + "||"))?.[1].reportId;
+    return areas
+      .map((area) => ({ area, reportId: pick(area) }))
+      .filter((o): o is { area: string; reportId: string } => Boolean(o.reportId))
+      .sort((a, b) => {
+        if (a.reportId === activeReport?.report.id) return -1;
+        if (b.reportId === activeReport?.report.id) return 1;
+        return a.area.localeCompare(b.area);
+      });
+  }, [brandMatrix, activeVertical, activeReport?.report.id]);
+
+  // Verticals available in the CURRENT market; selecting one loads that report. HVAC leads.
+  const verticalOptions = useMemo(() => {
+    const opts: Array<{ vertical: string; reportId: string }> = [];
+    for (const [key, cell] of brandMatrix.byKey.entries()) {
+      const sep = key.indexOf("||");
+      if (key.slice(0, sep) === activeArea) opts.push({ vertical: key.slice(sep + 2), reportId: cell.reportId });
+    }
+    return opts.sort((a, b) => (a.vertical === "HVAC" ? -1 : b.vertical === "HVAC" ? 1 : a.vertical.localeCompare(b.vertical)));
+  }, [brandMatrix, activeArea]);
 
   // Prefetch the account's other markets into the cache (background, fire-and-forget) so
   // the first switch to any sibling is instant. Browsers cap concurrent fetches, so this
   // self-throttles. Skips anything already cached.
   useEffect(() => {
-    for (const opt of serviceAreaOptions) {
-      if (reportCache.current.has(opt.reportId)) continue;
-      fetch(`/api/reports/${opt.reportId}`)
+    const ids = new Set([...serviceAreaOptions.map((o) => o.reportId), ...verticalOptions.map((o) => o.reportId)]);
+    for (const reportId of ids) {
+      if (reportCache.current.has(reportId)) continue;
+      fetch(`/api/reports/${reportId}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((p: ReportPayload | null) => {
-          if (p?.report?.queries && p.company) reportCache.current.set(opt.reportId, p);
+          if (p?.report?.queries && p.company) reportCache.current.set(reportId, p);
         })
         .catch(() => {});
     }
-  }, [serviceAreaOptions]);
+  }, [serviceAreaOptions, verticalOptions]);
 
-  async function switchServiceArea(reportId: string) {
+  // Load a sibling report (different market or vertical) and sync the ?report= URL — shared
+  // by both the Service Area and Vertical dropdowns.
+  async function goToReport(reportId: string) {
     if (reportId === activeReport?.report.id) return;
     await loadReport(reportId);
     if (typeof window !== "undefined") {
@@ -436,12 +473,28 @@ export default function Home() {
                 <select
                   id="loc"
                   value={activeReport?.report.id ?? ""}
-                  onChange={(event) => switchServiceArea(event.target.value)}
+                  onChange={(event) => goToReport(event.target.value)}
                   disabled={serviceAreaOptions.length <= 1}
                 >
                   {serviceAreaOptions.map((option) => (
                     <option key={option.reportId} value={option.reportId}>
                       {option.area}
+                    </option>
+                  ))}
+                </select>
+                <Icon name="chevdown" size={14} />
+              </div>
+              <label htmlFor="vertical">Vertical</label>
+              <div className="sel">
+                <select
+                  id="vertical"
+                  value={activeReport?.report.id ?? ""}
+                  onChange={(event) => goToReport(event.target.value)}
+                  disabled={verticalOptions.length <= 1}
+                >
+                  {verticalOptions.map((option) => (
+                    <option key={option.reportId} value={option.reportId}>
+                      {option.vertical}
                     </option>
                   ))}
                 </select>

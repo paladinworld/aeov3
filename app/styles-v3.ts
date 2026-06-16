@@ -34,6 +34,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .acct-company{font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--fg);padding:0 2px 12px}
 .acct label{display:block;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-muted);margin-bottom:6px}
 .acct .sel{position:relative}
+.acct .sel + label{margin-top:12px}
 .acct select{width:100%;appearance:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 28px 8px 10px;font-size:13px;font-weight:500;cursor:pointer;outline:none}
 .acct select:focus{border-color:var(--primary-hover);box-shadow:0 0 0 2px color-mix(in oklab,var(--primary-hover) 22%,transparent)}
 .acct .sel svg{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--fg-muted);pointer-events:none}
