@@ -51,8 +51,10 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
   // Auto-start on first visit once data is ready; otherwise show the FAB launcher.
   useEffect(() => {
     if (!ready || phase !== "idle" || typeof window === "undefined") return;
-    // Onboarding shows ONCE on the first visit, then never persists — return visits render nothing.
-    if (localStorage.getItem(KEY_DONE) === "1") return;
+    // The full tour auto-runs ONCE (first desktop visit). After that, return visits keep the
+    // floating ? help FAB available (so help is always one click away) — they just don't
+    // re-pop the walkthrough.
+    if (localStorage.getItem(KEY_DONE) === "1") { setPhase("fab"); return; }
     if (mobile) { localStorage.setItem(KEY_DONE, "1"); setPhase("fab"); return; } // desktop-only tour; mobile gets the FAB once
     const saved = parseInt(localStorage.getItem(KEY_STEP) || "0", 10);
     setI(Number.isNaN(saved) ? 0 : Math.min(Math.max(saved, 0), STEPS.length - 1));
