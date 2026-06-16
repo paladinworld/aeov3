@@ -416,7 +416,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .pc-list{display:flex;flex-direction:column;gap:8px}
 .pc-row{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-md);transition:background var(--dur)}
 .pc-row:hover{background:var(--bg-muted)}
-.pc-row>span{font-size:12.5px;font-weight:500;color:var(--fg)}
+.pc-row>span{font-size:12.5px;font-weight:500;color:var(--fg);-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .pc-row code{font-size:11px;color:var(--accent);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-row small{font-size:11px;color:var(--fg-muted)}
 .muted{color:var(--fg-muted);font-size:13px}
