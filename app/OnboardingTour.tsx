@@ -165,7 +165,15 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
   if (phase === "idle" || typeof document === "undefined") return null;
 
   const last = i === STEPS.length - 1;
-  const next = () => (last ? finish() : setI(i + 1));
+  // Completing the walkthrough ("Done" on the last step) returns to the Home view — the
+  // last step lands on Citations, so without this you'd be left there. Dismissing via X/Esc
+  // leaves you wherever you are.
+  const next = () => {
+    if (last) {
+      setView("home");
+      finish();
+    } else setI(i + 1);
+  };
   const back = () => setI(Math.max(0, i - 1));
   const restart = () => { setMenuOpen(false); setHint(false); setI(0); setPhase("tour"); };
 
