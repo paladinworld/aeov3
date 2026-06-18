@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateHvacQueries } from "@/lib/query-generator";
-import { id, readDb, readReportById, readReportsLight, writeDb } from "@/lib/store";
+import { id, readDb, readReportsLight, writeDb } from "@/lib/store";
 import { Report } from "@/lib/types";
-import { accessEnabled, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
+import { accessEnabled, brandScopeForReport, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
 
 const createReportSchema = z.object({
   companyId: z.string(),
@@ -19,15 +19,22 @@ export async function GET(request: Request) {
   // account may span several markets, so return all of them (one per service area).
   // Grant = access cookie OR `?t=<token>` (so no-login share URLs build the dropdowns).
   if (accessEnabled()) {
-    const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t"));
-    if (!grant) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+    const sp = new URL(request.url).searchParams;
+    const grant = (await currentGrant()) ?? verifyGrant(sp.get("t"));
+    const reportParam = sp.get("report");
+    // Authorized by EITHER a grant (cookie/token) OR a self-authorizing `?report=<id>` link.
+    if (!grant && !reportParam) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     if (!isAdmin(grant)) {
-      const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));
-      return NextResponse.json(
-        found
-          .filter((f): f is NonNullable<typeof f> => Boolean(f))
-          .map((f) => ({ id: f.report.id, companyId: f.report.companyId, status: f.report.status, createdAt: f.report.createdAt, vertical: f.report.vertical ?? "HVAC" }))
-      );
+      // Visible reports = explicitly granted + the BRAND of any directly-linked report
+      // (so an unlisted link resolves that account's other markets, nothing else).
+      const allowed = new Set(grant ? grantedReportIds(grant) : []);
+      if (reportParam) {
+        allowed.add(reportParam);
+        const { reportIds } = await brandScopeForReport(reportParam);
+        for (const rid of reportIds) allowed.add(rid);
+      }
+      const light = await readReportsLight();
+      return NextResponse.json(light.filter((r) => allowed.has(r.id)));
     }
   }
   // Lightweight list (id/company/status/createdAt only) extracted server-side — the

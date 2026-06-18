@@ -57,12 +57,19 @@ function redirectToAccess() {
   window.location.href = "/access" + (id ? `?report=${encodeURIComponent(id)}` : "");
 }
 
-// No-login share URLs look like `/?report=<id>&t=<token>`. Forward that token on the
-// read API calls so the report + dropdowns resolve without a cookie or redirect.
+// No-login share URLs are `/?report=<id>` (optionally `&t=<token>`). Forward BOTH the
+// report id and any token on the read API calls so the report + its brand's dropdowns
+// resolve without a cookie or redirect. The bare report id is self-authorizing server-side.
 function withToken(path: string): string {
   if (typeof window === "undefined") return path;
-  const t = new URLSearchParams(window.location.search).get("t");
-  return t ? path + (path.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(t) : path;
+  const sp = new URLSearchParams(window.location.search);
+  const fwd = new URLSearchParams();
+  const t = sp.get("t");
+  if (t) fwd.set("t", t);
+  const report = sp.get("report");
+  if (report) fwd.set("report", report);
+  const qs = fwd.toString();
+  return qs ? path + (path.includes("?") ? "&" : "?") + qs : path;
 }
 // The three customer-facing engines, each = its own AI answer surface. Google Gemini
 // (Search-grounded) and Google AI Mode are distinct Google products; ChatGPT is its own

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "./store";
+import { getSupabaseAdmin, readCompanies, readReportsLight } from "./store";
 
 // ── Shared-link access gate ────────────────────────────────────────────────
 // A client opens /?report=<id>; an unauthenticated visitor is bounced to /access
@@ -39,8 +39,9 @@ function secret(): string {
 }
 
 // HMAC the access code so plaintext codes are never stored in Supabase.
+// Lowercased before hashing so access codes are case-insensitive ("NETIC" == "netic").
 export function hashCode(code: string): string {
-  return createHmac("sha256", secret()).update("code:" + code.trim()).digest("hex");
+  return createHmac("sha256", secret()).update("code:" + code.trim().toLowerCase()).digest("hex");
 }
 
 function eq(a: string, b: string): boolean {
@@ -90,6 +91,41 @@ export function grantsReport(grant: Grant | null, reportId: string): boolean {
 // callers gate on isAdmin() before using this for a per-account report list.
 export function grantedReportIds(grant: Grant | null): string[] {
   return reportsOf(grant);
+}
+
+// ── Unlisted-link access (no login) ────────────────────────────────────────
+// A bare `/?report=<id>` link is itself the credential: the (unguessable) report id
+// grants read access to exactly that report — no email/code, no token, no redirect.
+// First-time visitors still get the onboarding tour (it's client/localStorage-driven).
+// The roster stays private: a link only unlocks its OWN brand (see brandScopeForReport),
+// never the full list of audited companies.
+export function grantFromReport(reportId?: string | null): Grant | null {
+  if (!reportId) return null;
+  return { reports: [reportId], email: "link", exp: Date.now() + 365 * 86400 * 1000 };
+}
+
+// Canonical brand key — MUST match DashboardClient.canonicalCompanyName so the server's
+// scope and the client's area/vertical dropdown group companies identically.
+const BRAND_STOPWORDS = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc"]);
+function brandKey(name: string): string {
+  const tokens = (name || "").toLowerCase().split(/[^a-z0-9]+/g).filter((t) => t.length >= 3 && !BRAND_STOPWORDS.has(t));
+  return tokens.join("") || (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// The report + company ids that share a directly-linked report's BRAND. An unlisted
+// link to ONE market thus resolves that account's OTHER markets (dropdowns work) while
+// exposing nothing about any other brand. Uses lightweight reads (no full payloads).
+export async function brandScopeForReport(reportId?: string | null): Promise<{ reportIds: string[]; companyIds: string[] }> {
+  if (!reportId) return { reportIds: [], companyIds: [] };
+  const [companies, reports] = await Promise.all([readCompanies(), readReportsLight()]);
+  const seed = reports.find((r) => r.id === reportId);
+  const seedCo = seed && companies.find((c) => c.id === seed.companyId);
+  if (!seed || !seedCo) return { reportIds: [reportId], companyIds: seed ? [seed.companyId] : [] };
+  const brand = brandKey(seedCo.name);
+  const companyIds = companies.filter((c) => brandKey(c.name) === brand).map((c) => c.id);
+  const coSet = new Set(companyIds);
+  const reportIds = reports.filter((r) => coSet.has(r.companyId)).map((r) => r.id);
+  return { reportIds, companyIds };
 }
 
 export const ACCESS_COOKIE = COOKIE_NAME;

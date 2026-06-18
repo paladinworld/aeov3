@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { summarizeReport } from "@/lib/scoring";
 import { readReportById } from "@/lib/store";
-import { accessEnabled, currentGrant, grantsReport, verifyGrant } from "@/lib/access";
+import { accessEnabled, currentGrant, grantFromReport, grantsReport, verifyGrant } from "@/lib/access";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -9,7 +9,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   // Gate: a shared report is only readable with a grant for this report (or "*" admin).
   // The grant comes from the access cookie OR a `?t=<signed token>` in the URL — the
   // latter lets a no-login share URL (`/?report=<id>&t=…`) work without a redirect/cookie.
-  const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t"));
+  // A report is readable by its own (unguessable) id — the bare `/?report=<id>` link is
+  // the credential. Still honors cookie/token grants for admin + multi-report links.
+  const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t")) ?? grantFromReport(id);
   if (accessEnabled() && !grantsReport(grant, id)) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }

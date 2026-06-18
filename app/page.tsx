@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { accessEnabled, currentGrant, grantsReport, isAdmin, verifyGrant } from "@/lib/access";
+import { accessEnabled, currentGrant, grantFromReport, grantsReport, isAdmin, verifyGrant } from "@/lib/access";
 import Home from "./DashboardClient";
 
 // Server-side gate: when the access gate is on, an unauthenticated visitor is
@@ -12,7 +12,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const { report, t } = await searchParams;
 
   if (accessEnabled()) {
-    const grant = (await currentGrant()) ?? verifyGrant(t);
+    // A `?report=<id>` link is self-authorizing (no login): the report id itself grants
+    // that report. The bare admin root (no ?report=) still requires the "*" admin grant.
+    const grant = (await currentGrant()) ?? verifyGrant(t) ?? grantFromReport(report);
     const ok = report ? grantsReport(grant, report) : isAdmin(grant);
     if (!ok) {
       redirect("/access" + (report ? `?report=${encodeURIComponent(report)}` : ""));

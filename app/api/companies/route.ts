@@ -3,7 +3,7 @@ import { z } from "zod";
 import { HVAC_SERVICES } from "@/lib/constants";
 import { id, readCompanies, readDb, readReportById, writeDb } from "@/lib/store";
 import { Company, Service } from "@/lib/types";
-import { accessEnabled, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
+import { accessEnabled, brandScopeForReport, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
 
 const locationSchema = z.object({
   label: z.string().min(1),
@@ -30,16 +30,23 @@ export async function GET(request: Request) {
   // all of them — that's what powers the service-area dropdown.
   // Grant = access cookie OR `?t=<token>` (so no-login share URLs resolve the account).
   if (accessEnabled()) {
-    const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t"));
-    if (!grant) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+    const sp = new URL(request.url).searchParams;
+    const grant = (await currentGrant()) ?? verifyGrant(sp.get("t"));
+    const reportParam = sp.get("report");
+    if (!grant && !reportParam) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     if (!isAdmin(grant)) {
-      const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));
-      const seen = new Set<string>();
-      const companies = found
-        .filter((f): f is { report: import("@/lib/types").Report; company: Company } => Boolean(f))
-        .map((f) => f.company)
-        .filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
-      return NextResponse.json(companies);
+      const companyIds = new Set<string>();
+      if (grant) {
+        const found = await Promise.all(grantedReportIds(grant).map((rid) => readReportById(rid)));
+        for (const f of found) if (f) companyIds.add(f.company.id);
+      }
+      // + the brand of a directly-linked report (unlisted-link → that account's markets only)
+      if (reportParam) {
+        const { companyIds: brandCos } = await brandScopeForReport(reportParam);
+        for (const cid of brandCos) companyIds.add(cid);
+      }
+      const all = await readCompanies();
+      return NextResponse.json(all.filter((c) => companyIds.has(c.id)));
     }
   }
   // Only the companies table — not every report's full payload (which would time out).

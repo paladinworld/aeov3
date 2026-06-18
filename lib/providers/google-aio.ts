@@ -30,11 +30,42 @@ const US_STATES: Record<string, string> = {
 // from the existing reports' AI Mode data.
 const JUNK_DOMAIN = /(^|\.)(google\.com|googleusercontent\.com|gstatic\.com|googleapis\.com|streetviewpixels-pa\.googleapis\.com)$/i;
 
+// Some markets people genuinely search by are REGIONS, not DataForSEO-recognized cities
+// ("Long Island, NY"). DataForSEO rejects those with 40501 Invalid location_name, which
+// would silently zero out AI Mode for the whole report. Map known regions to a
+// representative city inside them so the geo-targeting still lands in the right place;
+// anything not listed falls through to city,state (and then a state-level retry).
+const REGION_ALIASES: Record<string, string> = {
+  "long island,ny": "Hempstead,New York,United States",
+  "inland empire,ca": "Riverside,California,United States",
+  "bay area,ca": "San Francisco,California,United States",
+  "south bay,ca": "San Jose,California,United States",
+  "silicon valley,ca": "San Jose,California,United States",
+  "dmv,dc": "Washington,District of Columbia,United States",
+  "northern virginia,va": "Arlington,Virginia,United States",
+  "central florida,fl": "Orlando,Florida,United States",
+  "south florida,fl": "Miami,Florida,United States",
+  "the triangle,nc": "Raleigh,North Carolina,United States",
+  "triangle,nc": "Raleigh,North Carolina,United States"
+};
+
 function dfsLocationName(location: Location): string {
-  const state = US_STATES[(location.state || "").toUpperCase().trim()] || location.state;
+  const state2 = (location.state || "").toUpperCase().trim();
+  const stateFull = US_STATES[state2] || location.state;
   const city = location.city || location.label;
-  return [city, state, "United States"].filter(Boolean).join(",");
+  const alias = REGION_ALIASES[`${(city || "").toLowerCase().trim()},${state2.toLowerCase()}`];
+  if (alias) return alias;
+  return [city, stateFull, "United States"].filter(Boolean).join(",");
 }
+
+// State-level location string — the fallback when a precise location is rejected, so
+// AI Mode still returns a (state-geo-targeted) answer rather than erroring the run.
+function dfsStateLocation(location: Location): string | null {
+  const stateFull = US_STATES[(location.state || "").toUpperCase().trim()] || location.state;
+  return stateFull ? `${stateFull},United States` : null;
+}
+
+const DFS_INVALID_LOCATION = 40501;
 
 function dfsAuthHeader(): string | null {
   const b64 = process.env.DATAFORSEO_B64;
@@ -84,26 +115,29 @@ export async function runGoogleAiOverview(params: {
     return mockSurfaceRun({ ...params, surface: "google_ai_overview" });
   }
 
-  const body = [{
-    keyword: params.query.text,
-    location_name: dfsLocationName(params.location),
-    language_code: "en"
-  }];
+  const callAiMode = async (location_name: string) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90_000);
+    try {
+      const response = await fetch(DFS_BASE + AI_MODE_PATH, {
+        method: "POST",
+        headers: { Authorization: auth, "Content-Type": "application/json" },
+        body: JSON.stringify([{ keyword: params.query.text, location_name, language_code: "en" }]),
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`DataForSEO HTTP ${response.status}`);
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90_000);
-  let json: any;
-  try {
-    const response = await fetch(DFS_BASE + AI_MODE_PATH, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error(`DataForSEO HTTP ${response.status}`);
-    json = await response.json();
-  } finally {
-    clearTimeout(timer);
+  let json: any = await callAiMode(dfsLocationName(params.location));
+  // If DataForSEO doesn't recognize the location (e.g. an unaliased region), retry once
+  // geo-targeting the state so the run still produces an AI Mode answer instead of erroring.
+  if (json?.status_code === 20000 && json.tasks?.[0]?.status_code === DFS_INVALID_LOCATION) {
+    const stateLoc = dfsStateLocation(params.location);
+    if (stateLoc) json = await callAiMode(stateLoc);
   }
 
   if (json?.status_code !== 20000) throw new Error(`DataForSEO error: ${json?.status_code} ${json?.status_message}`);
