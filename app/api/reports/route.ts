@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateHvacQueries } from "@/lib/query-generator";
+import { generateQueries } from "@/lib/query-generator";
 import { id, readDb, readReportsLight, writeDb } from "@/lib/store";
 import { Report } from "@/lib/types";
 import { accessEnabled, brandScopeForReport, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     vertical: parsed.vertical ?? "HVAC",
     locationIds: parsed.locationIds,
     repeatRuns: parsed.repeatRuns,
-    queries: generateHvacQueries(company).slice(0, parsed.queryLimit ?? 40),
+    queries: generateQueries(company, parsed.vertical ?? "HVAC").slice(0, parsed.queryLimit ?? 50),
     runs: [],
     status: "draft",
     createdAt: new Date().toISOString()

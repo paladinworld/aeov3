@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { accessEnabled, currentGrant, grantFromReport, grantsReport, isAdmin, verifyGrant } from "@/lib/access";
+import { accessEnabled, currentGrant, isAdmin, verifyGrant } from "@/lib/access";
 import Home from "./DashboardClient";
 
 // Server-side gate: when the access gate is on, an unauthenticated visitor is
@@ -12,12 +12,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const { report, t } = await searchParams;
 
   if (accessEnabled()) {
-    // A `?report=<id>` link is self-authorizing (no login): the report id itself grants
-    // that report. The bare admin root (no ?report=) still requires the "*" admin grant.
-    const grant = (await currentGrant()) ?? verifyGrant(t) ?? grantFromReport(report);
-    const ok = report ? grantsReport(grant, report) : isAdmin(grant);
-    if (!ok) {
-      redirect("/access" + (report ? `?report=${encodeURIComponent(report)}` : ""));
+    // A `?report=<id>` link is PUBLIC (self-authorizing by id) — render it regardless of any
+    // cookie. Critically, an existing cookie scoped to OTHER reports must NOT shadow the link
+    // (that bug redirected previously-"logged-in" browsers to /access). Only the bare admin
+    // root (no ?report=) still requires the "*" grant.
+    if (!report) {
+      const grant = (await currentGrant()) ?? verifyGrant(t);
+      if (!isAdmin(grant)) redirect("/access");
     }
   }
 

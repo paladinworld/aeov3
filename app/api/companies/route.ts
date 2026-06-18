@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { HVAC_SERVICES } from "@/lib/constants";
 import { id, readCompanies, readDb, readReportById, writeDb } from "@/lib/store";
-import { Company, Service } from "@/lib/types";
+import { Company } from "@/lib/types";
 import { accessEnabled, brandScopeForReport, currentGrant, grantedReportIds, isAdmin, verifyGrant } from "@/lib/access";
 
 const locationSchema = z.object({
@@ -18,7 +17,8 @@ const companySchema = z.object({
   name: z.string().min(1),
   website: z.string().min(1),
   googleBusinessProfileUrl: z.string().optional(),
-  services: z.array(z.enum(HVAC_SERVICES as [Service, ...Service[]])).min(1),
+  // Any non-empty service label — a vertical (Tree Care, Pest Control…) brings its own list.
+  services: z.array(z.string().min(1)).min(1),
   competitors: z.array(z.string()).default([]),
   locations: z.array(locationSchema).min(1)
 });

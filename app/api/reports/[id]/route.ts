@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
 import { summarizeReport } from "@/lib/scoring";
 import { readReportById } from "@/lib/store";
-import { accessEnabled, currentGrant, grantFromReport, grantsReport, verifyGrant } from "@/lib/access";
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
-  // Gate: a shared report is only readable with a grant for this report (or "*" admin).
-  // The grant comes from the access cookie OR a `?t=<signed token>` in the URL — the
-  // latter lets a no-login share URL (`/?report=<id>&t=…`) work without a redirect/cookie.
-  // A report is readable by its own (unguessable) id — the bare `/?report=<id>` link is
-  // the credential. Still honors cookie/token grants for admin + multi-report links.
-  const grant = (await currentGrant()) ?? verifyGrant(new URL(request.url).searchParams.get("t")) ?? grantFromReport(id);
-  if (accessEnabled() && !grantsReport(grant, id)) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 401 });
-  }
+  // Public by id: a report is readable by its own (unguessable) id, so the bare
+  // /?report=<id> share link works with NO login. There is intentionally no auth gate here —
+  // a cookie/token scoped to OTHER reports must never block a valid id (that was the bug that
+  // redirected previously-"logged-in" browsers to /access). Missing reports 404 below.
 
   // Fetch only this report (+ its company), not every report's full payload.
   const found = await readReportById(id);

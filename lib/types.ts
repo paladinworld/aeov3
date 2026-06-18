@@ -50,7 +50,7 @@ export type Company = {
   name: string;
   website: string;
   googleBusinessProfileUrl?: string;
-  services: Service[];
+  services: string[]; // HVAC services or a vertical's own service list (Tree Care, Pest Control…)
   competitors: string[];
   // Service areas the report is run against (the markets where customers search).
   // The dropdown switches between these; each area is its own report.
@@ -64,7 +64,7 @@ export type Company = {
 export type Query = {
   id: string;
   text: string;
-  service: Service | "General HVAC";
+  service: string; // HVAC Service | "General HVAC" | a vertical-specific label (Tree Care, etc.)
   category: QueryCategory;
   intent: QueryIntent;
   priority: "high" | "medium" | "low";

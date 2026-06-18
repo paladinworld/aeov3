@@ -109,7 +109,11 @@ function companyTokens(value: string) {
     "home",
     "homes",
     "inc",
-    "llc"
+    "llc",
+    // Non-HVAC vertical generics (keep in sync with gemini.ts + DashboardClient).
+    "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites",
+    "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds",
+    "garden", "gardens", "care", "expert", "experts", "pros", "group"
   ]);
 
   return value

@@ -106,7 +106,8 @@ export function grantFromReport(reportId?: string | null): Grant | null {
 
 // Canonical brand key — MUST match DashboardClient.canonicalCompanyName so the server's
 // scope and the client's area/vertical dropdown group companies identically.
-const BRAND_STOPWORDS = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc"]);
+const BRAND_STOPWORDS = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc",
+  "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites", "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds", "garden", "gardens", "care", "expert", "experts", "pros", "group"]);
 function brandKey(name: string): string {
   const tokens = (name || "").toLowerCase().split(/[^a-z0-9]+/g).filter((t) => t.length >= 3 && !BRAND_STOPWORDS.has(t));
   return tokens.join("") || (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");

@@ -2752,7 +2752,9 @@ function isOtherCitationDomain(domain: string) {
 }
 
 function canonicalCompanyName(name: string) {
-  const stopwords = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc"]);
+  const stopwords = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc",
+    // Non-HVAC vertical generics (keep in sync with gemini.ts + scoring.ts + access.ts brandKey).
+    "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites", "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds", "garden", "gardens", "care", "expert", "experts", "pros", "group"]);
   const tokens = name
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
