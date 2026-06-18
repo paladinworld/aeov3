@@ -17,5 +17,5 @@ export const SURFACE_LABELS: Record<Surface, string> = {
   gemini_maps: "Gemini",
   gemini_search: "Gemini",
   chatgpt_search: "ChatGPT Search",
-  google_ai_overview: "Google AI Overview"
+  google_ai_overview: "Google AI Mode"
 };

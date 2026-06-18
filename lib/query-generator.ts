@@ -4,9 +4,11 @@ import { id } from "./store";
 // Surfaces each prompt is run against (this is what actually gets queried, and it
 // drives audit cost: surfaces × repeatRuns). Derived from the CSV's Geo Param:
 //  - LOCAL    (Geo = Yes / Local Pack / Hybrid): a local pack exists → include Gemini Maps.
-//  - NATIONAL (Geo = No / AI Overview, e.g. brand & symptom prompts): no local pack → skip Maps.
-const LOCAL: Surface[] = ["gemini_maps", "gemini_search", "chatgpt_search"];
-const NATIONAL: Surface[] = ["gemini_search", "chatgpt_search"];
+//  - NATIONAL (Geo = No, e.g. brand & symptom prompts): no local pack → skip Maps.
+// google_ai_overview = Google AI Mode (via DataForSEO) — a scored engine, so every prompt
+// includes it; it's collected for both local and national queries.
+const LOCAL: Surface[] = ["gemini_maps", "gemini_search", "google_ai_overview", "chatgpt_search"];
+const NATIONAL: Surface[] = ["gemini_search", "google_ai_overview", "chatgpt_search"];
 
 type PromptSpec = {
   text: string; // {place} is replaced with the report's primary "City, ST"
