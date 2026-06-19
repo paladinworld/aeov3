@@ -82,7 +82,7 @@ const ENGINE_SURFACES = {
 // Overall AI Visibility Score weighting (by importance, NOT raw run count, so winning one
 // engine can't dominate). When an engine has no runs in a report (e.g. AI Mode not yet
 // collected), it's dropped and the remaining weights are renormalized.
-const ENGINE_WEIGHTS: Record<string, number> = { gemini: 0.4, google: 0.3, chatgpt: 0.3 };
+const ENGINE_WEIGHTS: Record<string, number> = { gemini: 0.5, google: 0.3, chatgpt: 0.2 };
 // Display order + labels for every scored engine, used by toggles, by-platform bars,
 // the leaderboard and the citation columns.
 const ENGINES = [
@@ -768,7 +768,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const citationStats = useMemo(() => buildCitationStats(payload), [payload]);
   const citRank = useMemo(() => buildCitationStats(payload, citFilter), [payload, citFilter]);
 
-  // Overall gauge = the 70/30 Gemini/ChatGPT blend (see blendedVisibilityForName),
+  // Overall gauge = the 50/30/20 Gemini/AI-Mode/ChatGPT blend (see blendedVisibilityForName),
   // computed on primary prompts — matches this company's value in the leaderboard.
   const score100 = Math.round(blendedVisibilityForName(primaryPayload, payload.company.name, true) * 100);
   // Official Visibility Score bands (backend): 30%+ High, 20–30% Medium, <20% Low.
@@ -909,7 +909,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
               </div>
             </div>
             <p className="gauge-cap">{primaryPayload.report.runs.length.toLocaleString()} queries run across {primaryPayload.report.queries.length} high-intent prompts</p>
-            <p className="gauge-cap">{surfaceShow.length >= 3 ? "Weighted toward Google Gemini, then Google AI Mode and ChatGPT (40 / 30 / 30)." : "Weighted more toward Google Gemini than ChatGPT for the overall score."}</p>
+            <p className="gauge-cap">{surfaceShow.length >= 3 ? "Weighted toward Google Gemini, then Google AI Mode and ChatGPT (50 / 30 / 20)." : "Weighted more toward Google Gemini than ChatGPT for the overall score."}</p>
           </div>
           <div className="score-platforms">
             <span className="sp-label">By platform</span>
@@ -2288,7 +2288,7 @@ function buildLeaderboardData(payload: ReportPayload): Record<SurfaceFilter, Men
     const runs = mentionShareRuns(payload.report.runs, filter);
     return buildMentionShareRows(payload, runs).map((row) => ({
       ...row,
-      // "all" ranks by the 70/30 engine blend; per-engine tabs rank by that engine alone.
+      // "all" ranks by the 50/30/20 engine blend; per-engine tabs rank by that engine alone.
       visibilityScore:
         filter === "all"
           ? blendedVisibilityForName(payload, row.name, row.isTarget)
