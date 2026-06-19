@@ -423,7 +423,12 @@ function companyTokens(value: string) {
     "conditioned",
     "comfort",
     "co",
-    "corp"
+    "corp",
+    // Non-HVAC vertical generics (keep in sync with gemini.ts) — without these, any
+    // "X Pest Control" wrongly matches "Moxie Pest Control" on the ChatGPT surface.
+    "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites",
+    "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds",
+    "garden", "gardens", "care", "expert", "experts", "pros", "group"
   ]);
 
   return value
