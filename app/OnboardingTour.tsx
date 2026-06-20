@@ -51,6 +51,12 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
   // Auto-start on first visit once data is ready; otherwise show the FAB launcher.
   useEffect(() => {
     if (!ready || phase !== "idle" || typeof window === "undefined") return;
+    // `?tour=1` in the URL forces the walkthrough to replay from step 1 — clears the saved
+    // "done"/"step" flags so the normal logic below auto-starts the tour fresh (desktop).
+    if (new URLSearchParams(window.location.search).get("tour") === "1") {
+      localStorage.removeItem(KEY_DONE);
+      localStorage.removeItem(KEY_STEP);
+    }
     // The full tour auto-runs ONCE (first desktop visit). After that, return visits keep the
     // floating ? help FAB available (so help is always one click away) — they just don't
     // re-pop the walkthrough.
