@@ -8,5 +8,7 @@ node_modules
 *.tsbuildinfo
 data/db.json
 data/domain-types.json
+data/db.backup-*.json
+data/db.restored-*.json
 PROD-REPORTS.md
 scout-*.json

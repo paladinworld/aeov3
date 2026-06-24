@@ -189,12 +189,220 @@ const PEST_CONTROL_PROMPTS: PromptSpec[] = [
   { text: "mice in my house who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "medium", service: "Rodent control", geo: true },
 ];
 
+// ── Plumbing (residential + light commercial — e.g. TLC Plumbing) ──────────────
+// Same locked-static contract as the other verticals: 34 prompts, edits here are the
+// official list. Mirrors the Pest Control category mix (Core 10 / R&M 9 / Reviews 6 /
+// Product 2 / Consideration 4 / Symptom 3) so cross-vertical results stay comparable.
+const PLUMBING_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best plumber in {place}", category: "Core General", intent: "best", priority: "high", service: "General plumbing", geo: true },
+  { text: "plumber near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "General plumbing", geo: true },
+  { text: "best plumbing company in {place}", category: "Core General", intent: "best", priority: "high", service: "General plumbing", geo: true },
+  { text: "emergency plumber in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency plumbing", geo: true },
+  { text: "24 hour plumber near me in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency plumbing", geo: true },
+  { text: "same day plumbing repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency plumbing", geo: true },
+  { text: "licensed plumber in {place}", category: "Core General", intent: "best", priority: "medium", service: "General plumbing", geo: true },
+  { text: "local plumbing company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General plumbing", geo: true },
+  { text: "residential plumber in {place}", category: "Core General", intent: "best", priority: "medium", service: "General plumbing", geo: true },
+  { text: "commercial plumber in {place}", category: "Core General", intent: "best", priority: "low", service: "Commercial plumbing", geo: true },
+
+  // Repair & Maintenance
+  { text: "water heater repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Water heater", geo: true },
+  { text: "water heater installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Water heater", geo: true },
+  { text: "tankless water heater installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water heater", geo: true },
+  { text: "drain cleaning in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Drain cleaning", geo: true },
+  { text: "clogged drain repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Drain cleaning", geo: true },
+  { text: "sewer line repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Sewer line", geo: true },
+  { text: "slab leak repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Leak repair", geo: true },
+  { text: "toilet repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Fixtures", geo: true },
+  { text: "repipe specialist in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Repipe", geo: true },
+
+  // Reviews & Price
+  { text: "top rated plumber in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "General plumbing", geo: true },
+  { text: "which plumbers in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General plumbing", geo: true },
+  { text: "most trusted plumbing company in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General plumbing", geo: true },
+  { text: "how much does a plumber cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "General plumbing", geo: true },
+  { text: "water heater replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Water heater", geo: true },
+  { text: "affordable plumber in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "General plumbing", geo: true },
+
+  // Product / Brand
+  { text: "best plumber to install a Rinnai tankless water heater in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Water heater", geo: true },
+  { text: "plumber to install a Navien tankless water heater in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Water heater", geo: true },
+
+  // Consideration
+  { text: "how to choose a plumber", category: "Consideration", intent: "comparison", priority: "medium", service: "General plumbing", geo: false },
+  { text: "what to look for in a plumbing company", category: "Consideration", intent: "comparison", priority: "medium", service: "General plumbing", geo: false },
+  { text: "questions to ask a plumber before hiring", category: "Consideration", intent: "comparison", priority: "medium", service: "General plumbing", geo: false },
+  { text: "is it worth hiring a professional plumber", category: "Consideration", intent: "comparison", priority: "low", service: "General plumbing", geo: false },
+
+  // Symptom / Problem
+  { text: "why is my water heater leaking", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Water heater", geo: false },
+  { text: "how to fix low water pressure in the house", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "General plumbing", geo: false },
+  { text: "sewer smell in house who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "medium", service: "Sewer line", geo: true },
+];
+
+// ── Roofing (residential + light commercial — e.g. DaBella) ───────────────────
+// Locked-static, 34 prompts, same category mix as Pest/Plumbing (Core 10 / R&M 9 /
+// Reviews 6 / Product 2 / Consideration 4 / Symptom 3) for cross-vertical comparability.
+const ROOFING_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best roofing company in {place}", category: "Core General", intent: "best", priority: "high", service: "General roofing", geo: true },
+  { text: "roofer near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "General roofing", geo: true },
+  { text: "best roofer in {place}", category: "Core General", intent: "best", priority: "high", service: "General roofing", geo: true },
+  { text: "roofing contractor in {place}", category: "Core General", intent: "best", priority: "high", service: "General roofing", geo: true },
+  { text: "emergency roof repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency roofing", geo: true },
+  { text: "24 hour roof repair near me in {place}", category: "Core General", intent: "emergency", priority: "medium", service: "Emergency roofing", geo: true },
+  { text: "licensed roofing contractor in {place}", category: "Core General", intent: "best", priority: "medium", service: "General roofing", geo: true },
+  { text: "local roofing company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General roofing", geo: true },
+  { text: "residential roofing company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Residential roofing", geo: true },
+  { text: "commercial roofing company in {place}", category: "Core General", intent: "best", priority: "low", service: "Commercial roofing", geo: true },
+
+  // Repair & Maintenance
+  { text: "roof repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Roof repair", geo: true },
+  { text: "roof replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Roof replacement", geo: true },
+  { text: "new roof installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Roof replacement", geo: true },
+  { text: "metal roof installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Metal roofing", geo: true },
+  { text: "asphalt shingle roof replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Shingle roofing", geo: true },
+  { text: "flat roof repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Flat roofing", geo: true },
+  { text: "roof leak repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Leak repair", geo: true },
+  { text: "storm damage roof repair in {place}", category: "Repair & Maintenance", intent: "emergency", priority: "high", service: "Storm damage", geo: true },
+  { text: "roof inspection in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Roof inspection", geo: true },
+
+  // Reviews & Price
+  { text: "top rated roofing company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "General roofing", geo: true },
+  { text: "which roofing companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General roofing", geo: true },
+  { text: "most trusted roofer in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General roofing", geo: true },
+  { text: "how much does a new roof cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Roof replacement", geo: true },
+  { text: "roof replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Roof replacement", geo: true },
+  { text: "affordable roofing company in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "General roofing", geo: true },
+
+  // Product / Brand
+  { text: "best roofer to install GAF shingles in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Shingle roofing", geo: true },
+  { text: "CertainTeed roofing installer in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Shingle roofing", geo: true },
+
+  // Consideration
+  { text: "how to choose a roofing contractor", category: "Consideration", intent: "comparison", priority: "medium", service: "General roofing", geo: false },
+  { text: "what to look for in a roofing company", category: "Consideration", intent: "comparison", priority: "medium", service: "General roofing", geo: false },
+  { text: "questions to ask a roofer before hiring", category: "Consideration", intent: "comparison", priority: "medium", service: "General roofing", geo: false },
+  { text: "how to pay for a new roof", category: "Consideration", intent: "comparison", priority: "low", service: "General roofing", geo: false },
+
+  // Symptom / Problem
+  { text: "signs you need a new roof", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Roof replacement", geo: false },
+  { text: "why is my roof leaking", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Leak repair", geo: false },
+  { text: "hail damage on roof who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "medium", service: "Storm damage", geo: true },
+];
+
+// ── Windows (replacement windows + install — e.g. DaBella) ────────────────────
+// Locked-static, 34 prompts, same category mix as the other home-services verticals.
+// Windows is install/replace-driven (not emergency), so no emergency-intent prompts.
+const WINDOWS_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best window replacement company in {place}", category: "Core General", intent: "best", priority: "high", service: "Window replacement", geo: true },
+  { text: "window replacement near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Window replacement", geo: true },
+  { text: "best window installation company in {place}", category: "Core General", intent: "best", priority: "high", service: "Window installation", geo: true },
+  { text: "replacement windows in {place}", category: "Core General", intent: "best", priority: "high", service: "Window replacement", geo: true },
+  { text: "window company near me in {place}", category: "Core General", intent: "near_me", priority: "medium", service: "General windows", geo: true },
+  { text: "local window replacement company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Window replacement", geo: true },
+  { text: "licensed window installer in {place}", category: "Core General", intent: "best", priority: "medium", service: "Window installation", geo: true },
+  { text: "residential window replacement in {place}", category: "Core General", intent: "best", priority: "medium", service: "Window replacement", geo: true },
+  { text: "energy efficient window installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Energy efficient windows", geo: true },
+  { text: "vinyl window replacement in {place}", category: "Core General", intent: "best", priority: "low", service: "Vinyl windows", geo: true },
+
+  // Repair & Maintenance
+  { text: "window installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Window installation", geo: true },
+  { text: "double pane window replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Window replacement", geo: true },
+  { text: "double hung window installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Window installation", geo: true },
+  { text: "bay window installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Specialty windows", geo: true },
+  { text: "egress window installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Specialty windows", geo: true },
+  { text: "storm window installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Storm windows", geo: true },
+  { text: "window glass replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Glass replacement", geo: true },
+  { text: "broken window repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Window repair", geo: true },
+  { text: "patio door installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Doors", geo: true },
+
+  // Reviews & Price
+  { text: "top rated window replacement company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "Window replacement", geo: true },
+  { text: "which window companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General windows", geo: true },
+  { text: "most trusted window installer in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "Window installation", geo: true },
+  { text: "how much does window replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Window replacement", geo: true },
+  { text: "cost to replace windows in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Window replacement", geo: true },
+  { text: "affordable window replacement in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "Window replacement", geo: true },
+
+  // Product / Brand
+  { text: "best company to install Andersen windows in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Window installation", geo: true },
+  { text: "Pella window installer in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Window installation", geo: true },
+
+  // Consideration
+  { text: "how to choose a window replacement company", category: "Consideration", intent: "comparison", priority: "medium", service: "General windows", geo: false },
+  { text: "what to look for in a window installer", category: "Consideration", intent: "comparison", priority: "medium", service: "General windows", geo: false },
+  { text: "questions to ask before replacing windows", category: "Consideration", intent: "comparison", priority: "medium", service: "General windows", geo: false },
+  { text: "are replacement windows worth it", category: "Consideration", intent: "comparison", priority: "low", service: "General windows", geo: false },
+
+  // Symptom / Problem
+  { text: "signs you need new windows", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Window replacement", geo: false },
+  { text: "how to fix a drafty window", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Window repair", geo: false },
+  { text: "foggy window between panes who do I call in {place}", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Glass replacement", geo: true },
+];
+
+// ── Foundation (foundation repair + waterproofing — e.g. VFS) ─────────────────
+// Locked-static, 34 prompts, same category mix as the other home-services verticals.
+const FOUNDATION_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best foundation repair company in {place}", category: "Core General", intent: "best", priority: "high", service: "Foundation repair", geo: true },
+  { text: "foundation repair near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Foundation repair", geo: true },
+  { text: "best foundation repair contractor in {place}", category: "Core General", intent: "best", priority: "high", service: "Foundation repair", geo: true },
+  { text: "foundation repair company in {place}", category: "Core General", intent: "best", priority: "high", service: "Foundation repair", geo: true },
+  { text: "foundation repair specialist near me in {place}", category: "Core General", intent: "near_me", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "local foundation repair company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "licensed foundation contractor in {place}", category: "Core General", intent: "best", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "residential foundation repair in {place}", category: "Core General", intent: "best", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "commercial foundation repair in {place}", category: "Core General", intent: "best", priority: "low", service: "Commercial foundation", geo: true },
+  { text: "structural repair company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Structural repair", geo: true },
+
+  // Repair & Maintenance
+  { text: "foundation crack repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Crack repair", geo: true },
+  { text: "basement waterproofing in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Waterproofing", geo: true },
+  { text: "crawl space repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Crawl space", geo: true },
+  { text: "crawl space encapsulation in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Crawl space", geo: true },
+  { text: "house leveling in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "House leveling", geo: true },
+  { text: "pier and beam foundation repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Pier & beam", geo: true },
+  { text: "slab foundation repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Slab repair", geo: true },
+  { text: "sump pump installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Waterproofing", geo: true },
+  { text: "foundation inspection in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Foundation inspection", geo: true },
+
+  // Reviews & Price
+  { text: "top rated foundation repair company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "Foundation repair", geo: true },
+  { text: "which foundation repair companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "Foundation repair", geo: true },
+  { text: "most trusted foundation repair company in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "how much does foundation repair cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Foundation repair", geo: true },
+  { text: "foundation repair cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Foundation repair", geo: true },
+  { text: "affordable foundation repair in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "Foundation repair", geo: true },
+
+  // Product / Brand
+  { text: "helical pier foundation repair in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Piering", geo: true },
+  { text: "push pier foundation installation in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Piering", geo: true },
+
+  // Consideration
+  { text: "how to choose a foundation repair company", category: "Consideration", intent: "comparison", priority: "medium", service: "Foundation repair", geo: false },
+  { text: "what to look for in a foundation repair contractor", category: "Consideration", intent: "comparison", priority: "medium", service: "Foundation repair", geo: false },
+  { text: "questions to ask a foundation repair company before hiring", category: "Consideration", intent: "comparison", priority: "medium", service: "Foundation repair", geo: false },
+  { text: "is foundation repair worth it", category: "Consideration", intent: "comparison", priority: "low", service: "Foundation repair", geo: false },
+
+  // Symptom / Problem
+  { text: "signs of foundation problems", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Foundation repair", geo: false },
+  { text: "cracks in walls and foundation what to do", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Crack repair", geo: false },
+  { text: "my foundation is settling who do I call in {place}", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Foundation repair", geo: true },
+];
+
 // The prompt set per vertical. A new vertical = a new array here + an entry in this map.
 const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "HVAC": HVAC_PROMPTS,
   "Tree Care": TREE_CARE_PROMPTS,
   "Commercial Landscaping": COMMERCIAL_LANDSCAPING_PROMPTS,
-  "Pest Control": PEST_CONTROL_PROMPTS
+  "Pest Control": PEST_CONTROL_PROMPTS,
+  "Plumbing": PLUMBING_PROMPTS,
+  "Roofing": ROOFING_PROMPTS,
+  "Windows": WINDOWS_PROMPTS,
+  "Foundation": FOUNDATION_PROMPTS
 };
 
 // Shared builder: substitutes the company's primary "City, ST" into each prompt and

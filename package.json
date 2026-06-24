@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && node scripts/check-prompts.mjs",
+    "check:prompts": "node scripts/check-prompts.mjs",
     "check:gemini": "node scripts/check-gemini-access.mjs",
     "check:bright-aio": "node scripts/check-bright-data-aio.mjs"
   },

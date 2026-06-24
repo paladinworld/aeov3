@@ -21,8 +21,10 @@ type GeminiResponse = {
 
 // ── Gemini backend: Developer API (default) or Vertex AI (opt-in) ───────────────
 // GEMINI_BACKEND=vertex routes grounded calls through Vertex AI, which has no daily
-// grounding cap (pay-per-use) and authenticates with ADC (Application Default
-// Credentials) instead of an API key — needed where org policy disallows keys. The
+// grounding cap (pay-per-use) and authenticates via GoogleAuth instead of an API key —
+// needed where org policy disallows keys. In practice GOOGLE_APPLICATION_CREDENTIALS
+// points at a SERVICE-ACCOUNT key (aeo-audit-runner.json), so tokens auto-refresh and
+// never need an interactive login (a stale gcloud user-ADC is NOT what this uses). The
 // request body, response parsing, ChatGPT, and AI Mode are all unchanged, and the
 // default stays the Developer API, so this is purely additive and reversible.
 const VERTEX = process.env.GEMINI_BACKEND === "vertex";
@@ -36,8 +38,8 @@ async function vertexAccessToken(): Promise<string> {
   const client = await _vertexAuth.getClient();
   const res = await client.getAccessToken();
   const token = (typeof res === "string" ? res : res?.token) || "";
-  if (!token) throw new Error("Vertex ADC returned no access token — run `gcloud auth application-default login`");
-  _vertexToken = { token, exp: Date.now() + 45 * 60 * 1000 }; // ADC tokens last ~1h; refresh at 45m
+  if (!token) throw new Error("Vertex auth returned no access token — check GOOGLE_APPLICATION_CREDENTIALS (service-account key) is set & valid, then restart the dev server. (NOT a `gcloud auth application-default login` issue — that's a different, unused credential.)");
+  _vertexToken = { token, exp: Date.now() + 45 * 60 * 1000 }; // SA-minted tokens last ~1h; refresh at 45m
   return token;
 }
 function geminiEndpoint(model: string): string {
@@ -497,7 +499,16 @@ function companyTokens(value: string) {
     "expert",
     "experts",
     "pros",
-    "group"
+    "group",
+    // Home-services vertical generics (foundation / roofing / plumbing / windows) — June 2026.
+    // Same class of fix as the pest/tree generics: without these, "X Foundation Solutions"
+    // wrongly matches "Virginia Foundation Solutions", any "X Roofing" matches another, etc.
+    "foundation", "foundations", "solutions", "solution", "structural", "waterproofing",
+    "basement", "crawl", "crawlspace", "pier", "piering", "leveling", "inspection",
+    "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers",
+    "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
+    "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
+    "installation", "replacement", "remodeling"
   ]);
 
   return value

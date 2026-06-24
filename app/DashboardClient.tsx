@@ -2754,7 +2754,9 @@ function isOtherCitationDomain(domain: string) {
 function canonicalCompanyName(name: string) {
   const stopwords = new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc",
     // Non-HVAC vertical generics (keep in sync with gemini.ts + scoring.ts + access.ts brandKey).
-    "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites", "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds", "garden", "gardens", "care", "expert", "experts", "pros", "group"]);
+    "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites", "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds", "garden", "gardens", "care", "expert", "experts", "pros", "group",
+    // Home-services vertical generics (foundation / roofing / plumbing / windows) — keep in sync with gemini.ts + scoring.ts + access.ts.
+    "foundation", "foundations", "solutions", "solution", "structural", "waterproofing", "basement", "crawl", "crawlspace", "pier", "piering", "leveling", "inspection", "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers", "restoration", "construction", "contractor", "contractors", "exterior", "exteriors", "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows", "installation", "replacement", "remodeling"]);
   const tokens = name
     .toLowerCase()
     .split(/[^a-z0-9]+/g)

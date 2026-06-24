@@ -428,7 +428,14 @@ function companyTokens(value: string) {
     // "X Pest Control" wrongly matches "Moxie Pest Control" on the ChatGPT surface.
     "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites",
     "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds",
-    "garden", "gardens", "care", "expert", "experts", "pros", "group"
+    "garden", "gardens", "care", "expert", "experts", "pros", "group",
+    // Home-services vertical generics (foundation / roofing / plumbing / windows) — keep in sync with gemini.ts.
+    "foundation", "foundations", "solutions", "solution", "structural", "waterproofing",
+    "basement", "crawl", "crawlspace", "pier", "piering", "leveling", "inspection",
+    "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers",
+    "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
+    "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
+    "installation", "replacement", "remodeling"
   ]);
 
   return value
