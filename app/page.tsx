@@ -1,6 +1,37 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { accessEnabled, currentGrant, isAdmin, verifyGrant } from "@/lib/access";
+import { readReportById } from "@/lib/store";
 import Home from "./DashboardClient";
+
+const META_DESCRIPTION =
+  "Find out your visibility in Google Gemini, ChatGPT, Google AI Chat against local competitors. The first AI visibility tool built for home service companies.";
+
+// Per-report meta: a shared report link (`/?report=<id>`) gets the title
+// "AI Search Report | <Company Name>" so link previews / browser tabs name the company.
+// Bare root falls back to a generic title; a db read failure degrades to the fallback too.
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<{ report?: string; t?: string }>;
+}): Promise<Metadata> {
+  const { report } = await searchParams;
+  let title = "AI Search Report";
+  if (report) {
+    try {
+      const found = await readReportById(report);
+      if (found?.company?.name) title = `AI Search Report | ${found.company.name}`;
+    } catch {
+      /* fall back to the generic title */
+    }
+  }
+  return {
+    title,
+    description: META_DESCRIPTION,
+    openGraph: { title, description: META_DESCRIPTION },
+    twitter: { card: "summary", title, description: META_DESCRIPTION }
+  };
+}
 
 // Server-side gate: when the access gate is on, an unauthenticated visitor is
 // redirected to /access BEFORE any dashboard HTML is sent — so the dashboard never
