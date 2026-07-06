@@ -120,7 +120,7 @@ function companyTokens(value: string) {
     "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers",
     "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
     "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
-    "installation", "replacement", "remodeling"
+    "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well"
   ]);
 
   return value
