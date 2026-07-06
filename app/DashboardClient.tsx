@@ -931,16 +931,29 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </div>
 
       <section className="metric-grid four">
+        <MetricCard label="Citation Rate" value={pct(citRate)} helper={`${brandCited.size}/${allCited.size} cited answers`} tooltip="Of the AI answers that cite sources, how often your own website is one of them — i.e. how often AI treats you as a source worth reading." />
         <MetricCard
-          label="Share of Voice"
-          value={pct(sov)}
-          helper={sovRank ? `${ordinal(sovRank)} of ${sovCount} in your market` : `of ${sovCount} in your market`}
-          tooltip="When an AI answer names you or a competitor, how often it names you."
+          label="Market Rank"
+          value={sovRank && sovCount ? `Top ${Math.max(1, Math.round((100 * sovRank) / sovCount))}%` : "—"}
+          helper={sovRank ? `${ordinal(sovRank)} of ${sovCount} companies AI names` : `of ${sovCount} companies`}
+          tooltip="Where you rank among every company AI names in your market, by share of voice. Top 5% means only a handful of local companies are named more often than you."
         />
-        <MetricCard label="Citation Rate" value={pct(citRate)} helper={`${brandCited.size}/${allCited.size} cited answers`} tooltip="Of the AI answers that cite sources, how often your site or brand is one of them." />
         <MetricCard label="Top-Position Rate" value={pct(summary.topThreeRate)} helper="ranked top 3" tooltip="How often you appear in the top 3 companies named in an AI answer." />
         <MetricCard label="First Mention Rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
       </section>
+      {(() => {
+        const rankPct = sovRank && sovCount ? Math.max(1, Math.round((100 * sovRank) / sovCount)) : null;
+        const found = citRate >= 0.3 || (rankPct !== null && rankPct <= 25);
+        const chosen = topOneRate >= 0.15 || sov >= 0.1;
+        const note = chosen
+          ? "You're among the most-recommended companies in your market — the goal now is defending and widening that lead."
+          : found
+            ? `AI already treats your site as a source worth citing${rankPct !== null ? ` and ranks you in the top ${rankPct}% locally` : ""} — you're in the consideration set, just rarely the top pick yet. Turning that presence into being the named pick is the fastest visibility to win.`
+            : "You're not yet in AI's consideration set for most topics — the first move is building presence in the sources AI actually reads.";
+        return (
+          <p style={{ fontSize: 13, lineHeight: 1.55, color: "#6b7280", margin: "12px 2px 0", maxWidth: "74ch" }}>{note}</p>
+        );
+      })()}
 
       <section className="dashboard-grid" data-tour="leaderboard">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
