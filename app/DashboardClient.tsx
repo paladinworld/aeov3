@@ -772,7 +772,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   // computed on primary prompts — matches this company's value in the leaderboard.
   const score100 = Math.round(blendedVisibilityForName(primaryPayload, payload.company.name, true) * 100);
   // Official Visibility Score bands (backend): 30%+ High, 20–30% Medium, <20% Low.
-  const gband = score100 >= 30 ? "High" : score100 >= 20 ? "Medium" : "Low";
+  const gband = score100 >= 30 ? "High" : score100 >= 10 ? "Medium" : "Low";
 
   // By-platform uses the SAME composite Visibility Score as the leaderboard (one
   // definition everywhere), grouped by engine — only the engines present in this report,
@@ -918,7 +918,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
                 <div key={surface.surface} className="pf-row">
                   <div className="pf-name">{surface.label}</div>
                   <div className="pf-bar">
-                    <div className={"platform-track " + band(surface.rate, 0.3, 0.2).toLowerCase()}>
+                    <div className={"platform-track " + band(surface.rate, 0.3, 0.1).toLowerCase()}>
                       <i style={{ width: pct(surface.rate) }} />
                     </div>
                     <b>{pct(surface.rate)}</b>
@@ -1922,7 +1922,7 @@ function Leaderboard({
   const visible = pinned && targetRow ? [...rows.slice(0, Math.max(0, limit - 1)), targetRow] : top;
   const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : scoreOf(row));
   const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : scoreOf(row) / maxScore);
-  const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.2) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
+  const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.1) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
 
   return (
     <div className="panel">
@@ -2756,7 +2756,7 @@ function canonicalCompanyName(name: string) {
     // Non-HVAC vertical generics (keep in sync with gemini.ts + scoring.ts + access.ts brandKey).
     "pest", "control", "exterminating", "exterminators", "exterminator", "termite", "termites", "tree", "trees", "arborist", "lawn", "landscape", "landscapes", "landscaping", "grounds", "garden", "gardens", "care", "expert", "experts", "pros", "group",
     // Home-services vertical generics (foundation / roofing / plumbing / windows) — keep in sync with gemini.ts + scoring.ts + access.ts.
-    "foundation", "foundations", "solutions", "solution", "structural", "waterproofing", "basement", "crawl", "crawlspace", "pier", "piering", "leveling", "inspection", "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers", "restoration", "construction", "contractor", "contractors", "exterior", "exteriors", "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows", "installation", "replacement", "remodeling"]);
+    "foundation", "foundations", "solutions", "solution", "structural", "waterproofing", "basement", "crawl", "crawlspace", "pier", "piering", "leveling", "inspection", "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers", "restoration", "construction", "contractor", "contractors", "exterior", "exteriors", "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows", "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well"]);
   const tokens = name
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
