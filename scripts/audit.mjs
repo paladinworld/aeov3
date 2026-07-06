@@ -33,15 +33,22 @@ const env = Object.fromEntries(
 
 function arg(name, def) { const i = process.argv.indexOf("--" + name); if (i < 0) return def; const v = process.argv[i + 1]; return v && !v.startsWith("--") ? v : true; }
 const quick = Boolean(arg("quick", false));
+// --market: market-level report (no target company). Head prompts only, no follow-up, + SEO
+// SERP column. Ranks the whole field. Default 3 repeats; name/url auto-derived from the market.
+const market = Boolean(arg("market", false));
 const cfg = {
-  name: arg("name"), url: arg("url"), city: arg("city"), state: arg("state"),
+  name: arg("name") || (market ? `${arg("vertical", "HVAC")} — ${arg("city")}, ${arg("state")}` : undefined),
+  url: arg("url") || (market ? "market://landscape" : undefined),
+  city: arg("city"), state: arg("state"),
   vertical: arg("vertical", "HVAC"),
-  repeats: Number(arg("repeats", quick ? 1 : 5)),
+  repeats: Number(arg("repeats", quick ? 1 : market ? 3 : 5)),
   limit: arg("limit", quick ? 3 : undefined),
   port: arg("port", "3000"),
   push: Boolean(arg("push", false)),
+  market,
 };
-for (const k of ["name", "url", "city", "state"]) if (!cfg[k]) { console.error(`Missing --${k}`); process.exit(1); }
+const required = market ? ["city", "state"] : ["name", "url", "city", "state"];
+for (const k of required) if (!cfg[k]) { console.error(`Missing --${k}`); process.exit(1); }
 const BASE = `http://127.0.0.1:${cfg.port}`;
 // Cosmetic company metadata only — prompts are driven by --vertical via PROMPTS_BY_VERTICAL
 // (lib/query-generator.ts), NOT by this list. Keyed so a non-HVAC record isn't stamped HVAC.
@@ -52,6 +59,8 @@ const SERVICES_BY_VERTICAL = {
   "Roofing": ["General roofing","Roof repair","Roof replacement","Metal roofing","Shingle roofing","Flat roofing","Leak repair","Storm damage","Roof inspection","Commercial roofing"],
   "Windows": ["Window replacement","Window installation","Energy efficient windows","Vinyl windows","Specialty windows","Storm windows","Glass replacement","Window repair","Doors"],
   "Foundation": ["Foundation repair","Crack repair","Waterproofing","Crawl space","House leveling","Pier & beam","Slab repair","Structural repair","Foundation inspection","Piering"],
+  "Water Treatment": ["Water softener","Water filtration","Reverse osmosis","Whole house filtration","Well water treatment","Water testing","Drinking water systems","Iron/sulfur removal"],
+  "Water Heater": ["Water heater installation","Water heater repair","Tankless water heater","Water heater replacement","Gas water heater","Electric water heater","Heat pump water heater","Emergency water heater"],
 };
 const SERVICES = SERVICES_BY_VERTICAL[cfg.vertical] || SERVICES_BY_VERTICAL["HVAC"];
 const log = (...a) => console.log(...a);
@@ -125,6 +134,7 @@ async function run() {
   const co = await r.json();
   const body = { companyId: co.id, locationIds: [co.locations[0].id], vertical: cfg.vertical, repeatRuns: cfg.repeats };
   if (cfg.limit) body.queryLimit = Number(cfg.limit);
+  if (cfg.market) body.market = true;
   r = await J(cookie, "POST", "/api/reports", body);
   if (!r.ok) { console.error("  report create failed:", r.status, await r.text()); process.exit(1); }
   const rep = await r.json();
@@ -138,7 +148,7 @@ async function run() {
   // whole audit finishes), so awaiting it trips Node's undici HeadersTimeout on any real run.
   // Instead kick it off and poll file-mode db.json for status — matches the manual workflow.
   J(cookie, "POST", `/api/reports/${rep.id}/run`, {}).catch(() => {});
-  const dbPath = path.join(ROOT, "data/db.json");
+  const dbPath = path.join(process.env.AEO_DATA_DIR || path.join(ROOT, "data"), "db.json"); // isolated store (market study) or default
   let done = null;
   for (let i = 0; i < 360; i++) { // poll up to ~60 min
     await new Promise((res) => setTimeout(res, 10000));
@@ -157,15 +167,30 @@ async function run() {
   const ENG = { gemini_search: "Gemini", google_ai_overview: "AI Mode", chatgpt_search: "ChatGPT" };
   let errs = 0;
   log(`• Done in ${mins}m — ${done.status}`);
-  for (const s of Object.keys(ENG)) {
-    const real = done.runs.filter((x) => x.surface === s && !String(x.rawAnswer).startsWith("Provider error:"));
-    errs += done.runs.filter((x) => x.surface === s).length - real.length;
-    const m = real.filter((x) => (x.mentions || []).some((z) => z.isTarget));
-    const ranks = m.map((x) => (x.mentions || []).find((z) => z.isTarget)?.rank).filter(Boolean);
-    const r1 = ranks.filter((x) => x === 1).length;
-    log(`  ${ENG[s].padEnd(8)} mention ${Math.round(100 * m.length / (real.length || 1))}% | #1 ×${r1} | avg rank ${ranks.length ? (ranks.reduce((a, b) => a + b, 0) / ranks.length).toFixed(1) : "-"}`);
+  for (const s of Object.keys(ENG)) errs += done.runs.filter((x) => x.surface === s && String(x.rawAnswer).startsWith("Provider error:")).length;
+
+  if (cfg.market) {
+    // Market mode: no target — show the AI share-of-voice leaderboard + SERP coverage.
+    const tally = {};
+    for (const x of done.runs) {
+      if (x.surface === "gemini_maps" || String(x.rawAnswer).startsWith("Provider error:")) continue;
+      for (const mtn of (x.mentions || [])) { const n = (mtn.companyName || "").trim(); if (n) tally[n] = (tally[n] || 0) + 1; }
+    }
+    const top = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 15);
+    const serpN = done.serp ? Object.keys(done.serp).length : 0;
+    log(`  AI share-of-voice leaderboard (top 15 of ${Object.keys(tally).length} companies named):`);
+    top.forEach(([n, c], i) => log(`   ${String(i + 1).padStart(2)}. ${String(c).padStart(3)}  ${n}`));
+    log(`  SEO/SERP captured for ${serpN}/${done.queries.length} prompts | errors: ${errs}`);
+  } else {
+    for (const s of Object.keys(ENG)) {
+      const real = done.runs.filter((x) => x.surface === s && !String(x.rawAnswer).startsWith("Provider error:"));
+      const m = real.filter((x) => (x.mentions || []).some((z) => z.isTarget));
+      const ranks = m.map((x) => (x.mentions || []).find((z) => z.isTarget)?.rank).filter(Boolean);
+      const r1 = ranks.filter((x) => x === 1).length;
+      log(`  ${ENG[s].padEnd(8)} mention ${Math.round(100 * m.length / (real.length || 1))}% | #1 ×${r1} | avg rank ${ranks.length ? (ranks.reduce((a, b) => a + b, 0) / ranks.length).toFixed(1) : "-"}`);
+    }
+    log(`  errors: ${errs}`);
   }
-  log(`  errors: ${errs}`);
   log(`• Review: ${BASE}/?report=${rep.id}`);
 
   if (cfg.push) await push(rep.id, co.id);
@@ -187,7 +212,7 @@ async function push(reportId, companyId) {
   }
   const SB = env.SUPABASE_URL, KEY = process.env.SB_KEY || pushEnv.SB_KEY, SECRET = process.env.PROD_ACCESS_SECRET || pushEnv.PROD_ACCESS_SECRET;
   if (!KEY || !SECRET) { log("• --push skipped: add SB_KEY + PROD_ACCESS_SECRET to .env.push.local (or pass as env vars)"); return; }
-  const db = JSON.parse(fs.readFileSync(path.join(ROOT, "data/db.json"), "utf8"));
+  const db = JSON.parse(fs.readFileSync(path.join(process.env.AEO_DATA_DIR || path.join(ROOT, "data"), "db.json"), "utf8"));
   const rep = db.reports.find((x) => x.id === reportId), co = db.companies.find((x) => x.id === companyId);
   const now = new Date().toISOString();
   const up = (table, rows) => fetch(`${SB}/rest/v1/${table}`, { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });

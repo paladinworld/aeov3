@@ -12,3 +12,9 @@ data/db.backup-*.json
 data/db.restored-*.json
 PROD-REPORTS.md
 scout-*.json
+
+# Isolated market-study datastore (large; like data/, never commit)
+data-market/
+# Report deliverables + session artifacts (not app code)
+exports/
+SESSION-RECAP.md
