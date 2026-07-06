@@ -394,6 +394,104 @@ const FOUNDATION_PROMPTS: PromptSpec[] = [
 ];
 
 // The prompt set per vertical. A new vertical = a new array here + an entry in this map.
+// ── Residential Water Treatment (34 prompts, locked). Softeners, filtration, RO, well water. ──
+const WATER_TREATMENT_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best water treatment company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water treatment", geo: true },
+  { text: "water treatment company near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Water treatment", geo: true },
+  { text: "best water softener company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water softener", geo: true },
+  { text: "water softener installation in {place}", category: "Core General", intent: "best", priority: "high", service: "Water softener", geo: true },
+  { text: "whole house water filtration in {place}", category: "Core General", intent: "best", priority: "medium", service: "Whole house filtration", geo: true },
+  { text: "best water filtration company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water filtration", geo: true },
+  { text: "reverse osmosis system installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Reverse osmosis", geo: true },
+  { text: "well water treatment company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Well water treatment", geo: true },
+  { text: "local water treatment company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Water treatment", geo: true },
+  { text: "licensed water treatment company in {place}", category: "Core General", intent: "best", priority: "low", service: "Water treatment", geo: true },
+
+  // Repair & Maintenance
+  { text: "water softener repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Water softener", geo: true },
+  { text: "water softener maintenance in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water softener", geo: true },
+  { text: "water filter replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water filtration", geo: true },
+  { text: "reverse osmosis system repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Reverse osmosis", geo: true },
+  { text: "water treatment system service in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water treatment", geo: true },
+  { text: "water softener salt delivery in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Water softener", geo: true },
+  { text: "emergency water treatment repair in {place}", category: "Repair & Maintenance", intent: "emergency", priority: "low", service: "Water treatment", geo: true },
+  { text: "water testing service in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water testing", geo: true },
+  { text: "water quality testing near me in {place}", category: "Repair & Maintenance", intent: "near_me", priority: "medium", service: "Water testing", geo: true },
+
+  // Reviews & Price
+  { text: "top rated water treatment company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "Water treatment", geo: true },
+  { text: "which water treatment companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "Water treatment", geo: true },
+  { text: "most trusted water softener company in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "Water softener", geo: true },
+  { text: "how much does a water softener cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Water softener", geo: true },
+  { text: "water softener system cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Water softener", geo: true },
+  { text: "water treatment company in {place} with financing", category: "Reviews & Price", intent: "price", priority: "low", service: "Water treatment", geo: true },
+
+  // Product / Brand
+  { text: "best company to install a Culligan water softener in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Water softener", geo: true },
+  { text: "salt free water softener installation in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Water softener", geo: true },
+
+  // Consideration
+  { text: "how to choose a water treatment company", category: "Consideration", intent: "comparison", priority: "medium", service: "Water treatment", geo: false },
+  { text: "water softener vs water filtration system", category: "Consideration", intent: "comparison", priority: "medium", service: "Water treatment", geo: false },
+  { text: "is a whole house water filter worth it", category: "Consideration", intent: "comparison", priority: "low", service: "Whole house filtration", geo: false },
+  { text: "questions to ask before buying a water softener", category: "Consideration", intent: "comparison", priority: "medium", service: "Water softener", geo: false },
+
+  // Symptom / Problem
+  { text: "hard water problems in my house who to call in {place}", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water softener", geo: true },
+  { text: "signs you need a water softener", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Water softener", geo: false },
+  { text: "why does my tap water smell bad", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water filtration", geo: false },
+];
+
+// ── Water Heater (34 prompts, locked). Install, repair, replacement, tankless. ──
+const WATER_HEATER_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best water heater company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water heater", geo: true },
+  { text: "water heater installation near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Water heater installation", geo: true },
+  { text: "water heater replacement in {place}", category: "Core General", intent: "best", priority: "high", service: "Water heater replacement", geo: true },
+  { text: "best water heater installation company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water heater installation", geo: true },
+  { text: "tankless water heater installation in {place}", category: "Core General", intent: "best", priority: "high", service: "Tankless water heater", geo: true },
+  { text: "new water heater installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Water heater installation", geo: true },
+  { text: "gas water heater installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Gas water heater", geo: true },
+  { text: "electric water heater installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Electric water heater", geo: true },
+  { text: "local water heater company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Water heater", geo: true },
+  { text: "licensed water heater installer in {place}", category: "Core General", intent: "best", priority: "low", service: "Water heater installation", geo: true },
+
+  // Repair & Maintenance
+  { text: "water heater repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Water heater repair", geo: true },
+  { text: "emergency water heater repair in {place}", category: "Repair & Maintenance", intent: "emergency", priority: "high", service: "Water heater repair", geo: true },
+  { text: "same day water heater repair in {place}", category: "Repair & Maintenance", intent: "emergency", priority: "high", service: "Water heater repair", geo: true },
+  { text: "tankless water heater repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Tankless water heater", geo: true },
+  { text: "water heater maintenance in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water heater repair", geo: true },
+  { text: "water heater flush service in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Water heater repair", geo: true },
+  { text: "hot water heater repair near me in {place}", category: "Repair & Maintenance", intent: "near_me", priority: "high", service: "Water heater repair", geo: true },
+  { text: "water heater leak repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water heater repair", geo: true },
+  { text: "water heater installation and repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Water heater", geo: true },
+
+  // Reviews & Price
+  { text: "top rated water heater company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "Water heater", geo: true },
+  { text: "which water heater companies in {place} have the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "Water heater", geo: true },
+  { text: "most trusted water heater installer in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "Water heater installation", geo: true },
+  { text: "how much does water heater replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Water heater replacement", geo: true },
+  { text: "tankless water heater cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Tankless water heater", geo: true },
+  { text: "water heater company in {place} with financing", category: "Reviews & Price", intent: "price", priority: "low", service: "Water heater", geo: true },
+
+  // Product / Brand
+  { text: "best company to install a Rinnai tankless water heater in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Tankless water heater", geo: true },
+  { text: "heat pump water heater installation in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Heat pump water heater", geo: true },
+
+  // Consideration
+  { text: "how to choose a water heater installation company", category: "Consideration", intent: "comparison", priority: "medium", service: "Water heater installation", geo: false },
+  { text: "tankless vs tank water heater", category: "Consideration", intent: "comparison", priority: "medium", service: "Tankless water heater", geo: false },
+  { text: "is a tankless water heater worth it", category: "Consideration", intent: "comparison", priority: "low", service: "Tankless water heater", geo: false },
+  { text: "questions to ask before replacing a water heater", category: "Consideration", intent: "comparison", priority: "medium", service: "Water heater replacement", geo: false },
+
+  // Symptom / Problem
+  { text: "no hot water who do I call in {place}", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Water heater repair", geo: true },
+  { text: "signs you need a new water heater", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Water heater replacement", geo: false },
+  { text: "water heater leaking what to do", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water heater repair", geo: false },
+];
+
 const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "HVAC": HVAC_PROMPTS,
   "Tree Care": TREE_CARE_PROMPTS,
@@ -402,7 +500,9 @@ const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "Plumbing": PLUMBING_PROMPTS,
   "Roofing": ROOFING_PROMPTS,
   "Windows": WINDOWS_PROMPTS,
-  "Foundation": FOUNDATION_PROMPTS
+  "Foundation": FOUNDATION_PROMPTS,
+  "Water Treatment": WATER_TREATMENT_PROMPTS,
+  "Water Heater": WATER_HEATER_PROMPTS
 };
 
 // Shared builder: substitutes the company's primary "City, ST" into each prompt and
