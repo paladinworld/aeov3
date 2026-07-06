@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { accessEnabled, currentGrant, isAdmin, verifyGrant } from "@/lib/access";
 import { readReportById } from "@/lib/store";
 import Home from "./DashboardClient";
+import MarketReport from "./MarketReport";
 
 const META_DESCRIPTION =
   "Find out your visibility in Google Gemini, ChatGPT, Google AI Chat against local competitors. The first AI visibility tool built for home service companies.";
@@ -50,6 +51,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
     if (!report) {
       const grant = (await currentGrant()) ?? verifyGrant(t);
       if (!isAdmin(grant)) redirect("/access");
+    }
+  }
+
+  // Market-level reports (no target company) get a dedicated view — leaderboard + SEO columns
+  // — instead of the target-company dashboard.
+  if (report) {
+    try {
+      const found = await readReportById(report);
+      if (found?.report?.market) return <MarketReport reportId={report} token={t ?? null} />;
+    } catch {
+      /* fall through to the standard dashboard */
     }
   }
 

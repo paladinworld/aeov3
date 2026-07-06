@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { attachMissingInsights, runSurface } from "@/lib/runner";
+import { fetchQuerySerp } from "@/lib/providers/dataforseo-serp";
+import { fetchGbp } from "@/lib/providers/dataforseo-gbp";
 import { runCitations } from "@/lib/citations";
 import { citationDomain, classifyDomains } from "@/lib/domain-classifier";
 import { id as createId, readDb, writeDb } from "@/lib/store";
@@ -129,12 +131,55 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   // "Why didn't AI recommend you?" follow-up — fired ONCE per primary prompt, only when
   // the target is consensus-missing across all repeats (not off a single lucky round).
   // ChatGPT diagnostics run on gpt-5.5; only the surfaces just run are considered.
-  try {
-    const insightSurfaces = (["gemini_search", "chatgpt_search"] as Surface[]).filter((s) => !onlySurfaces || onlySurfaces.has(s));
-    await attachMissingInsights(company, report.queries, report.runs, insightSurfaces, locations, "gpt-5.5");
-    await writeDb(db);
-  } catch {
-    // Non-fatal: the report is still valid without the diagnostics.
+  // SKIPPED for market reports — there's no target company to diagnose.
+  if (!report.market) {
+    try {
+      const insightSurfaces = (["gemini_search", "chatgpt_search"] as Surface[]).filter((s) => !onlySurfaces || onlySurfaces.has(s));
+      await attachMissingInsights(company, report.queries, report.runs, insightSurfaces, locations, "gpt-5.5");
+      await writeDb(db);
+    } catch {
+      // Non-fatal: the report is still valid without the diagnostics.
+    }
+  }
+
+  // MARKET reports: capture the traditional Google SERP once per prompt so the dashboard can
+  // put an "SEO" rank next to the AI engines. One call per prompt (deterministic; no repeats).
+  if (report.market) {
+    try {
+      report.serp = report.serp || {};
+      const primary = locations[0];
+      for (const query of report.queries) {
+        if (report.serp[query.id]) continue; // idempotent across re-runs
+        const serp = await fetchQuerySerp(query.id, query.text, primary);
+        if (serp) report.serp[query.id] = serp;
+      }
+      await writeDb(db);
+    } catch {
+      // Non-fatal: the market report is still valid without the SEO column.
+    }
+
+    // GBP rating + review count for the most-named companies — to sit reviews next to AI
+    // visibility. Query DataForSEO Maps by "company name" for the top ~40 by mentions.
+    try {
+      const counts: Record<string, number> = {};
+      for (const run of report.runs) {
+        if (!["gemini_search", "google_ai_overview", "chatgpt_search"].includes(run.surface)) continue;
+        if (String(run.rawAnswer).startsWith("Provider error:")) continue;
+        for (const m of run.mentions || []) { const n = (m.companyName || "").trim(); if (n && !n.includes(".")) counts[n] = (counts[n] || 0) + 1; }
+      }
+      const targets = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 40).map(([n]) => n);
+      report.gbp = report.gbp || [];
+      const have = new Set(report.gbp.map((g) => g.name));
+      const primary = locations[0];
+      for (const name of targets) {
+        if (have.has(name)) continue;
+        const { rating, reviews } = await fetchGbp(name, primary);
+        report.gbp.push({ name, rating, reviews });
+      }
+      await writeDb(db);
+    } catch {
+      // Non-fatal: the market report is still valid without GBP data.
+    }
   }
 
   // Classify the cited domains (platform/contractor/manufacturer/other) so the

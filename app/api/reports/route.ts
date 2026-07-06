@@ -10,8 +10,14 @@ const createReportSchema = z.object({
   locationIds: z.array(z.string()).min(1),
   vertical: z.string().optional(),
   repeatRuns: z.number().int().min(1).max(10).default(3),
-  queryLimit: z.number().int().min(1).max(50).optional()
+  queryLimit: z.number().int().min(1).max(50).optional(),
+  market: z.boolean().optional() // market-level report: head prompts only, no target/follow-up, + SEO SERP
 });
+
+// Market reports use only the head commercial "who should I hire" prompts — the high-intent
+// terms a homeowner searches when choosing a provider. Consideration/Symptom (informational)
+// and Product/Brand (brand-qualified) are dropped as weak/low-conversion for a market view.
+const MARKET_HEAD_CATEGORIES = new Set(["Core General", "Repair & Maintenance", "Reviews & Price"]);
 
 export async function GET(request: Request) {
   // Scope: admin (or gate off) sees the full report list; a client grant sees ONLY
@@ -56,13 +62,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
   }
 
+  let queries = generateQueries(company, parsed.vertical ?? "HVAC");
+  if (parsed.market) queries = queries.filter((q) => MARKET_HEAD_CATEGORIES.has(q.category));
+  queries = queries.slice(0, parsed.queryLimit ?? 50);
+
   const report: Report = {
     id: id("report"),
     companyId: company.id,
     vertical: parsed.vertical ?? "HVAC",
+    ...(parsed.market ? { market: true } : {}),
     locationIds: parsed.locationIds,
     repeatRuns: parsed.repeatRuns,
-    queries: generateQueries(company, parsed.vertical ?? "HVAC").slice(0, parsed.queryLimit ?? 50),
+    queries,
     runs: [],
     status: "draft",
     createdAt: new Date().toISOString()

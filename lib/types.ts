@@ -122,10 +122,30 @@ export type TargetedSentimentRun = {
   createdAt: string;
 };
 
+// Traditional SEO SERP for a prompt (market reports only) — captured once per prompt
+// (deterministic, no repeats). "organic" carries the website results (directories flagged
+// so the featured "SEO" rank can be company-sites-only); localPack is the 3-pack for reference.
+export type SerpListing = {
+  rank: number; // position within this SERP layer
+  title: string;
+  url: string;
+  domain: string;
+  isDirectory: boolean; // yelp/angi/thumbtack/etc. — excluded from the company-site "SEO" rank
+};
+export type QuerySerp = {
+  queryId: string;
+  organic: SerpListing[];
+  localPack: SerpListing[];
+  fetchedAt: string;
+};
+
 export type Report = {
   id: string;
   companyId: string;
   vertical?: string; // service vertical (HVAC | Plumbing | Electrical…); absent = "HVAC". Toggled in the sidebar.
+  market?: boolean; // market-level report: no target company, no follow-up; ranks the whole field + SEO column.
+  serp?: Record<string, QuerySerp>; // queryId -> traditional SERP (market reports only)
+  gbp?: Array<{ name: string; rating: number | null; reviews: number | null }>; // Google Business Profile rating + review count for the top companies (market reports only)
   locationIds: string[];
   repeatRuns: number;
   queries: Query[];

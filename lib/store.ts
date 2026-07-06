@@ -3,7 +3,9 @@ import path from "path";
 import { createClient } from "@supabase/supabase-js";
 import { Company, Database, Report } from "./types";
 
-const dataDir = path.join(process.cwd(), "data");
+// AEO_DATA_DIR lets a run use an ISOLATED datastore (e.g. the market study), so it never
+// reads/writes the main company db.json. Defaults to ./data — nothing changes for normal use.
+const dataDir = process.env.AEO_DATA_DIR || path.join(process.cwd(), "data");
 const dbPath = path.join(dataDir, "db.json");
 
 const emptyDb: Database = {

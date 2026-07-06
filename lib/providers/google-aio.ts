@@ -9,7 +9,7 @@ import { extractMentions } from "./gemini";
 // the raw answer, map its `references` to citations (dropping Google-owned redirect
 // junk), and reuse the shared Gemini extractor to rank company mentions — so AI Mode
 // rows look identical in shape to the Gemini/ChatGPT surfaces.
-const DFS_BASE = "https://api.dataforseo.com";
+export const DFS_BASE = "https://api.dataforseo.com";
 const AI_MODE_PATH = "/v3/serp/google/ai_mode/live/advanced";
 
 // DataForSEO wants a full location string ("Houston,Texas,United States"); our company
@@ -49,7 +49,7 @@ const REGION_ALIASES: Record<string, string> = {
   "triangle,nc": "Raleigh,North Carolina,United States"
 };
 
-function dfsLocationName(location: Location): string {
+export function dfsLocationName(location: Location): string {
   const state2 = (location.state || "").toUpperCase().trim();
   const stateFull = US_STATES[state2] || location.state;
   const city = location.city || location.label;
@@ -60,14 +60,14 @@ function dfsLocationName(location: Location): string {
 
 // State-level location string — the fallback when a precise location is rejected, so
 // AI Mode still returns a (state-geo-targeted) answer rather than erroring the run.
-function dfsStateLocation(location: Location): string | null {
+export function dfsStateLocation(location: Location): string | null {
   const stateFull = US_STATES[(location.state || "").toUpperCase().trim()] || location.state;
   return stateFull ? `${stateFull},United States` : null;
 }
 
-const DFS_INVALID_LOCATION = 40501;
+export const DFS_INVALID_LOCATION = 40501;
 
-function dfsAuthHeader(): string | null {
+export function dfsAuthHeader(): string | null {
   const b64 = process.env.DATAFORSEO_B64;
   if (b64) return `Basic ${b64}`;
   const login = process.env.DATAFORSEO_LOGIN;
