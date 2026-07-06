@@ -17,17 +17,28 @@ const STUDY: Record<string, { tier: number; region: string }> = {
 };
 const TIER_LABEL: Record<number, string> = { 1: "Major metros", 2: "Mid-size metros", 3: "Smaller metros" };
 
+// Local study index (points at the isolated data-market store via AEO_DATA_DIR).
+// Never prerender: on prod there's no study data and readDb() would run a full-table
+// Supabase read at build time (statement timeout → build fails). Render on demand,
+// and if the read is unavailable (prod), fail safe to an empty list.
+export const dynamic = "force-dynamic";
+
 export default async function MarketsPage() {
-  const db = await readDb();
-  const rows = db.reports
-    .filter((r) => r.market && r.status === "complete")
-    .map((r) => {
-      const c = db.companies.find((x) => x.id === r.companyId);
-      const city = c?.locations?.[0]?.city || "";
-      return { id: r.id, city, state: c?.locations?.[0]?.state || "", prompts: r.queries?.length || 0, meta: STUDY[city] };
-    })
-    .filter((r) => r.meta)
-    .sort((a, b) => a.meta!.tier - b.meta!.tier || a.city.localeCompare(b.city));
+  let rows: Array<{ id: string; city: string; state: string; prompts: number; meta?: { tier: number; region: string } }> = [];
+  try {
+    const db = await readDb();
+    rows = db.reports
+      .filter((r) => r.market && r.status === "complete")
+      .map((r) => {
+        const c = db.companies.find((x) => x.id === r.companyId);
+        const city = c?.locations?.[0]?.city || "";
+        return { id: r.id, city, state: c?.locations?.[0]?.state || "", prompts: r.queries?.length || 0, meta: STUDY[city] };
+      })
+      .filter((r) => r.meta)
+      .sort((a, b) => a.meta!.tier - b.meta!.tier || a.city.localeCompare(b.city));
+  } catch {
+    rows = [];
+  }
 
   const tiers = [1, 2, 3].map((t) => ({ t, label: TIER_LABEL[t], items: rows.filter((r) => r.meta!.tier === t) }));
 
