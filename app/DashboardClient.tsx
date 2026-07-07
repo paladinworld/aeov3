@@ -1383,6 +1383,7 @@ function CitationsView({ payload }: { payload: ReportPayload }) {
 function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: ReportStats }) {
   const [vf, setVf] = useState<SurfaceFilter>("all");
   const [sf, setSf] = useState<SurfaceFilter>("all");
+  const [tf, setTf] = useState<SurfaceFilter>("all");
   // Leaderboards rank on PRIMARY (high-intent) prompts only — same basis as the home gauge.
   const primaryPayload = useMemo(() => primaryPayloadOf(payload), [payload]);
   const leaderboard = useMemo(() => buildLeaderboardData(primaryPayload), [primaryPayload]);
@@ -1421,6 +1422,11 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={vf} setFilter={setVf} mode="vis" limit={10} />
         <Leaderboard title="Share of Voice" subtitle="When a brand gets mentioned, how often is it you?" data={leaderboard} filter={sf} setFilter={setSf} mode="sov" limit={10} />
       </section>
+
+      <section className="dashboard-grid">
+        <Leaderboard title="Top-Position Rate" subtitle="How often each company is named in the top 3 of an answer" data={leaderboard} filter={tf} setFilter={setTf} mode="top3" limit={10} />
+      </section>
+      <p className="bench-note">Only companies AI actually mentions are ranked here — most companies in the market are never named, so they don't appear. Rate = share of high-intent answers that name the company in the top 3.</p>
 
       <section className="panel">
         <PanelHead
@@ -1893,18 +1899,22 @@ function Leaderboard({
   data: Record<SurfaceFilter, MentionShareRow[]>;
   filter: SurfaceFilter;
   setFilter: (filter: SurfaceFilter) => void;
-  mode: "vis" | "sov";
+  mode: "vis" | "sov" | "top3";
   limit?: number;
   onMore?: () => void;
   moreLabel?: string;
 }) {
   const scoreOf = (row: MentionShareRow) => row.visibilityScore ?? row.visibilityRate;
-  // Visibility score ranks by the quality-weighted score; share of voice ranks by raw mention count.
+  const t3 = (row: MentionShareRow) => row.topThreeRate ?? 0;
+  // vis ranks by the quality-weighted score; top3 by top-3 rate; sov by raw mention count.
   const rows = [...(data[filter] || [])].sort((a, b) =>
-    mode === "vis" ? scoreOf(b) - scoreOf(a) || Number(b.isTarget) - Number(a.isTarget) : b.count - a.count || Number(b.isTarget) - Number(a.isTarget)
+    mode === "vis" ? scoreOf(b) - scoreOf(a) || Number(b.isTarget) - Number(a.isTarget)
+      : mode === "top3" ? t3(b) - t3(a) || Number(b.isTarget) - Number(a.isTarget)
+      : b.count - a.count || Number(b.isTarget) - Number(a.isTarget)
   );
   const maxCount = Math.max(1, ...rows.map((row) => row.count));
   const maxScore = Math.max(0.0001, ...rows.map(scoreOf));
+  const maxTop3 = Math.max(0.0001, ...rows.map(t3));
   const totalCount = rows.reduce((sum, row) => sum + row.count, 0) || 1;
   const top = rows.slice(0, limit);
   const targetRow = rows.find((row) => row.isTarget);
@@ -1912,9 +1922,9 @@ function Leaderboard({
   // Always render exactly `limit` rows: when the target isn't in the top `limit`,
   // drop the last and append it so it's always shown (top limit-1 + you).
   const visible = pinned && targetRow ? [...rows.slice(0, Math.max(0, limit - 1)), targetRow] : top;
-  const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : scoreOf(row));
-  const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : scoreOf(row) / maxScore);
-  const bandOf = (value: number) => (mode === "vis" ? band(value, 0.3, 0.1) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
+  const valOf = (row: MentionShareRow) => (mode === "sov" ? row.count / totalCount : mode === "top3" ? t3(row) : scoreOf(row));
+  const barOf = (row: MentionShareRow) => (mode === "sov" ? row.count / maxCount : mode === "top3" ? t3(row) / maxTop3 : scoreOf(row) / maxScore);
+  const bandOf = (value: number) => (mode === "vis" || mode === "top3" ? band(value, 0.3, 0.1) : value >= 0.1 ? "High" : value >= 0.05 ? "Medium" : "Low");
 
   return (
     <div className="panel">
@@ -2098,7 +2108,7 @@ type PromptRow = {
   topCompetitor: string | null;
 };
 
-type MentionShareRow = { name: string; count: number; visibilityRate: number; averageRank: number | null; isTarget: boolean; visibilityScore?: number };
+type MentionShareRow = { name: string; count: number; visibilityRate: number; topThreeRate?: number; averageRank: number | null; isTarget: boolean; visibilityScore?: number };
 
 type ReportStats = {
   totalQueries: number;
@@ -2324,6 +2334,7 @@ function buildMentionShareRows(payload: ReportPayload, runs: SurfaceRun[]): Ment
       name: group.name,
       count: group.count,
       visibilityRate: runs.length ? group.count / runs.length : 0,
+      topThreeRate: runs.length ? group.ranks.filter((r) => r <= 3).length / runs.length : 0,
       averageRank: averageNumber(group.ranks),
       isTarget: group.isTarget
     }))
@@ -2785,7 +2796,9 @@ function canonicalCompanyName(name: string) {
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3 && !stopwords.has(token));
-  return tokens.join("") || name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // Require >=2 surviving tokens, else fall back to the full name — a lone generic token
+  // (e.g. "one") would otherwise merge distinct companies into one leaderboard row.
+  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 /* ── formatting ── */

@@ -1860,7 +1860,7 @@ function canonicalCompanyName(name: string) {
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3 && !new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc"]).has(token));
-  return tokens.join("") || name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function phraseRows(

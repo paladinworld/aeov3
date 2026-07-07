@@ -85,7 +85,10 @@ function addCompetitorMention(groups: Map<string, CompetitorGroup>, mention: Com
 
 function canonicalCompanyName(name: string) {
   const tokens = companyTokens(name);
-  return tokens.join("") || name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // Require >=2 surviving tokens. If aggressive stopword stripping leaves a single generic
+  // token (e.g. "one" from BOTH "Pure One Water" and "Service One Plumbing"), that would
+  // merge distinct companies into one leaderboard row — fall back to the full name instead.
+  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function companyTokens(value: string) {
