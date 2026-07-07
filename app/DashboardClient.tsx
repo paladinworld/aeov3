@@ -933,21 +933,6 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         <MetricCard label="Top-Position Rate" value={pct(summary.topThreeRate)} helper="ranked top 3" tooltip="How often you appear in the top 3 companies named in an AI answer." />
         <MetricCard label="First Mention Rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
       </section>
-      {(() => {
-        const rankPct = sovRank && sovCount ? Math.max(1, Math.round((100 * sovRank) / sovCount)) : null;
-        const bestCite = citByPlat.rows.filter((r) => r.cited >= 5).slice().sort((a, b) => b.rate - a.rate)[0];
-        const citeLead = bestCite && bestCite.rate >= 0.3 ? `${bestCite.label} already cites your website in ${Math.round(bestCite.rate * 100)}% of topics — ` : "";
-        const found = citeLead !== "" || citRate >= 0.25 || (rankPct !== null && rankPct <= 25);
-        const chosen = topOneRate >= 0.15 || sov >= 0.1;
-        const note = chosen
-          ? "You're among the most-recommended companies in your market — the goal now is defending and widening that lead."
-          : found
-            ? `${citeLead}you're in AI's consideration set${rankPct !== null ? ` (top ${rankPct}% of companies named locally)` : ""}, just rarely the top pick yet. Turning that presence into being the named pick is the fastest visibility to win.`
-            : "You're not yet in AI's consideration set for most topics — the first move is building presence in the sources AI actually reads.";
-        return (
-          <p style={{ fontSize: 13, lineHeight: 1.55, color: "#6b7280", margin: "12px 2px 0", maxWidth: "74ch" }}>{note}</p>
-        );
-      })()}
 
       <section className="dashboard-grid" data-tour="leaderboard">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
