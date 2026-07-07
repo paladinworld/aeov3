@@ -791,18 +791,10 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const sovRank = lb.findIndex((row) => row.isTarget) + 1;
   const sovCount = lb.length;
 
-  // Citation rate
-  const allCited = new Set<string>();
-  const brandCited = new Set<string>();
-  citationStats.domainDetails.forEach((domain) =>
-    (domain.urls || []).forEach((url) =>
-      (url.prompts || []).forEach((prompt) => {
-        allCited.add(prompt);
-        if (domain.owned) brandCited.add(prompt);
-      })
-    )
-  );
-  const citRate = allCited.size ? brandCited.size / allCited.size : 0;
+  // Citation rate — per engine × topic, pooled (see citationRateByPlatform). No single
+  // engine can inflate it the way the old union across engines did.
+  const citByPlat = citationRateByPlatform(payload);
+  const citRate = citByPlat.pooled;
 
   const topOneRate = topOneRateOf(payload);
   const topDomains = citRank.domainRows.slice(0, 6);
@@ -931,7 +923,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </div>
 
       <section className="metric-grid four">
-        <MetricCard label="Citation Rate" value={pct(citRate)} helper={`${brandCited.size}/${allCited.size} cited answers`} tooltip="Of the AI answers that cite sources, how often your own website is one of them — i.e. how often AI treats you as a source worth reading." />
+        <MetricCard label="Citation Rate" value={pct(citRate)} helper={citByPlat.rows.length ? citByPlat.rows.map((r) => `${r.label} ${Math.round(r.rate * 100)}%`).join(" · ") : `${citByPlat.owned}/${citByPlat.cited}`} tooltip={`Per engine × topic: of the topics where an engine cited sources, how often it cited your own website. Pooled across ${citByPlat.cited} engine-topic pairs so no single engine inflates it.`} />
         <MetricCard
           label="Market Rank"
           value={sovRank && sovCount ? `Top ${Math.max(1, Math.round((100 * sovRank) / sovCount))}%` : "—"}
@@ -943,12 +935,14 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
       </section>
       {(() => {
         const rankPct = sovRank && sovCount ? Math.max(1, Math.round((100 * sovRank) / sovCount)) : null;
-        const found = citRate >= 0.3 || (rankPct !== null && rankPct <= 25);
+        const bestCite = citByPlat.rows.filter((r) => r.cited >= 5).slice().sort((a, b) => b.rate - a.rate)[0];
+        const citeLead = bestCite && bestCite.rate >= 0.3 ? `${bestCite.label} already cites your website in ${Math.round(bestCite.rate * 100)}% of topics — ` : "";
+        const found = citeLead !== "" || citRate >= 0.25 || (rankPct !== null && rankPct <= 25);
         const chosen = topOneRate >= 0.15 || sov >= 0.1;
         const note = chosen
           ? "You're among the most-recommended companies in your market — the goal now is defending and widening that lead."
           : found
-            ? `AI already treats your site as a source worth citing${rankPct !== null ? ` and ranks you in the top ${rankPct}% locally` : ""} — you're in the consideration set, just rarely the top pick yet. Turning that presence into being the named pick is the fastest visibility to win.`
+            ? `${citeLead}you're in AI's consideration set${rankPct !== null ? ` (top ${rankPct}% of companies named locally)` : ""}, just rarely the top pick yet. Turning that presence into being the named pick is the fastest visibility to win.`
             : "You're not yet in AI's consideration set for most topics — the first move is building presence in the sources AI actually reads.";
         return (
           <p style={{ fontSize: 13, lineHeight: 1.55, color: "#6b7280", margin: "12px 2px 0", maxWidth: "74ch" }}>{note}</p>
@@ -2403,6 +2397,38 @@ function blendedVisibilityForName(payload: ReportPayload, name: string, isTarget
 function topOneRateOf(payload: ReportPayload) {
   const topOne = payload.report.runs.flatMap((run) => run.mentions.filter((mention) => mention.isTarget && mention.rank === 1));
   return payload.report.runs.length ? topOne.length / payload.report.runs.length : 0;
+}
+
+// Citation rate PER ENGINE, at the topic (prompt × engine) level. The old rate pooled a
+// UNION across engines, so a single engine citing your site marked the whole topic "cited"
+// (ChatGPT-biased, overstated). Here each engine's denominator is the topics where THAT
+// engine cited any source; pooled = sum across engines, so no one engine inflates it.
+const CITE_ENGINE_LABEL: Record<string, string> = { gemini_search: "Gemini", google_ai_overview: "AI Mode", chatgpt_search: "ChatGPT" };
+function citationRateByPlatform(payload: ReportPayload) {
+  const ownedDomain = domainFromValue(payload.company.website);
+  const per = new Map<string, { cited: Set<string>; owned: Set<string> }>();
+  for (const run of payload.report.runs) {
+    if (run.rawAnswer.startsWith("Provider error:") || !CITE_ENGINE_LABEL[run.surface]) continue;
+    const domains = new Set<string>();
+    for (const citation of runCitations(run)) {
+      const d = displayCitationDomain(citation);
+      if (d) domains.add(d);
+    }
+    if (!domains.size) continue;
+    const bucket = per.get(run.surface) ?? { cited: new Set<string>(), owned: new Set<string>() };
+    bucket.cited.add(run.queryId);
+    if (ownedDomain && domains.has(ownedDomain)) bucket.owned.add(run.queryId);
+    per.set(run.surface, bucket);
+  }
+  const rows = ["gemini_search", "google_ai_overview", "chatgpt_search"]
+    .filter((s) => per.get(s)?.cited.size)
+    .map((s) => {
+      const b = per.get(s)!;
+      return { surface: s, label: CITE_ENGINE_LABEL[s], owned: b.owned.size, cited: b.cited.size, rate: b.owned.size / b.cited.size };
+    });
+  const owned = rows.reduce((a, r) => a + r.owned, 0);
+  const cited = rows.reduce((a, r) => a + r.cited, 0);
+  return { rows, pooled: cited ? owned / cited : 0, owned, cited };
 }
 
 // Split prompts by search intent. Local "ready to hire" prompts (e.g. "HVAC
