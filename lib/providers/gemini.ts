@@ -192,7 +192,8 @@ async function buildRunFromGemini(params: {
     answer,
     citations,
     targetCompanyName: params.company.name,
-    knownCompetitors: params.company.competitors
+    knownCompetitors: params.company.competitors,
+    targetPlace: `${params.location.city} ${params.location.state}`
   });
 
   return {
@@ -267,8 +268,10 @@ export async function extractMentions(params: {
   citations: Citation[];
   targetCompanyName: string;
   knownCompetitors: string[];
+  targetPlace?: string;
 }): Promise<CompanyMention[]> {
   if (!params.answer.trim()) return [];
+  const place = placeTokens(params.targetPlace);
 
   try {
     const apiKey = getApiKey();
@@ -321,11 +324,11 @@ ${params.answer}`
         rank: Number.isFinite(mention.rank) ? Number(mention.rank) : index + 1,
         sentiment: mention.sentiment ?? "neutral",
         summary: mention.summary ?? "",
-        isTarget: isLikelyTargetCompany(mention.companyName ?? "", params.targetCompanyName),
+        isTarget: isLikelyTargetCompany(mention.companyName ?? "", params.targetCompanyName, place),
         citations: params.citations
       }));
   } catch {
-    return fallbackMentions(params.answer, params.targetCompanyName, params.knownCompetitors, params.citations);
+    return fallbackMentions(params.answer, params.targetCompanyName, params.knownCompetitors, params.citations, place);
   }
 }
 
@@ -410,14 +413,14 @@ function isInfrastructureDomain(domain: string) {
   ].includes(domain);
 }
 
-function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[]): CompanyMention[] {
+function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[], place?: Set<string>): CompanyMention[] {
   const names = [target, ...competitors].filter((name) => answer.toLowerCase().includes(name.toLowerCase()));
   return names.map((name, index) => ({
     companyName: name,
     rank: index + 1,
     sentiment: "neutral",
     summary: "Mentioned in the grounded Gemini response.",
-    isTarget: isLikelyTargetCompany(name, target),
+    isTarget: isLikelyTargetCompany(name, target, place),
     citations
   }));
 }
@@ -431,15 +434,42 @@ function domainFromUrl(url: string) {
   }
 }
 
-function isLikelyTargetCompany(candidate: string, target: string) {
+const US_STATE_NAMES: Record<string, string> = {
+  al: "alabama", ak: "alaska", az: "arizona", ar: "arkansas", ca: "california", co: "colorado",
+  ct: "connecticut", de: "delaware", fl: "florida", ga: "georgia", hi: "hawaii", id: "idaho",
+  il: "illinois", in: "indiana", ia: "iowa", ks: "kansas", ky: "kentucky", la: "louisiana",
+  me: "maine", md: "maryland", ma: "massachusetts", mi: "michigan", mn: "minnesota", ms: "mississippi",
+  mo: "missouri", mt: "montana", ne: "nebraska", nv: "nevada", nh: "new hampshire", nj: "new jersey",
+  nm: "new mexico", ny: "new york", nc: "north carolina", nd: "north dakota", oh: "ohio", ok: "oklahoma",
+  or: "oregon", pa: "pennsylvania", ri: "rhode island", sc: "south carolina", sd: "south dakota",
+  tn: "tennessee", tx: "texas", ut: "utah", vt: "vermont", va: "virginia", wa: "washington",
+  wv: "west virginia", wi: "wisconsin", wy: "wyoming", dc: "district of columbia"
+};
+
+// Tokens of the report's own city/state. These are stripped from BOTH names during target
+// matching so a competitor that merely shares the city ("Frisco Climate Control") or state
+// ("Florida Pure Water") isn't mistaken for the target. Expands a 2-letter state to its full name.
+export function placeTokens(place?: string): Set<string> {
+  const set = new Set<string>();
+  if (!place) return set;
+  for (const raw of place.toLowerCase().split(/[^a-z0-9]+/g)) {
+    if (!raw) continue;
+    if (raw.length >= 3) set.add(raw);
+    const full = US_STATE_NAMES[raw];
+    if (full) for (const word of full.split(/\s+/)) if (word.length >= 3) set.add(word);
+  }
+  return set;
+}
+
+function isLikelyTargetCompany(candidate: string, target: string, place?: Set<string>) {
   const candidateNormalized = normalize(candidate);
   const targetNormalized = normalize(target);
 
   if (!candidateNormalized || !targetNormalized) return false;
   if (candidateNormalized === targetNormalized) return true;
 
-  const targetTokens = companyTokens(target);
-  const candidateTokens = companyTokens(candidate);
+  const targetTokens = companyTokens(target, place);
+  const candidateTokens = companyTokens(candidate, place);
   const sharedTokens = targetTokens.filter((token) => candidateTokens.includes(token));
 
   // Substring match only counts when they ALSO share a distinctive (brand) token — otherwise
@@ -449,7 +479,7 @@ function isLikelyTargetCompany(candidate: string, target: string) {
   return sharedTokens.length === 1 && sharedTokens[0].length >= 5 && candidateTokens[0] === sharedTokens[0];
 }
 
-function companyTokens(value: string) {
+function companyTokens(value: string, place?: Set<string>) {
   const stopwords = new Set([
     "air",
     "and",
@@ -508,13 +538,14 @@ function companyTokens(value: string) {
     "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers",
     "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
     "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
-    "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well"
+    "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well",
+    "natural", "gas", "propane", "fuel", "utility", "utilities"
   ]);
 
   return value
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
-    .filter((token) => token.length >= 3 && !stopwords.has(token));
+    .filter((token) => token.length >= 3 && !stopwords.has(token) && !(place && place.has(token)));
 }
 
 function normalize(value: string) {

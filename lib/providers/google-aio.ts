@@ -154,7 +154,8 @@ export async function runGoogleAiOverview(params: {
     answer,
     citations,
     targetCompanyName: params.company.name,
-    knownCompetitors: params.company.competitors
+    knownCompetitors: params.company.competitors,
+    targetPlace: `${params.location.city} ${params.location.state}`
   });
 
   return {

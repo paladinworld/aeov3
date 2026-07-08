@@ -2,6 +2,7 @@ import { appendFileSync } from "node:fs";
 import { Company, CompanyMention, Citation, Location, Query, SurfaceRun, TargetedSentimentRun } from "../types";
 import { id } from "../store";
 import { mockSurfaceRun } from "./mock";
+import { placeTokens } from "./gemini";
 
 // Append per-call token usage so a run's exact OpenAI cost can be tallied. Opt-in via
 // OPENAI_USAGE_LOG=<path>; no-op otherwise. Best-effort (never throws into a run).
@@ -54,7 +55,8 @@ export async function runChatGptSearch(params: {
     answer,
     citations,
     targetCompanyName: params.company.name,
-    knownCompetitors: params.company.competitors
+    knownCompetitors: params.company.competitors,
+    targetPlace: `${params.location.city} ${params.location.state}`
   });
 
   return {
@@ -265,8 +267,10 @@ async function extractMentions(params: {
   citations: Citation[];
   targetCompanyName: string;
   knownCompetitors: string[];
+  targetPlace?: string;
 }): Promise<CompanyMention[]> {
   if (!params.answer.trim()) return [];
+  const place = placeTokens(params.targetPlace);
 
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -307,11 +311,11 @@ ${params.answer}`
         rank: Number.isFinite(mention.rank) ? Number(mention.rank) : index + 1,
         sentiment: mention.sentiment ?? "neutral",
         summary: mention.summary ?? "",
-        isTarget: isLikelyTargetCompany(mention.companyName ?? "", params.targetCompanyName),
+        isTarget: isLikelyTargetCompany(mention.companyName ?? "", params.targetCompanyName, place),
         citations: params.citations
       }));
   } catch {
-    return fallbackMentions(params.answer, params.targetCompanyName, params.knownCompetitors, params.citations);
+    return fallbackMentions(params.answer, params.targetCompanyName, params.knownCompetitors, params.citations, place);
   }
 }
 
@@ -350,14 +354,14 @@ function extractCitations(response: OpenAIResponse): Citation[] {
   return citations;
 }
 
-function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[]): CompanyMention[] {
+function fallbackMentions(answer: string, target: string, competitors: string[], citations: Citation[], place?: Set<string>): CompanyMention[] {
   const names = [target, ...competitors].filter((name) => answer.toLowerCase().includes(name.toLowerCase()));
   return names.map((name, index) => ({
     companyName: name,
     rank: index + 1,
     sentiment: "neutral",
     summary: "Mentioned in the OpenAI web search response.",
-    isTarget: isLikelyTargetCompany(name, target),
+    isTarget: isLikelyTargetCompany(name, target, place),
     citations
   }));
 }
@@ -379,15 +383,15 @@ function domainFromUrl(url: string) {
   }
 }
 
-function isLikelyTargetCompany(candidate: string, target: string) {
+function isLikelyTargetCompany(candidate: string, target: string, place?: Set<string>) {
   const candidateNormalized = normalize(candidate);
   const targetNormalized = normalize(target);
 
   if (!candidateNormalized || !targetNormalized) return false;
   if (candidateNormalized === targetNormalized) return true;
 
-  const targetTokens = companyTokens(target);
-  const candidateTokens = companyTokens(candidate);
+  const targetTokens = companyTokens(target, place);
+  const candidateTokens = companyTokens(candidate, place);
   const sharedTokens = targetTokens.filter((token) => candidateTokens.includes(token));
 
   // Substring match only counts when they ALSO share a distinctive (brand) token — otherwise
@@ -397,7 +401,7 @@ function isLikelyTargetCompany(candidate: string, target: string) {
   return sharedTokens.length === 1 && sharedTokens[0].length >= 5 && candidateTokens[0] === sharedTokens[0];
 }
 
-function companyTokens(value: string) {
+function companyTokens(value: string, place?: Set<string>) {
   const stopwords = new Set([
     "air",
     "and",
@@ -435,13 +439,14 @@ function companyTokens(value: string) {
     "inspections", "repair", "repairs", "roof", "roofing", "roofer", "roofers",
     "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
     "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
-    "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well"
+    "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well",
+    "natural", "gas", "propane", "fuel", "utility", "utilities"
   ]);
 
   return value
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
-    .filter((token) => token.length >= 3 && !stopwords.has(token));
+    .filter((token) => token.length >= 3 && !stopwords.has(token) && !(place && place.has(token)));
 }
 
 function normalize(value: string) {
