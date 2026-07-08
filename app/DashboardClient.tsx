@@ -1424,9 +1424,8 @@ function CompetitorsView({ payload, stats }: { payload: ReportPayload; stats: Re
       </section>
 
       <section className="dashboard-grid">
-        <Leaderboard title="Top-Position Rate" subtitle="How often each company is named in the top 3 of an answer" data={leaderboard} filter={tf} setFilter={setTf} mode="top3" limit={10} />
+        <Leaderboard title="Top-Position Rate" subtitle="How often each company is named in the top 3 of an answer" data={leaderboard} filter={tf} setFilter={setTf} mode="top3" limit={10} footnote="Only companies AI actually mentions are ranked here — most companies in the market are never named, so they don't appear. Rate = share of high-intent answers that name the company in the top 3." />
       </section>
-      <p className="bench-note">Only companies AI actually mentions are ranked here — most companies in the market are never named, so they don't appear. Rate = share of high-intent answers that name the company in the top 3.</p>
 
       <section className="panel">
         <PanelHead
@@ -1892,7 +1891,8 @@ function Leaderboard({
   mode,
   limit = 5,
   onMore,
-  moreLabel
+  moreLabel,
+  footnote
 }: {
   title: string;
   subtitle?: string;
@@ -1903,6 +1903,7 @@ function Leaderboard({
   limit?: number;
   onMore?: () => void;
   moreLabel?: string;
+  footnote?: string;
 }) {
   const scoreOf = (row: MentionShareRow) => row.visibilityScore ?? row.visibilityRate;
   const t3 = (row: MentionShareRow) => row.topThreeRate ?? 0;
@@ -1958,6 +1959,9 @@ function Leaderboard({
         <button className="text-cta" onClick={onMore}>
           {moreLabel} <Icon name="arrow" size={13} />
         </button>
+      ) : null}
+      {footnote ? (
+        <p style={{ fontSize: 12, lineHeight: 1.5, color: "#6b7280", margin: "12px 20px 4px", paddingTop: 12, borderTop: "1px solid rgba(0,0,0,0.06)" }}>{footnote}</p>
       ) : null}
     </div>
   );
