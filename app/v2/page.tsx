@@ -1860,7 +1860,10 @@ function canonicalCompanyName(name: string) {
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3 && !new Set(["air", "and", "the", "hvac", "heat", "heating", "cooling", "conditioning", "plumbing", "electric", "electrical", "services", "service", "company", "home", "homes", "inc", "llc"]).has(token));
-  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const GENERIC_SOLO = new Set(["quality", "premier", "elite", "choice", "value", "budget", "national", "first", "best", "plus", "select", "prime", "local", "family", "comfort", "master", "masters"]);
+  if (tokens.length >= 2) return tokens.join("");
+  if (tokens.length === 1 && tokens[0].length >= 4 && !GENERIC_SOLO.has(tokens[0])) return tokens[0];
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function phraseRows(

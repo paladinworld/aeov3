@@ -83,12 +83,18 @@ function addCompetitorMention(groups: Map<string, CompetitorGroup>, mention: Com
   });
 }
 
+// Generic marketing words that are NOT brand-distinctive even alone — never key a company
+// on one of these (would over-merge "Best Air" + "Best Plumbing", etc.).
+const GENERIC_SOLO = new Set(["quality", "premier", "elite", "choice", "value", "budget", "national", "first", "best", "plus", "select", "prime", "local", "family", "comfort", "master", "masters"]);
 function canonicalCompanyName(name: string) {
   const tokens = companyTokens(name);
-  // Require >=2 surviving tokens. If aggressive stopword stripping leaves a single generic
-  // token (e.g. "one" from BOTH "Pure One Water" and "Service One Plumbing"), that would
-  // merge distinct companies into one leaderboard row — fall back to the full name instead.
-  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // >=2 tokens: join them. A single DISTINCTIVE token (>=4 chars, not generic) keys on that
+  // token so "Esser Air Conditioning and Heating" and "Esser Air" merge into one row. A lone
+  // generic/short token (e.g. "one") falls back to the full name so distinct companies that
+  // merely share it (Pure One Water vs Service One) stay separate.
+  if (tokens.length >= 2) return tokens.join("");
+  if (tokens.length === 1 && tokens[0].length >= 4 && !GENERIC_SOLO.has(tokens[0])) return tokens[0];
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function companyTokens(value: string) {

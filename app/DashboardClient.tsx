@@ -2800,9 +2800,14 @@ function canonicalCompanyName(name: string) {
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
     .filter((token) => token.length >= 3 && !stopwords.has(token));
-  // Require >=2 surviving tokens, else fall back to the full name — a lone generic token
-  // (e.g. "one") would otherwise merge distinct companies into one leaderboard row.
-  return tokens.length >= 2 ? tokens.join("") : name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // >=2 tokens: join. A single DISTINCTIVE token (>=4 chars, not a generic marketing word)
+  // keys on it so "Esser Air Conditioning and Heating" and "Esser Air" merge; a lone generic/
+  // short token (e.g. "one") falls back to the full name so distinct companies sharing it stay
+  // separate.
+  const GENERIC_SOLO = new Set(["quality", "premier", "elite", "choice", "value", "budget", "national", "first", "best", "plus", "select", "prime", "local", "family", "comfort", "master", "masters"]);
+  if (tokens.length >= 2) return tokens.join("");
+  if (tokens.length === 1 && tokens[0].length >= 4 && !GENERIC_SOLO.has(tokens[0])) return tokens[0];
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 /* ── formatting ── */

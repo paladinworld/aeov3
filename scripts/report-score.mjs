@@ -11,9 +11,12 @@ const isReal = (r) => !String(r.rawAnswer || "").startsWith("Provider error:");
 
 const STOP = new Set(["air","and","the","hvac","heat","heating","cooling","plumbing","electric","electrical","services","service","company","home","homes","inc","llc","all","conditioning","conditioner","conditioners","conditioned","comfort","co","corp","pest","control","exterminating","exterminators","exterminator","termite","termites","tree","trees","arborist","lawn","landscape","landscapes","landscaping","grounds","garden","gardens","care","expert","experts","pros","group","foundation","foundations","solutions","solution","structural","waterproofing","basement","crawl","crawlspace","pier","piering","leveling","inspection","inspections","repair","repairs","roof","roofing","roofer","roofers","restoration","construction","contractor","contractors","exterior","exteriors","siding","gutter","gutters","plumber","plumbers","window","windows","installation","replacement","remodeling","water","florida","treatment","softener","softeners","softening","filtration","filter","filters","purification","pure","reverse","osmosis","h2o","heater","heaters","tankless","well","natural","gas","propane","fuel","utility","utilities"]);
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const GENERIC_SOLO = new Set(["quality", "premier", "elite", "choice", "value", "budget", "national", "first", "best", "plus", "select", "prime", "local", "family", "comfort", "master", "masters"]);
 function canonical(name) {
   const toks = (name || "").toLowerCase().split(/[^a-z0-9]+/g).filter((t) => t.length >= 3 && !STOP.has(t));
-  return toks.length >= 2 ? toks.join("") : norm(name);
+  if (toks.length >= 2) return toks.join("");
+  if (toks.length === 1 && toks[0].length >= 4 && !GENERIC_SOLO.has(toks[0])) return toks[0];
+  return norm(name);
 }
 
 const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
