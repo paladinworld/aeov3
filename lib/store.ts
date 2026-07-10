@@ -97,13 +97,18 @@ export async function readCompanies(): Promise<Company[]> {
 // JSONB, never the full payload. Loading all payloads (tens of MB) hits Postgres's
 // statement timeout. status is pulled server-side via payload->>status.
 export type ReportSummary = { id: string; companyId: string; status: Report["status"]; createdAt: string; vertical?: string; market?: boolean };
-export async function readReportsLight(): Promise<ReportSummary[]> {
+// Pass `ids` to restrict to a known set — the JSONB detoast then runs only on those rows,
+// not all ~N reports. A report-link open only needs its own brand's handful, so filtering
+// in the query (not in JS after loading everything) is what keeps it fast under concurrency.
+export async function readReportsLight(ids?: string[]): Promise<ReportSummary[]> {
+  if (ids && ids.length === 0) return [];
   const supabase = getSupabaseAdmin();
   if (supabase) {
-    const result = await supabase
+    let query = supabase
       .from("reports")
-      .select("id,company_id,created_at,status:payload->>status,vertical:payload->>vertical,market:payload->>market")
-      .order("created_at", { ascending: false });
+      .select("id,company_id,created_at,status:payload->>status,vertical:payload->>vertical,market:payload->>market");
+    if (ids) query = query.in("id", ids);
+    const result = await query.order("created_at", { ascending: false });
     if (result.error) throw new Error(`Supabase reports read failed: ${result.error.message}`);
     return ((result.data ?? []) as Array<{ id: string; company_id: string; created_at: string; status: string | null; vertical: string | null; market: string | null }>).map((row) => ({
       id: row.id,
@@ -114,7 +119,8 @@ export async function readReportsLight(): Promise<ReportSummary[]> {
       market: row.market === "true"
     }));
   }
-  return (await readDb()).reports.map((report) => ({
+  const idSet = ids ? new Set(ids) : null;
+  return (await readDb()).reports.filter((report) => !idSet || idSet.has(report.id)).map((report) => ({
     id: report.id,
     companyId: report.companyId,
     status: report.status,
@@ -122,6 +128,21 @@ export async function readReportsLight(): Promise<ReportSummary[]> {
     vertical: report.vertical ?? "HVAC",
     market: Boolean(report.market)
   }));
+}
+
+// Report id -> company id map, from REAL columns only (id, company_id). No payload->>
+// extraction, so Postgres never detoasts the (multi-MB) JSONB payloads. Safe to call on
+// every report-link open, even under concurrency — unlike readReportsLight, which detoasts
+// every row and 500s when several requests pile up. Use this whenever you only need the
+// report<->company graph (e.g. brandScopeForReport), not per-report status/vertical/market.
+export async function readReportRefs(): Promise<Array<{ id: string; companyId: string }>> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const result = await supabase.from("reports").select("id,company_id").order("created_at", { ascending: false });
+    if (result.error) throw new Error(`Supabase report refs read failed: ${result.error.message}`);
+    return ((result.data ?? []) as Array<{ id: string; company_id: string }>).map((row) => ({ id: row.id, companyId: row.company_id }));
+  }
+  return (await readDb()).reports.map((report) => ({ id: report.id, companyId: report.companyId }));
 }
 
 export async function writeDb(db: Database) {

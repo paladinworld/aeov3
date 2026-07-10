@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
-import { getSupabaseAdmin, readCompanies, readReportsLight } from "./store";
+import { getSupabaseAdmin, readCompanies, readReportRefs } from "./store";
 
 // ── Shared-link access gate ────────────────────────────────────────────────
 // A client opens /?report=<id>; an unauthenticated visitor is bounced to /access
@@ -121,7 +121,7 @@ function brandKey(name: string): string {
 // exposing nothing about any other brand. Uses lightweight reads (no full payloads).
 export async function brandScopeForReport(reportId?: string | null): Promise<{ reportIds: string[]; companyIds: string[] }> {
   if (!reportId) return { reportIds: [], companyIds: [] };
-  const [companies, reports] = await Promise.all([readCompanies(), readReportsLight()]);
+  const [companies, reports] = await Promise.all([readCompanies(), readReportRefs()]);
   const seed = reports.find((r) => r.id === reportId);
   const seedCo = seed && companies.find((c) => c.id === seed.companyId);
   if (!seed || !seedCo) return { reportIds: [reportId], companyIds: seed ? [seed.companyId] : [] };

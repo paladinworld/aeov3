@@ -39,8 +39,9 @@ export async function GET(request: Request) {
         const { reportIds } = await brandScopeForReport(reportParam);
         for (const rid of reportIds) allowed.add(rid);
       }
-      const light = await readReportsLight();
-      return NextResponse.json(light.filter((r) => allowed.has(r.id)));
+      // Detoast ONLY the allowed rows (this brand's handful), never all payloads — that
+      // all-payloads read 500s when several report links are opened at once.
+      return NextResponse.json(await readReportsLight([...allowed]));
     }
   }
   // Lightweight list (id/company/status/createdAt only) extracted server-side — the
