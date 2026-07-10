@@ -1,46 +1,49 @@
-import { readReportsLight, readCompanies } from "@/lib/store";
-
-// Local index of the 30-market HVAC study — links to each market report (/?report=<id>).
-// The 30 study cities with tier + region (excludes the Austin pilot).
-const STUDY: Record<string, { tier: number; region: string }> = {
-  "Phoenix": { tier: 1, region: "Southwest" }, "Houston": { tier: 1, region: "Gulf" }, "Atlanta": { tier: 1, region: "Southeast" },
-  "Chicago": { tier: 1, region: "Midwest" }, "Denver": { tier: 1, region: "Mountain" }, "Seattle": { tier: 1, region: "Pacific NW" },
-  "Tampa": { tier: 1, region: "Southeast" }, "San Francisco": { tier: 1, region: "West" }, "Los Angeles": { tier: 1, region: "West" },
-  "Miami": { tier: 1, region: "Southeast" }, "Brooklyn": { tier: 1, region: "Northeast" }, "Boston": { tier: 1, region: "Northeast" },
-  "Dallas": { tier: 1, region: "Gulf" }, "Washington": { tier: 1, region: "Mid-Atlantic" }, "Philadelphia": { tier: 1, region: "Northeast" },
-  "Detroit": { tier: 1, region: "Midwest" }, "Minneapolis": { tier: 1, region: "Midwest" },
-  "Charlotte": { tier: 2, region: "Southeast" }, "Nashville": { tier: 2, region: "South" }, "Kansas City": { tier: 2, region: "Midwest" },
-  "Columbus": { tier: 2, region: "Midwest" }, "Sacramento": { tier: 2, region: "West" }, "Salt Lake City": { tier: 2, region: "Mountain" },
-  "Richmond": { tier: 2, region: "Mid-Atlantic" },
-  "Boise": { tier: 3, region: "Mountain" }, "Tulsa": { tier: 3, region: "South" }, "Des Moines": { tier: 3, region: "Midwest" },
-  "Spokane": { tier: 3, region: "Pacific NW" }, "Fort Myers": { tier: 3, region: "Southeast" }, "Chattanooga": { tier: 3, region: "South" },
-};
+// Fixed 30-market study — rendered from this static list with NO DB query. A "light"
+// payload->>status/market scan over all reports was ~7s (Postgres detoasts every huge report
+// payload just to read a scalar). Since the study is a fixed set, embed the ids. Update this
+// list only if the study is re-run with new report ids.
+const MARKETS: Array<{ city: string; state: string; tier: number; region: string; id: string }> = [
+  { city: "Atlanta", state: "GA", tier: 1, region: "Southeast", id: "report_mr2s25td_6f5l1j" },
+  { city: "Boise", state: "ID", tier: 3, region: "Mountain", id: "report_mr2vxeee_mxkzdk" },
+  { city: "Boston", state: "MA", tier: 1, region: "Northeast", id: "report_mr2zgr7t_ib2wxc" },
+  { city: "Brooklyn", state: "NY", tier: 1, region: "Northeast", id: "report_mr2ydqv5_09l3zh" },
+  { city: "Charlotte", state: "NC", tier: 2, region: "Southeast", id: "report_mr2txvka_rnp93a" },
+  { city: "Chattanooga", state: "TN", tier: 3, region: "South", id: "report_mr2xlpub_ce1xd4" },
+  { city: "Chicago", state: "IL", tier: 1, region: "Midwest", id: "report_mr2sdn3x_zhkkgj" },
+  { city: "Columbus", state: "OH", tier: 2, region: "Midwest", id: "report_mr2uuidx_ft60yl" },
+  { city: "Dallas", state: "TX", tier: 1, region: "Gulf", id: "report_mr2ztlt5_3sr2q2" },
+  { city: "Denver", state: "CO", tier: 1, region: "Mountain", id: "report_mr2sozpq_gucwwt" },
+  { city: "Des Moines", state: "IA", tier: 3, region: "Midwest", id: "report_mr2wlbea_99pm5c" },
+  { city: "Detroit", state: "MI", tier: 1, region: "Midwest", id: "report_mr30u3sh_2u1tct" },
+  { city: "Fort Myers", state: "FL", tier: 3, region: "Southeast", id: "report_mr2x9w1t_fzmcle" },
+  { city: "Houston", state: "TX", tier: 1, region: "Gulf", id: "report_mr2rqcgq_8j4d8k" },
+  { city: "Kansas City", state: "MO", tier: 2, region: "Midwest", id: "report_mr2ul34v_4gj5jc" },
+  { city: "Los Angeles", state: "CA", tier: 1, region: "West", id: "report_mr2z4cyp_kq1d45" },
+  { city: "Miami", state: "FL", tier: 1, region: "Southeast", id: "report_mr2yrid3_q2jwfv" },
+  { city: "Minneapolis", state: "MN", tier: 1, region: "Midwest", id: "report_mr316yqm_t7l7wa" },
+  { city: "Nashville", state: "TN", tier: 2, region: "South", id: "report_mr2u9f51_xws9gs" },
+  { city: "Philadelphia", state: "PA", tier: 1, region: "Northeast", id: "report_mr30i35v_zjrz0d" },
+  { city: "Phoenix", state: "AZ", tier: 1, region: "Southwest", id: "report_mr2rawb8_y7ldno" },
+  { city: "Richmond", state: "VA", tier: 2, region: "Mid-Atlantic", id: "report_mr2vlb3b_t9y7j8" },
+  { city: "Sacramento", state: "CA", tier: 2, region: "West", id: "report_mr2v46cu_wq0qy6" },
+  { city: "Salt Lake City", state: "UT", tier: 2, region: "Mountain", id: "report_mr2vcisf_cx88hc" },
+  { city: "San Francisco", state: "CA", tier: 1, region: "West", id: "report_mr2y1t52_eo6egt" },
+  { city: "Seattle", state: "WA", tier: 1, region: "Pacific NW", id: "report_mr2t11hi_49zud7" },
+  { city: "Spokane", state: "WA", tier: 3, region: "Pacific NW", id: "report_mr2wxrw3_dfe0ia" },
+  { city: "Tampa", state: "FL", tier: 1, region: "Southeast", id: "report_mr2tdxmr_kyllae" },
+  { city: "Tulsa", state: "OK", tier: 3, region: "South", id: "report_mr2w9fif_74ys2z" },
+  { city: "Washington", state: "DC", tier: 1, region: "Mid-Atlantic", id: "report_mr305lhx_z81dyp" },
+];
 const TIER_LABEL: Record<number, string> = { 1: "Major metros", 2: "Mid-size metros", 3: "Smaller metros" };
 
 // Never prerender. Uses the LIGHT report list + companies (no run payloads) so it stays fast
 // as report count grows — readDb() would pull every report's multi-MB payload (~hundreds of
 // MB at 80+ reports). Fail safe to an empty list if the read is unavailable.
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
-export default async function MarketsPage() {
-  let rows: Array<{ id: string; city: string; state: string; prompts: number; meta?: { tier: number; region: string } }> = [];
-  try {
-    const [reports, companies] = await Promise.all([readReportsLight(), readCompanies()]);
-    const coById = new Map(companies.map((c) => [c.id, c]));
-    rows = reports
-      .filter((r) => r.market && r.status === "complete")
-      .map((r) => {
-        const c = coById.get(r.companyId);
-        const city = c?.locations?.[0]?.city || "";
-        return { id: r.id, city, state: c?.locations?.[0]?.state || "", prompts: 25, meta: STUDY[city] };
-      })
-      .filter((r) => r.meta)
-      .sort((a, b) => a.meta!.tier - b.meta!.tier || a.city.localeCompare(b.city));
-  } catch {
-    rows = [];
-  }
-
-  const tiers = [1, 2, 3].map((t) => ({ t, label: TIER_LABEL[t], items: rows.filter((r) => r.meta!.tier === t) }));
+export default function MarketsPage() {
+  const rows = MARKETS.map((m) => ({ id: m.id, city: m.city, state: m.state, meta: { tier: m.tier, region: m.region } }));
+  const tiers = [1, 2, 3].map((t) => ({ t, label: TIER_LABEL[t], items: rows.filter((r) => r.meta.tier === t) }));
 
   return (
     <div className="mkx">
@@ -64,7 +67,7 @@ export default async function MarketsPage() {
           </div>
         </section>
       ))}
-      <footer className="mkx-foot">{rows.length} markets · local links (served from this dev server) · HVAC vertical</footer>
+      <footer className="mkx-foot">{rows.length} markets · HVAC vertical</footer>
     </div>
   );
 }
