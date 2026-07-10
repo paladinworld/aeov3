@@ -96,21 +96,22 @@ export async function readCompanies(): Promise<Company[]> {
 // Lightweight report list — extract only id/company/status/createdAt from each row's
 // JSONB, never the full payload. Loading all payloads (tens of MB) hits Postgres's
 // statement timeout. status is pulled server-side via payload->>status.
-export type ReportSummary = { id: string; companyId: string; status: Report["status"]; createdAt: string; vertical?: string };
+export type ReportSummary = { id: string; companyId: string; status: Report["status"]; createdAt: string; vertical?: string; market?: boolean };
 export async function readReportsLight(): Promise<ReportSummary[]> {
   const supabase = getSupabaseAdmin();
   if (supabase) {
     const result = await supabase
       .from("reports")
-      .select("id,company_id,created_at,status:payload->>status,vertical:payload->>vertical")
+      .select("id,company_id,created_at,status:payload->>status,vertical:payload->>vertical,market:payload->>market")
       .order("created_at", { ascending: false });
     if (result.error) throw new Error(`Supabase reports read failed: ${result.error.message}`);
-    return ((result.data ?? []) as Array<{ id: string; company_id: string; created_at: string; status: string | null; vertical: string | null }>).map((row) => ({
+    return ((result.data ?? []) as Array<{ id: string; company_id: string; created_at: string; status: string | null; vertical: string | null; market: string | null }>).map((row) => ({
       id: row.id,
       companyId: row.company_id,
       status: (row.status as Report["status"]) ?? "complete",
       createdAt: row.created_at,
-      vertical: row.vertical ?? "HVAC"
+      vertical: row.vertical ?? "HVAC",
+      market: row.market === "true"
     }));
   }
   return (await readDb()).reports.map((report) => ({
@@ -118,7 +119,8 @@ export async function readReportsLight(): Promise<ReportSummary[]> {
     companyId: report.companyId,
     status: report.status,
     createdAt: report.createdAt,
-    vertical: report.vertical ?? "HVAC"
+    vertical: report.vertical ?? "HVAC",
+    market: Boolean(report.market)
   }));
 }
 

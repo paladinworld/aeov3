@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { summarizeReport } from "@/lib/scoring";
-import { readDb } from "@/lib/store";
+import { readReportById } from "@/lib/store";
 import { Report, SurfaceRun } from "@/lib/types";
 import { accessEnabled, currentGrant, grantsReport } from "@/lib/access";
 import { ShareReportActions } from "./ShareReportActions";
@@ -18,13 +18,10 @@ export default async function ShareReportPage({ params }: ShareReportPageProps) 
     redirect(`/access?report=${encodeURIComponent(id)}`);
   }
 
-  const db = await readDb();
-  const report = db.reports.find((item) => item.id === id);
-
-  if (!report) notFound();
-
-  const company = db.companies.find((item) => item.id === report.companyId);
-  if (!company) notFound();
+  // Fetch ONLY this report + its company (single Supabase row) — not readDb()'s all-payloads.
+  const found = await readReportById(id);
+  if (!found) notFound();
+  const { report, company } = found;
 
   const summary = summarizeReport(report);
   const location = company.locations.find((item) => report.locationIds.includes(item.id)) ?? company.locations[0];

@@ -1,4 +1,4 @@
-import { readDb } from "@/lib/store";
+import { readReportsLight, readCompanies } from "@/lib/store";
 
 // Local index of the 30-market HVAC study — links to each market report (/?report=<id>).
 // The 30 study cities with tier + region (excludes the Austin pilot).
@@ -17,22 +17,22 @@ const STUDY: Record<string, { tier: number; region: string }> = {
 };
 const TIER_LABEL: Record<number, string> = { 1: "Major metros", 2: "Mid-size metros", 3: "Smaller metros" };
 
-// Local study index (points at the isolated data-market store via AEO_DATA_DIR).
-// Never prerender: on prod there's no study data and readDb() would run a full-table
-// Supabase read at build time (statement timeout → build fails). Render on demand,
-// and if the read is unavailable (prod), fail safe to an empty list.
+// Never prerender. Uses the LIGHT report list + companies (no run payloads) so it stays fast
+// as report count grows — readDb() would pull every report's multi-MB payload (~hundreds of
+// MB at 80+ reports). Fail safe to an empty list if the read is unavailable.
 export const dynamic = "force-dynamic";
 
 export default async function MarketsPage() {
   let rows: Array<{ id: string; city: string; state: string; prompts: number; meta?: { tier: number; region: string } }> = [];
   try {
-    const db = await readDb();
-    rows = db.reports
+    const [reports, companies] = await Promise.all([readReportsLight(), readCompanies()]);
+    const coById = new Map(companies.map((c) => [c.id, c]));
+    rows = reports
       .filter((r) => r.market && r.status === "complete")
       .map((r) => {
-        const c = db.companies.find((x) => x.id === r.companyId);
+        const c = coById.get(r.companyId);
         const city = c?.locations?.[0]?.city || "";
-        return { id: r.id, city, state: c?.locations?.[0]?.state || "", prompts: r.queries?.length || 0, meta: STUDY[city] };
+        return { id: r.id, city, state: c?.locations?.[0]?.state || "", prompts: 25, meta: STUDY[city] };
       })
       .filter((r) => r.meta)
       .sort((a, b) => a.meta!.tier - b.meta!.tier || a.city.localeCompare(b.city));
