@@ -145,6 +145,29 @@ export async function readReportRefs(): Promise<Array<{ id: string; companyId: s
   return (await readDb()).reports.map((report) => ({ id: report.id, companyId: report.companyId }));
 }
 
+// The two scalars the /?report= landing page needs (company name for <title>, market flag
+// to pick the view) — WITHOUT transferring the report's multi-MB payload to the app. Postgres
+// extracts the scalar server-side (payload->>market detoasts one row internally but sends only
+// the value). readReportById here pulled the whole payload just to read a boolean, which is the
+// per-request cost that balloons to ~7s+ when several report links are opened at once.
+export async function readReportMeta(id: string): Promise<{ market: boolean; companyId: string; companyName: string } | null> {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const r = await supabase.from("reports").select("company_id,market:payload->>market").eq("id", id).maybeSingle();
+    if (r.error) throw new Error(`Supabase report meta read failed: ${r.error.message}`);
+    if (!r.data) return null;
+    const row = r.data as { company_id: string; market: string | null };
+    const c = await supabase.from("companies").select("name:payload->>name").eq("id", row.company_id).maybeSingle();
+    if (c.error) throw new Error(`Supabase company name read failed: ${c.error.message}`);
+    return { market: row.market === "true", companyId: row.company_id, companyName: (c.data as { name: string | null } | null)?.name ?? "" };
+  }
+  const db = await readDb();
+  const rep = db.reports.find((item) => item.id === id);
+  if (!rep) return null;
+  const co = db.companies.find((item) => item.id === rep.companyId);
+  return { market: Boolean(rep.market), companyId: rep.companyId, companyName: co?.name ?? "" };
+}
+
 export async function writeDb(db: Database) {
   const supabase = getSupabaseAdmin();
   if (supabase) {

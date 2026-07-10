@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { accessEnabled, currentGrant, isAdmin, verifyGrant } from "@/lib/access";
-import { readReportById } from "@/lib/store";
+import { readReportMeta } from "@/lib/store";
 import Home from "./DashboardClient";
 import MarketReport from "./MarketReport";
 
@@ -20,8 +20,8 @@ export async function generateMetadata({
   let title = "AI Search Report";
   if (report) {
     try {
-      const found = await readReportById(report);
-      if (found?.company?.name) title = `AI Search Report | ${found.company.name}`;
+      const found = await readReportMeta(report);
+      if (found?.companyName) title = `AI Search Report | ${found.companyName}`;
     } catch {
       /* fall back to the generic title */
     }
@@ -58,8 +58,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   // — instead of the target-company dashboard.
   if (report) {
     try {
-      const found = await readReportById(report);
-      if (found?.report?.market) return <MarketReport reportId={report} token={t ?? null} />;
+      const found = await readReportMeta(report);
+      if (found?.market) return <MarketReport reportId={report} token={t ?? null} />;
     } catch {
       /* fall through to the standard dashboard */
     }
