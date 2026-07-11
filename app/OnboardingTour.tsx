@@ -81,7 +81,21 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
     const step = STEPS[i];
     if (view !== step.view) setView(step.view);
     let raf = 0;
+    let timer = 0;
     let tries = 0;
+    // Measure by RE-QUERYING the selector (never a captured node): an expand click or a view
+    // switch can swap the element in React, and measuring a detached node returns a 0x0 rect —
+    // which would blow the spotlight's 9999px dim up to cover the whole page with nothing lit.
+    // Only commit a box once the target has a real on-screen size; otherwise keep retrying.
+    const measure = () => {
+      const el = document.querySelector<HTMLElement>(`[data-tour="${step.sel}"]`);
+      const r = el?.getBoundingClientRect();
+      if (r && r.width > 0 && r.height > 0) {
+        setBox({ l: r.left, t: r.top, w: r.width, h: r.height });
+        return true;
+      }
+      return false;
+    };
     const tick = () => {
       const el = document.querySelector<HTMLElement>(`[data-tour="${step.sel}"]`);
       if (el) {
@@ -91,18 +105,22 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
         }
         el.scrollIntoView({ block: "center", behavior: "smooth" });
         if (typeof window !== "undefined") localStorage.setItem(KEY_STEP, String(i));
-        // let the smooth scroll settle, then measure
-        window.setTimeout(() => {
-          const r = el.getBoundingClientRect();
-          setBox({ l: r.left, t: r.top, w: r.width, h: r.height });
-        }, 320);
+        // Let the smooth scroll + any expand relayout settle, then measure with a few retries so
+        // a transient 0-rect mid-relayout doesn't get committed and stick.
+        let m = 0;
+        const settle = () => { if (measure() || ++m > 8) return; timer = window.setTimeout(settle, 90); };
+        timer = window.setTimeout(settle, 300);
         return;
       }
+      // Target for this step never mounted (e.g. a report whose prompts view lacks the row).
+      // Don't strand the user on a dimmed page with nothing highlighted — skip the step.
       if (++tries < 150) raf = requestAnimationFrame(tick);
+      else if (i < STEPS.length - 1) setI(i + 1);
+      else finish();
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [phase, i, view, setView]);
+    return () => { cancelAnimationFrame(raf); if (timer) clearTimeout(timer); };
+  }, [phase, i, view, setView, finish]);
 
   // Keep the spotlight glued to the target on scroll/resize.
   useEffect(() => {
@@ -111,7 +129,7 @@ export default function OnboardingTour({ ready, view, setView }: { ready: boolea
       const el = document.querySelector<HTMLElement>(`[data-tour="${STEPS[iRef.current].sel}"]`);
       if (el) {
         const r = el.getBoundingClientRect();
-        setBox({ l: r.left, t: r.top, w: r.width, h: r.height });
+        if (r.width > 0 && r.height > 0) setBox({ l: r.left, t: r.top, w: r.width, h: r.height });
       }
     };
     window.addEventListener("scroll", reposition, true);

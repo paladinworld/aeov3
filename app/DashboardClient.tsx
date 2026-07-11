@@ -1006,6 +1006,13 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
     return stats.promptRows.filter((row) => cat === "All" || displayCategory(row.query) === cat);
   }, [cat, stats.promptRows]);
 
+  // Id of the first prompt row that will render (primary tier renders before secondary), used
+  // as the onboarding-tour step-5 anchor so it exists even when there are no primary-tier rows.
+  const tourAnchorRowId = useMemo(() => {
+    const prim = visible.find((row) => isPrimaryCategory(row.query.category));
+    return (prim ?? visible[0])?.query.id;
+  }, [visible]);
+
   // Auto-expand the first row the FIRST time the Prompts view is opened this page session,
   // and ONLY under the default "All" filter (so picking a category never auto-expands).
   // The flag is module-level, so revisiting the view won't re-expand. Any real category
@@ -1064,6 +1071,10 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
           ] as const).map((tier) => {
             const tierRows = visible.filter((row) => isPrimaryCategory(row.query.category) === tier.primary);
             if (!tierRows.length) return null;
+            // The onboarding tour (step 5) anchors to the FIRST prompt row shown, whichever tier
+            // that is — reports without any primary-tier rows would otherwise have no anchor and
+            // the tour would break on that step.
+            const isTourAnchor = (row: { query: { id: string } }) => row.query.id === tourAnchorRowId;
             return (
               <div key={tier.header} className="prompt-tier">
                 <div className={"prompt-tier-head " + (tier.primary ? "primary" : "secondary")}>
@@ -1071,9 +1082,9 @@ function PromptsView({ payload, stats }: { payload: ReportPayload; stats: Report
                   {tier.header}
                   <span className="tier-count">{tierRows.length}</span>
                 </div>
-                {tierRows.map((row, ridx) => (
-                  <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")} data-tour={tier.primary && ridx === 0 ? "prompt-row" : undefined}>
-                    <button className="prompt-row" style={{ gridTemplateColumns: promptCols }} data-tour-expand={tier.primary && ridx === 0 ? "" : undefined} onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
+                {tierRows.map((row) => (
+                  <div key={row.query.id} className={"prompt-record" + (expanded === row.query.id ? " open" : "")} data-tour={isTourAnchor(row) ? "prompt-row" : undefined}>
+                    <button className="prompt-row" style={{ gridTemplateColumns: promptCols }} data-tour-expand={isTourAnchor(row) ? "" : undefined} onClick={() => setExpanded(expanded === row.query.id ? "" : row.query.id)}>
                       <span className="prompt-text">
                         <i className={"row-chev" + (expanded === row.query.id ? " open" : "")}>›</i>
                         <span className="label">{row.query.text}</span>
