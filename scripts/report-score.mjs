@@ -9,7 +9,7 @@ const PRIMARY = new Set(["Core General", "Repair & Maintenance", "Reviews & Pric
 const ENGINES = [["gemini_search", 0.5], ["google_ai_overview", 0.3], ["chatgpt_search", 0.2]];
 const isReal = (r) => !String(r.rawAnswer || "").startsWith("Provider error:");
 
-const STOP = new Set(["air","and","the","hvac","heat","heating","cooling","plumbing","electric","electrical","services","service","company","home","homes","inc","llc","all","conditioning","conditioner","conditioners","conditioned","comfort","co","corp","pest","control","exterminating","exterminators","exterminator","termite","termites","tree","trees","arborist","lawn","landscape","landscapes","landscaping","grounds","garden","gardens","care","expert","experts","pros","group","foundation","foundations","solutions","solution","structural","waterproofing","basement","crawl","crawlspace","pier","piering","leveling","inspection","inspections","repair","repairs","roof","roofing","roofer","roofers","restoration","construction","contractor","contractors","exterior","exteriors","siding","gutter","gutters","plumber","plumbers","window","windows","installation","replacement","remodeling","water","florida","treatment","softener","softeners","softening","filtration","filter","filters","purification","pure","reverse","osmosis","h2o","heater","heaters","tankless","well","natural","gas","propane","fuel","utility","utilities"]);
+const STOP = new Set(["air","and","the","hvac","heat","heating","cooling","plumbing","electric","electrical","services","service","company","home","homes","inc","llc","all","conditioning","conditioner","conditioners","conditioned","comfort","co","corp","pest","control","exterminating","exterminators","exterminator","termite","termites","tree","trees","arborist","lawn","landscape","landscapes","landscaping","grounds","garden","gardens","care","expert","experts","pros","group","foundation","foundations","solutions","solution","structural","waterproofing","basement","crawl","crawlspace","pier","piering","leveling","inspection","inspections","repair","repairs","roof","roofing","roofer","roofers","restoration","construction","contractor","contractors","exterior","exteriors","siding","gutter","gutters","plumber","plumbers","window","windows","installation","replacement","remodeling","water","florida","treatment","softener","softeners","softening","filtration","filter","filters","purification","pure","reverse","osmosis","h2o","heater","heaters","tankless","well","natural","gas","propane","fuel","utility","utilities","cleaning","cleaners","cleanup","clean","damage","fire","flood","mold","remediation","mitigation","disaster","biohazard","smoke","carpet","upholstery","duct","sewage","abatement","recovery"]);
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const GENERIC_SOLO = new Set(["quality", "premier", "elite", "choice", "value", "budget", "national", "first", "best", "plus", "select", "prime", "local", "family", "comfort", "master", "masters"]);
 function canonical(name) {
@@ -53,7 +53,7 @@ function blended(sel) {
 }
 
 const targetScore = blended((m) => m.isTarget);
-// rank across all company keys
+// blended rank across all company keys
 const keys = new Set();
 for (const run of runs) for (const m of run.mentions || []) {
   if (m.isTarget) continue;
@@ -64,4 +64,23 @@ let better = 0;
 for (const k of keys) if (blended((m) => !m.isTarget && canonical(m.companyName) === k) > targetScore) better++;
 const rank = better + 1;
 const total = keys.size + 1;
-console.log(JSON.stringify({ score100: Math.round(targetScore * 100), rank, total }));
+
+// per-engine rank: rank the target within each single engine's visibility leaderboard
+function engineRank(surface) {
+  const er = runs.filter((r) => r.surface === surface);
+  if (!er.length) return null;
+  const t = engineVis(surface, (m) => m.isTarget);
+  const ks = new Set();
+  for (const run of er) for (const m of run.mentions || []) {
+    if (m.isTarget) continue;
+    const nm = (m.companyName || "").trim();
+    if (nm && !nm.includes(".")) ks.add(canonical(nm));
+  }
+  let b = 0;
+  for (const k of ks) if (engineVis(surface, (mm) => !mm.isTarget && canonical(mm.companyName) === k) > t) b++;
+  return { rank: t > 0 ? b + 1 : null, total: ks.size + 1 };
+}
+const byEngine = { gemini: engineRank("gemini_search"), aiMode: engineRank("google_ai_overview"), chatgpt: engineRank("chatgpt_search") };
+const fmt = (e) => (e && e.rank ? `#${e.rank} of ${e.total}` : e ? `unranked of ${e.total}` : "n/a");
+console.log(JSON.stringify({ score100: Math.round(targetScore * 100), rank, total, byEngine }));
+console.error(`  Overall: score ${Math.round(targetScore * 100)}, #${rank} of ${total}  |  Gemini ${fmt(byEngine.gemini)} · AI Mode ${fmt(byEngine.aiMode)} · ChatGPT ${fmt(byEngine.chatgpt)}`);

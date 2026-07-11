@@ -492,6 +492,61 @@ const WATER_HEATER_PROMPTS: PromptSpec[] = [
   { text: "water heater leaking what to do", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water heater repair", geo: false },
 ];
 
+// ── Restoration & Cleaning (water/fire/mold damage restoration, remediation, cleaning). ──
+// SERVPRO, ServiceMaster, PuroClean, Rainbow, etc. Emergency-heavy, insurance-driven. Same
+// 6-bucket shape as the other verticals; Core General / Repair & Maintenance / Reviews & Price
+// are the scored primaries.
+const RESTORATION_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best water damage restoration company in {place}", category: "Core General", intent: "best", priority: "high", service: "Water damage restoration", geo: true },
+  { text: "water damage restoration near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Water damage restoration", geo: true },
+  { text: "best restoration company in {place}", category: "Core General", intent: "best", priority: "high", service: "General restoration", geo: true },
+  { text: "emergency water damage restoration in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency restoration", geo: true },
+  { text: "24 hour water damage restoration in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency restoration", geo: true },
+  { text: "fire damage restoration company in {place}", category: "Core General", intent: "best", priority: "high", service: "Fire damage restoration", geo: true },
+  { text: "flood cleanup company in {place}", category: "Core General", intent: "best", priority: "high", service: "Flood cleanup", geo: true },
+  { text: "water damage cleanup in {place}", category: "Core General", intent: "best", priority: "medium", service: "Water damage restoration", geo: true },
+  { text: "same day water extraction in {place}", category: "Core General", intent: "emergency", priority: "medium", service: "Water extraction", geo: true },
+  { text: "disaster restoration company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General restoration", geo: true },
+  { text: "storm damage restoration in {place}", category: "Core General", intent: "best", priority: "medium", service: "Storm damage", geo: true },
+  { text: "water removal service in {place}", category: "Core General", intent: "best", priority: "medium", service: "Water extraction", geo: true },
+  { text: "property damage restoration contractor in {place}", category: "Core General", intent: "best", priority: "low", service: "General restoration", geo: true },
+  { text: "commercial water damage restoration in {place}", category: "Core General", intent: "best", priority: "low", service: "Commercial restoration", geo: true },
+
+  // Repair & Maintenance (specific remediation / cleaning services)
+  { text: "mold remediation in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Mold remediation", geo: true },
+  { text: "sewage cleanup in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Sewage cleanup", geo: true },
+  { text: "basement flood cleanup in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Flood cleanup", geo: true },
+  { text: "smoke and soot damage cleanup in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Fire damage restoration", geo: true },
+  { text: "air duct cleaning in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Air duct cleaning", geo: true },
+  { text: "carpet cleaning in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Carpet cleaning", geo: true },
+  { text: "biohazard cleanup in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Biohazard cleanup", geo: true },
+
+  // Reviews & Price
+  { text: "top rated water damage restoration company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "Water damage restoration", geo: true },
+  { text: "which restoration company in {place} has the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General restoration", geo: true },
+  { text: "most trusted restoration company in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General restoration", geo: true },
+  { text: "how much does water damage restoration cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Water damage restoration", geo: true },
+  { text: "does insurance cover water damage restoration in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "General restoration", geo: true },
+  { text: "affordable water damage restoration in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "Water damage restoration", geo: true },
+
+  // Consideration
+  { text: "how to choose a water damage restoration company", category: "Consideration", intent: "comparison", priority: "medium", service: "General restoration", geo: false },
+  { text: "what to look for in a restoration company", category: "Consideration", intent: "comparison", priority: "medium", service: "General restoration", geo: false },
+  { text: "questions to ask a water damage restoration company before hiring", category: "Consideration", intent: "comparison", priority: "medium", service: "General restoration", geo: false },
+  { text: "should I use my insurance company's preferred restoration vendor", category: "Consideration", intent: "comparison", priority: "low", service: "General restoration", geo: false },
+
+  // Product / Brand (certification-driven for restoration)
+  { text: "IICRC certified water damage restoration company in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Water damage restoration", geo: true },
+  { text: "certified mold remediation specialist in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Mold remediation", geo: true },
+
+  // Symptom / Problem
+  { text: "what to do after water damage in your home", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Water damage restoration", geo: false },
+  { text: "my basement flooded who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "high", service: "Flood cleanup", geo: true },
+  { text: "how to tell if there is mold behind my walls", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Mold remediation", geo: false },
+  { text: "ceiling water stain what should I do", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water damage restoration", geo: false }
+];
+
 const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "HVAC": HVAC_PROMPTS,
   "Tree Care": TREE_CARE_PROMPTS,
@@ -502,7 +557,8 @@ const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "Windows": WINDOWS_PROMPTS,
   "Foundation": FOUNDATION_PROMPTS,
   "Water Treatment": WATER_TREATMENT_PROMPTS,
-  "Water Heater": WATER_HEATER_PROMPTS
+  "Water Heater": WATER_HEATER_PROMPTS,
+  "Restoration": RESTORATION_PROMPTS
 };
 
 // Shared builder: substitutes the company's primary "City, ST" into each prompt and

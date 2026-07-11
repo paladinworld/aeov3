@@ -539,7 +539,11 @@ function companyTokens(value: string, place?: Set<string>) {
     "restoration", "construction", "contractor", "contractors", "exterior", "exteriors",
     "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
     "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well",
-    "natural", "gas", "propane", "fuel", "utility", "utilities"
+    "natural", "gas", "propane", "fuel", "utility", "utilities",
+    // Restoration / cleaning generics (SERVPRO et al.) — July 2026. Without these, "X Restoration"
+    // / "X Water Damage" / "X Cleaning" collide the same way the HVAC/pest generics do.
+    "cleaning", "cleaners", "cleanup", "clean", "damage", "fire", "flood", "mold", "remediation",
+    "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery"
   ]);
 
   return value
