@@ -131,7 +131,8 @@ function companyTokens(value: string) {
     "siding", "gutter", "gutters", "plumber", "plumbers", "window", "windows",
     "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well",
     "cleaning", "cleaners", "cleanup", "clean", "damage", "fire", "flood", "mold", "remediation",
-    "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery"
+    "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery",
+    "garage", "door", "doors", "gate", "gates", "opener", "openers", "spring", "springs", "overhead", "roller", "rollers", "cable", "cables"
   ]);
 
   return value

@@ -111,7 +111,8 @@ const BRAND_STOPWORDS = new Set(["air", "and", "the", "hvac", "heat", "heating",
   "plumbing", "plumber", "plumbers", "roof", "roofing", "roofer", "roofers", "exterior", "exteriors", "siding", "gutter", "gutters", "windows", "restoration", "construction", "contractors", "contractor",
   "foundation", "foundations", "structural", "waterproofing", "basement", "crawl", "crawlspace", "piering", "pier", "leveling",
   "solutions", "solution", "inspection", "inspections", "repair", "repairs", "window", "plumber", "plumbers", "installation", "replacement", "remodeling", "water", "florida", "treatment", "softener", "softeners", "softening", "filtration", "filter", "filters", "purification", "pure", "reverse", "osmosis", "h2o", "heater", "heaters", "tankless", "well",
-  "cleaning", "cleaners", "cleanup", "clean", "damage", "fire", "flood", "mold", "remediation", "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery"]);
+  "cleaning", "cleaners", "cleanup", "clean", "damage", "fire", "flood", "mold", "remediation", "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery",
+  "garage", "door", "doors", "gate", "gates", "opener", "openers", "spring", "springs", "overhead", "roller", "rollers", "cable", "cables"]);
 function brandKey(name: string): string {
   const tokens = (name || "").toLowerCase().split(/[^a-z0-9]+/g).filter((t) => t.length >= 3 && !BRAND_STOPWORDS.has(t));
   return tokens.join("") || (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");

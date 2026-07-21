@@ -443,7 +443,9 @@ function companyTokens(value: string, place?: Set<string>) {
     "natural", "gas", "propane", "fuel", "utility", "utilities",
     // Restoration / cleaning generics (SERVPRO et al.) — July 2026.
     "cleaning", "cleaners", "cleanup", "clean", "damage", "fire", "flood", "mold", "remediation",
-    "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery"
+    "mitigation", "disaster", "biohazard", "smoke", "carpet", "upholstery", "duct", "sewage", "abatement", "recovery",
+    // Garage-door / gate generics (Rite-A-Way et al.) — July 2026.
+    "garage", "door", "doors", "gate", "gates", "opener", "openers", "spring", "springs", "overhead", "roller", "rollers", "cable", "cables"
   ]);
 
   return value

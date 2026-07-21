@@ -547,6 +547,60 @@ const RESTORATION_PROMPTS: PromptSpec[] = [
   { text: "ceiling water stain what should I do", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Water damage restoration", geo: false }
 ];
 
+// ── Garage Doors & Gates (repair, install, openers, springs, gates). ──
+// Rite-A-Way et al. Emergency-heavy, part-driven (springs/openers/cables). Same 6-bucket shape;
+// Core General / Repair & Maintenance / Reviews & Price are the scored primaries.
+const GARAGE_DOOR_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best garage door company in {place}", category: "Core General", intent: "best", priority: "high", service: "General garage door", geo: true },
+  { text: "garage door repair near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "Garage door repair", geo: true },
+  { text: "garage door repair in {place}", category: "Core General", intent: "best", priority: "high", service: "Garage door repair", geo: true },
+  { text: "garage door installation in {place}", category: "Core General", intent: "best", priority: "high", service: "Garage door installation", geo: true },
+  { text: "new garage door installation in {place}", category: "Core General", intent: "best", priority: "medium", service: "Garage door installation", geo: true },
+  { text: "emergency garage door repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency garage door", geo: true },
+  { text: "same day garage door repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency garage door", geo: true },
+  { text: "24 hour garage door repair in {place}", category: "Core General", intent: "emergency", priority: "medium", service: "Emergency garage door", geo: true },
+  { text: "garage door replacement in {place}", category: "Core General", intent: "best", priority: "medium", service: "Garage door replacement", geo: true },
+  { text: "local garage door company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General garage door", geo: true },
+  { text: "licensed garage door installer in {place}", category: "Core General", intent: "best", priority: "low", service: "Garage door installation", geo: true },
+  { text: "gate repair company in {place}", category: "Core General", intent: "best", priority: "medium", service: "Gate repair", geo: true },
+  { text: "driveway gate installation in {place}", category: "Core General", intent: "best", priority: "low", service: "Gate installation", geo: true },
+
+  // Repair & Maintenance (part-level services)
+  { text: "garage door spring repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Spring repair", geo: true },
+  { text: "broken garage door spring replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Spring replacement", geo: true },
+  { text: "garage door opener repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Opener repair", geo: true },
+  { text: "garage door opener installation in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Opener installation", geo: true },
+  { text: "garage door cable repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Cable repair", geo: true },
+  { text: "off track garage door repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Off-track repair", geo: true },
+  { text: "garage door roller replacement in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Roller replacement", geo: true },
+  { text: "garage door tune up in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Maintenance/tune-up", geo: true },
+
+  // Reviews & Price
+  { text: "top rated garage door company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "General garage door", geo: true },
+  { text: "which garage door company in {place} has the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General garage door", geo: true },
+  { text: "most trusted garage door repair in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General garage door", geo: true },
+  { text: "how much does garage door repair cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "Garage door repair", geo: true },
+  { text: "garage door spring replacement cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Spring replacement", geo: true },
+  { text: "affordable garage door repair in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "Garage door repair", geo: true },
+
+  // Product / Brand
+  { text: "LiftMaster garage door opener installer in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "Opener installation", geo: true },
+  { text: "Clopay garage door dealer in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "Garage door installation", geo: true },
+  { text: "best garage door opener brand", category: "Product / Brand", intent: "comparison", priority: "low", service: "General garage door", geo: false },
+
+  // Consideration
+  { text: "how to choose a garage door repair company", category: "Consideration", intent: "comparison", priority: "medium", service: "General garage door", geo: false },
+  { text: "questions to ask a garage door company before hiring", category: "Consideration", intent: "comparison", priority: "medium", service: "General garage door", geo: false },
+  { text: "is it worth repairing or replacing a garage door", category: "Consideration", intent: "comparison", priority: "medium", service: "Garage door replacement", geo: false },
+
+  // Symptom / Problem
+  { text: "my garage door won't open what do I do", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Garage door repair", geo: false },
+  { text: "garage door won't close all the way", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Garage door repair", geo: false },
+  { text: "garage door making loud grinding noise", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Garage door repair", geo: false },
+  { text: "garage door came off track who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "medium", service: "Off-track repair", geo: true }
+];
+
 const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "HVAC": HVAC_PROMPTS,
   "Tree Care": TREE_CARE_PROMPTS,
@@ -558,7 +612,8 @@ const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "Foundation": FOUNDATION_PROMPTS,
   "Water Treatment": WATER_TREATMENT_PROMPTS,
   "Water Heater": WATER_HEATER_PROMPTS,
-  "Restoration": RESTORATION_PROMPTS
+  "Restoration": RESTORATION_PROMPTS,
+  "Garage Door": GARAGE_DOOR_PROMPTS
 };
 
 // Shared builder: substitutes the company's primary "City, ST" into each prompt and

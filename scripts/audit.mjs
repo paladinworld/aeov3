@@ -62,6 +62,7 @@ const SERVICES_BY_VERTICAL = {
   "Water Treatment": ["Water softener","Water filtration","Reverse osmosis","Whole house filtration","Well water treatment","Water testing","Drinking water systems","Iron/sulfur removal"],
   "Water Heater": ["Water heater installation","Water heater repair","Tankless water heater","Water heater replacement","Gas water heater","Electric water heater","Heat pump water heater","Emergency water heater"],
   "Restoration": ["Water damage restoration","Fire damage restoration","Mold remediation","Storm damage restoration","Flood cleanup","Sewage cleanup","Air duct cleaning","Carpet cleaning","Biohazard cleanup","Emergency restoration"],
+  "Garage Door": ["Garage door repair","Garage door installation","Garage door replacement","Spring repair","Opener repair","Opener installation","Cable repair","Off-track repair","Gate repair","Emergency garage door"],
 };
 const SERVICES = SERVICES_BY_VERTICAL[cfg.vertical] || SERVICES_BY_VERTICAL["HVAC"];
 const log = (...a) => console.log(...a);
