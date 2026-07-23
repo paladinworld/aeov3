@@ -71,13 +71,16 @@ const log = (...a) => console.log(...a);
 // exactly what the run will. Keep REGION_ALIASES in sync with the provider.
 const US_STATES = { AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",DC:"District of Columbia" };
 const REGION_ALIASES = { "long island,ny":"Hempstead,New York,United States","inland empire,ca":"Riverside,California,United States","bay area,ca":"San Francisco,California,United States","south bay,ca":"San Jose,California,United States","silicon valley,ca":"San Jose,California,United States","dmv,dc":"Washington,District of Columbia,United States","northern virginia,va":"Arlington,Virginia,United States","central florida,fl":"Orlando,Florida,United States","south florida,fl":"Miami,Florida,United States","the triangle,nc":"Raleigh,North Carolina,United States","triangle,nc":"Raleigh,North Carolina,United States" };
+const CA_PROVINCES = { AB:"Alberta",BC:"British Columbia",MB:"Manitoba",NB:"New Brunswick",NL:"Newfoundland and Labrador",NS:"Nova Scotia",NT:"Northwest Territories",NU:"Nunavut",ON:"Ontario",PE:"Prince Edward Island",QC:"Quebec",SK:"Saskatchewan",YT:"Yukon" };
+function regionCountry(state) { const s = (state || "").toUpperCase().trim(); if (CA_PROVINCES[s]) return { region: CA_PROVINCES[s], country: "Canada" }; return { region: US_STATES[s] || state, country: "United States" }; }
 function dfsLocationName(city, state) {
   const s2 = (state || "").toUpperCase().trim();
   const alias = REGION_ALIASES[`${(city || "").toLowerCase().trim()},${s2.toLowerCase()}`];
   if (alias) return alias;
-  return [city, US_STATES[s2] || state, "United States"].filter(Boolean).join(",");
+  const { region, country } = regionCountry(state);
+  return [city, region, country].filter(Boolean).join(",");
 }
-function dfsStateLocation(state) { const f = US_STATES[(state || "").toUpperCase().trim()] || state; return f ? `${f},United States` : null; }
+function dfsStateLocation(state) { const { region, country } = regionCountry(state); return region ? `${region},${country}` : null; }
 
 async function preflight() {
   log("• Pre-flight");

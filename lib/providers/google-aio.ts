@@ -49,20 +49,33 @@ const REGION_ALIASES: Record<string, string> = {
   "triangle,nc": "Raleigh,North Carolina,United States"
 };
 
+// Canadian provinces — DataForSEO expects "City,Province,Canada" (not United States).
+const CA_PROVINCES: Record<string, string> = {
+  AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador",
+  NS: "Nova Scotia", NT: "Northwest Territories", NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island",
+  QC: "Quebec", SK: "Saskatchewan", YT: "Yukon"
+};
+// Resolve a state/province abbreviation to its full name + country (Canada for provinces, else US).
+function regionCountry(state: string): { region: string; country: string } {
+  const s = (state || "").toUpperCase().trim();
+  if (CA_PROVINCES[s]) return { region: CA_PROVINCES[s], country: "Canada" };
+  return { region: US_STATES[s] || state, country: "United States" };
+}
+
 export function dfsLocationName(location: Location): string {
   const state2 = (location.state || "").toUpperCase().trim();
-  const stateFull = US_STATES[state2] || location.state;
   const city = location.city || location.label;
   const alias = REGION_ALIASES[`${(city || "").toLowerCase().trim()},${state2.toLowerCase()}`];
   if (alias) return alias;
-  return [city, stateFull, "United States"].filter(Boolean).join(",");
+  const { region, country } = regionCountry(location.state || "");
+  return [city, region, country].filter(Boolean).join(",");
 }
 
-// State-level location string — the fallback when a precise location is rejected, so
-// AI Mode still returns a (state-geo-targeted) answer rather than erroring the run.
+// State/province-level location string — the fallback when a precise location is rejected, so
+// AI Mode still returns a (region-geo-targeted) answer rather than erroring the run.
 export function dfsStateLocation(location: Location): string | null {
-  const stateFull = US_STATES[(location.state || "").toUpperCase().trim()] || location.state;
-  return stateFull ? `${stateFull},United States` : null;
+  const { region, country } = regionCountry(location.state || "");
+  return region ? `${region},${country}` : null;
 }
 
 export const DFS_INVALID_LOCATION = 40501;
