@@ -2230,7 +2230,7 @@ function buildActionInput(
     trade: payload.report.vertical || "HVAC",
     visibility: blendedVisibilityForName(primaryPayload, company, true),
     engines: engines.map((e) => ({ label: e.label, rate: e.rate })),
-    coverage: stats.categoryCoverage,
+    coverage: stats.categoryCoverage.filter((row) => isPrimaryCategory(row.category)),
     services,
     sources,
     ownedUrls: [...ownedUrlCounts.entries()].map(([url, count]) => ({ url, count })),

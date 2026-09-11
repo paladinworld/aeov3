@@ -656,10 +656,10 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
   .actrail{border-right:0;border-bottom:1px solid var(--border);flex-direction:row;flex-wrap:wrap}
   .railitem{width:auto;flex:1 1 160px}}
 
-.ahdr{display:grid;grid-template-columns:104px minmax(0,1fr) 120px 80px 80px 18px;gap:12px;padding:9px 18px;
+.ahdr{display:grid;grid-template-columns:104px minmax(0,1fr) 118px 86px 86px 18px;gap:12px;padding:9px 18px;
   background:var(--bg-muted);border-bottom:1px solid var(--border)}
 .ahdr span{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-placeholder)}
-.ahdr .sortcol{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;background:none;
+.ahdr .sortcol{cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:5px;background:none;white-space:nowrap;
   border:0;padding:0;color:inherit;letter-spacing:.08em;text-transform:uppercase;font-weight:600;font-size:10px}
 .ahdr .sortcol:hover{color:var(--fg-caption)}
 .ahdr .sortcol.on{color:var(--primary)}
@@ -667,7 +667,7 @@ label.check input{width:15px;height:15px;accent-color:var(--primary)}
 .ahdr .sortcol.on .srt2{color:var(--primary)}
 .act{border-top:1px solid var(--border)}
 .act:first-of-type{border-top:0}
-.ahd{display:grid;grid-template-columns:104px minmax(0,1fr) 120px 80px 80px 18px;gap:12px;align-items:center;
+.ahd{display:grid;grid-template-columns:104px minmax(0,1fr) 118px 86px 86px 18px;gap:12px;align-items:center;
   width:100%;background:none;border:0;text-align:left;cursor:pointer;padding:15px 18px}
 .ahd:hover,.ahd[aria-expanded="true"]{background:var(--bg-muted)}
 .acat{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--fg-caption);min-width:0}
