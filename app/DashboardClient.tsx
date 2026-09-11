@@ -16,6 +16,17 @@ import {
   VisibilitySummary
 } from "@/lib/types";
 import { dashboardStyles } from "./styles-v3";
+import {
+  ACTION_CATEGORIES,
+  Action,
+  ActionCategory,
+  ActionImpact,
+  ActionInput,
+  EFFORTS,
+  IMPACTS,
+  buildActions,
+  sortActions
+} from "@/lib/actions";
 
 /* ──────────────────────────────────────────────────────────────
    Netic AI Visibility (AEO V3)
@@ -805,6 +816,13 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
   const canCollapse = advice.improvements.length > VISIBLE_IMPROVEMENTS;
   const shownImprovements = canCollapse && !advExpanded ? advice.improvements.slice(0, VISIBLE_IMPROVEMENTS) : advice.improvements;
 
+  // Everything the actions engine needs, measured off this report.
+  const actions = useMemo(
+    () => buildActions(buildActionInput(payload, primaryPayload, stats, surfaceShow, visRanked)),
+    [payload, primaryPayload, stats, surfaceShow, visRanked]
+  );
+  const topThreeRate = summary.topThreeRate;
+
   return (
     <div className="view-stack">
       <p className="page-note">
@@ -814,54 +832,7 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         Directional reference only. AI results vary by each query, so this won&apos;t match exactly what every consumer sees.
       </p>
 
-      {advice.insights.length || advice.improvements.length ? (
-        <div className="panel key-insights" data-tour="insights">
-          <div className="ki-head">
-            <span className="ki-icon"><Icon name="spark" size={15} /></span>
-            <h2>Key Insights &amp; Actions</h2>
-          </div>
-          <div className="insight-cols">
-            <div className="ins-col">
-              <span className="ins-sub">Insights</span>
-              <ul className="ta-list">
-                {advice.insights.map((item, index) => (
-                  <li key={"i" + index} className={"ta-item " + item.tone}>
-                    <span className="ta-dot" />
-                    <span><strong>{item.lead}:</strong> {item.body}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="ins-col">
-              <span className="ins-sub">Actions</span>
-              <ul className="ta-list">
-                {shownImprovements.map((item, index) => (
-                  <li key={"m" + index} className="ta-item warn">
-                    <span className="ta-dot" />
-                    <div className="ins-body">
-                      <span><strong>{item.lead}:</strong> {item.body}</span>
-                      {item.action.nav ? (
-                        <button className="ins-action" onClick={() => onNav(item.action.nav!)}>
-                          {item.action.text} <Icon name="arrow" size={12} />
-                        </button>
-                      ) : (
-                        <span className="ins-action plain">{item.action.text}</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {canCollapse ? (
-                <button className="ins-more" onClick={() => setAdvExpanded((open) => !open)}>
-                  {advExpanded ? "Show less" : `Show ${advice.improvements.length - VISIBLE_IMPROVEMENTS} more`}
-                  <Icon name={advExpanded ? "chevron" : "chevdown"} size={13} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
+      <div className="toprow">
       <div className="panel score-panel" data-tour="score">
         <PanelHead
           title="AI Visibility Score"
@@ -913,17 +884,17 @@ function OverviewView({ payload, stats, onNav }: { payload: ReportPayload; stats
         </div>
       </div>
 
-      <section className="metric-grid four">
-        <MetricCard label="Citation Rate" value={pct(citRate)} helper={citByPlat.rows.length ? citByPlat.rows.map((r) => `${r.label} ${Math.round(r.rate * 100)}%`).join(" · ") : `${citByPlat.owned}/${citByPlat.cited}`} tooltip={`Per engine × topic: of the topics where an engine cited sources, how often it cited your own website. Pooled across ${citByPlat.cited} engine-topic pairs so no single engine inflates it.`} />
-        <MetricCard
-          label="Market Rank"
-          value={sovRank && sovCount ? `Top ${Math.max(1, Math.round((100 * sovRank) / sovCount))}%` : "—"}
-          helper={sovRank ? `${ordinal(sovRank)} of ${sovCount} companies AI names` : `of ${sovCount} companies`}
-          tooltip="Where you rank among every company AI names in your market, by share of voice. Top 5% means only a handful of local companies are named more often than you."
-        />
-        <MetricCard label="Top-Position Rate" value={pct(summary.topThreeRate)} helper="ranked top 3" tooltip="How often you appear in the top 3 companies named in an AI answer." />
-        <MetricCard label="First Mention Rate" value={pct(topOneRate)} helper="named first" tooltip="How often you are the first company named in an AI answer." />
-      </section>
+      <KeyTakeaways
+        rank={visRank}
+        total={lb.length}
+        topThreeRate={topThreeRate}
+        actions={actions}
+        rivals={visRanked.filter((row) => !row.isTarget).slice(0, 3).map((row) => row.name)}
+        onNav={onNav}
+      />
+      </div>
+
+      <ActionsPanel actions={actions} onNav={onNav} />
 
       <section className="dashboard-grid" data-tour="leaderboard">
         <Leaderboard title="Visibility Score" subtitle="How visible are you in AI search overall?" data={leaderboard} filter={visFilter} setFilter={setVisFilter} mode="vis" limit={6} onMore={() => onNav("competitors")} moreLabel="See all competitors" />
@@ -2175,6 +2146,358 @@ function payloadByIntent(payload: ReportPayload, intent: IntentFilter): ReportPa
     ...payload,
     report: { ...payload.report, queries: secondaryQueries, runs: payload.report.runs.filter((r) => ids.has(r.queryId)) }
   };
+}
+
+
+/* ── recommended actions ─────────────────────────────────────────────────── */
+
+function engineLabel(surface: string) {
+  const engine = ENGINES.find((e) => (e.surfaces as readonly string[]).includes(surface));
+  return engine ? engine.label : surface;
+}
+
+// Measures everything lib/actions.ts needs off the report. The one judgement call
+// here is `withCompany`: a cited domain that NEVER appears in an answer naming the
+// company is treated as a source the company is absent from. That is a proxy, and
+// the evidence footer in the UI says so in those words.
+function buildActionInput(
+  payload: ReportPayload,
+  primaryPayload: ReportPayload,
+  stats: ReportStats,
+  engines: Array<{ surface: string; label: string; rate: number }>,
+  visRanked: MentionShareRow[]
+): ActionInput {
+  const company = payload.company.name;
+  const runs = primaryPayload.report.runs;
+  const named = (run: SurfaceRun) => run.mentions.some((mention) => mention.isTarget);
+
+  // cited domains, with how often the company was named in the same answer
+  const domainTotals = new Map<string, { count: number; withCompany: number; owned: boolean }>();
+  const ownedUrlCounts = new Map<string, number>();
+  const site = (payload.company.website || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+  runs.forEach((run) => {
+    const inAnswer = named(run);
+    const seen = new Set<string>();
+    runCitations(run).forEach((citation) => {
+      let host = "";
+      try { host = new URL(citation.url).hostname.replace(/^www\./, "").toLowerCase(); } catch { return; }
+      const owned = Boolean(site) && (host === site || host.endsWith("." + site));
+      if (owned) ownedUrlCounts.set(citation.url, (ownedUrlCounts.get(citation.url) || 0) + 1);
+      if (seen.has(host)) return;
+      seen.add(host);
+      const entry = domainTotals.get(host) || { count: 0, withCompany: 0, owned };
+      entry.count += 1;
+      if (inAnswer) entry.withCompany += 1;
+      entry.owned = entry.owned || owned;
+      domainTotals.set(host, entry);
+    });
+  });
+  const sources = [...domainTotals.entries()]
+    .map(([domain, v]) => ({ domain, count: v.count, withCompany: v.withCompany, owned: v.owned }))
+    .sort((a, b) => b.count - a.count);
+
+  // per-service coverage on primary prompts
+  const byService = new Map<string, { total: number; mentioned: number }>();
+  primaryPayload.report.queries.forEach((query) => {
+    const qRuns = runs.filter((run) => run.queryId === query.id);
+    if (!qRuns.length) return;
+    const entry = byService.get(query.service) || { total: 0, mentioned: 0 };
+    entry.total += 1;
+    if (qRuns.some(named)) entry.mentioned += 1;
+    byService.set(query.service, entry);
+  });
+  const services = [...byService.entries()]
+    .map(([service, v]) => ({ service, total: v.total, mentioned: v.mentioned, rate: v.total ? v.mentioned / v.total : 0 }));
+
+  // prompts the company never appears on
+  const missingPrompts = stats.promptRows
+    .filter((row) => !row.runs.some(named))
+    .slice(0, 12)
+    .map((row) => ({
+      q: row.query.text,
+      where: row.runs.map((run) => engineLabel(run.surface)).filter((v, i, a) => a.indexOf(v) === i).join(" · "),
+      hits: 0
+    }));
+
+  // complaint phrases + positive share, from the target's own mentions
+  const sentimentStats = buildSentimentStats(payload, stats);
+  const targetMentions = payload.report.runs.flatMap((run) => run.mentions.filter((mention) => mention.isTarget));
+  const positive = targetMentions.filter((mention) => mention.sentiment === "positive").length;
+
+  return {
+    company,
+    market: primaryLocation(payload.company) || "this market",
+    trade: payload.report.vertical || "HVAC",
+    visibility: blendedVisibilityForName(primaryPayload, company, true),
+    engines: engines.map((e) => ({ label: e.label, rate: e.rate })),
+    coverage: stats.categoryCoverage,
+    services,
+    sources,
+    ownedUrls: [...ownedUrlCounts.entries()].map(([url, count]) => ({ url, count })),
+    complaints: sentimentStats.hurting.map((row) => ({ phrase: row.phrase, count: row.count, quote: row.quotes[0] })),
+    sentiment: targetMentions.length ? positive / targetMentions.length : null,
+    rivals: visRanked.filter((row) => !row.isTarget).map((row) => ({
+      name: row.name,
+      visibility: row.visibilityScore ?? row.visibilityRate,
+      mentions: row.count
+    })),
+    mentions: (visRanked.find((row) => row.isTarget) || { count: 0 }).count,
+    missingPrompts
+  };
+}
+
+const IMPACT_TONE: Record<ActionImpact, string> = { High: "hi", Medium: "md", Low: "lo" };
+
+function KeyTakeaways({ rank, total, topThreeRate, actions, rivals, onNav }: {
+  rank: number; total: number; topThreeRate: number; actions: Action[]; rivals: string[];
+  onNav: (view: View) => void;
+}) {
+  const high = actions.filter((action) => action.impact === "High").length;
+  return (
+    <div className="panel">
+      <PanelHead title="Key takeaways" />
+      <div className="kpigrid">
+        <button className="kpi" onClick={() => onNav("competitors")}>
+          <span className="kpil">Market Rank</span>
+          <span className="kpin">#{rank || "—"}</span>
+          <span className="kpisub">of {total} companies AI names</span>
+        </button>
+        <button className="kpi" onClick={() => onNav("prompts")}>
+          <span className="kpil">Top-position %</span>
+          <span className="kpin">{pct(topThreeRate)}</span>
+          <span className="kpisub">answers naming you top 3</span>
+        </button>
+        <button className="kpi" onClick={() => scrollToActions()}>
+          <span className="kpil">Recommended Actions</span>
+          <span className="kpin">{actions.length}</span>
+          <span className="kpisub">total, including <b>{high}</b> high impact</span>
+        </button>
+        <button className="kpi" onClick={() => onNav("competitors")}>
+          <span className="kpil">Top Competitors</span>
+          <span className="kpilist">
+            {rivals.length
+              ? rivals.map((name, index) => (
+                <span key={name} className="kpirow"><b>{index + 1}</b><span>{shortCompany(name)}</span></span>
+              ))
+              : <span className="kpirow"><span>None named above you</span></span>}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function scrollToActions() {
+  const el = document.getElementById("what-to-do-next");
+  if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 62), behavior: "smooth" });
+}
+
+// "Maplewood Plumbing & Sewer, LLC." -> "Maplewood"; keeps the joining word between
+// two surviving tokens so "Galmiche & Sons" does not become "Galmiche Sons".
+const NAME_STOP = /^(plumbing|plumber|heating|cooling|air|hvac|electric|electrical|water|sewer|drain|rooter|conditioning|cleanup|service|services|company|co|inc|llc|and|&|the)$/i;
+function shortCompany(name: string) {
+  const head = String(name).split(",")[0];
+  const raw = head.split(/\s+/).filter(Boolean);
+  const kept = raw.filter((word) => !NAME_STOP.test(word));
+  let out = head;
+  if (kept.length >= 2) {
+    const i = raw.indexOf(kept[0]);
+    const j = raw.indexOf(kept[1], i + 1);
+    out = raw.slice(i, j + 1).join(" ");
+  } else if (kept.length === 1) out = kept[0];
+  if (out.length < 6) out = raw.slice(0, 2).join(" ") || head;
+  return out;
+}
+
+function ActionsPanel({ actions, onNav }: { actions: Action[]; onNav: (view: View) => void }) {
+  const [impact, setImpact] = useState<ActionImpact | "all">("all");
+  const [category, setCategory] = useState<ActionCategory | "all">("all");
+  const [sortKey, setSortKey] = useState<"category" | "title" | "effort" | "impact">("impact");
+  const [sortDir, setSortDir] = useState(1);
+  const [open, setOpen] = useState<string>("");
+
+  const byCategory = category === "all" ? actions : actions.filter((action) => action.category === category);
+  const byImpact = impact === "all" ? actions : actions.filter((action) => action.impact === impact);
+  const shown = sortActions(
+    byCategory.filter((action) => impact === "all" || action.impact === impact),
+    sortKey, sortDir
+  );
+  const mix = IMPACTS.map((key) => byCategory.filter((action) => action.impact === key).length + " " + key.toLowerCase())
+    .filter((part) => part.charAt(0) !== "0").join(", ");
+
+  const sortCol = (key: typeof sortKey, label: string, cls?: string) => (
+    <span className={cls}>
+      <button
+        className={"sortcol" + (sortKey === key ? " on" : "")}
+        onClick={() => { if (sortKey === key) setSortDir(-sortDir); else { setSortKey(key); setSortDir(1); } }}
+      >
+        {label}<i className="srt2">{sortKey === key ? (sortDir > 0 ? "↓" : "↑") : "⇅"}</i>
+      </button>
+    </span>
+  );
+
+  return (
+    <div className="panel" id="what-to-do-next">
+      <div className="panel-head">
+        <div>
+          <h2>What to do next</h2>
+          <p className="sub">Top recommended actions to improve your AI Search visibility</p>
+        </div>
+        <div className="segmented">
+          <button className={category === "all" ? "active" : ""} data-tip="Every action, across all five categories" onClick={() => setCategory("all")}>
+            All opportunity categories ({byImpact.length})
+          </button>
+          {ACTION_CATEGORIES.map((cat) => {
+            const count = byImpact.filter((action) => action.category === cat.key).length;
+            return (
+              <button
+                key={cat.key}
+                className={category === cat.key ? "active" : ""}
+                data-tip={cat.blurb}
+                disabled={!count && category !== cat.key}
+                onClick={() => setCategory(cat.key)}
+              >
+                {cat.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="actwrap">
+        <div className="actrail">
+          <button className="railitem" aria-pressed={impact === "all"} onClick={() => setImpact("all")}>
+            <span className="railtop"><span className="railn">All actions</span><span className="railc">{byCategory.length}</span></span>
+            {mix ? <span className="railsub">{mix}</span> : null}
+          </button>
+          {IMPACTS.map((key) => (
+            <button key={key} className="railitem" aria-pressed={impact === key} onClick={() => setImpact(key)}>
+              <span className="railtop">
+                <span className="railn"><i className={"raildot " + IMPACT_TONE[key]} />{key}</span>
+                <span className="railc">{byCategory.filter((action) => action.impact === key).length}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div>
+          <div className="ahdr">
+            {sortCol("category", "Category")}
+            {sortCol("title", "Action")}
+            <span className="prizecell">Size of gap</span>
+            {sortCol("effort", "Est. effort")}
+            {sortCol("impact", "Est. impact")}
+            <span />
+          </div>
+          {shown.length ? shown.map((action) => {
+            const cat = ACTION_CATEGORIES.find((c) => c.key === action.category);
+            return (
+              <div className="act" key={action.id}>
+                <button className="ahd" aria-expanded={open === action.id} onClick={() => setOpen(open === action.id ? "" : action.id)}>
+                  <span className="acat"><Icon name={cat?.icon || "target"} size={13} /><span>{cat?.label}</span></span>
+                  <span>
+                    <span className="at">{action.title}</span>
+                    <span className="ast">{action.detail}</span>
+                  </span>
+                  <span className="prizecell">
+                    <span className="aprize">{action.gap}</span>
+                    <span className="aprizel">{action.gapLabel}</span>
+                  </span>
+                  <span className="aeff">{action.effort}</span>
+                  <span><span className={"imp " + IMPACT_TONE[action.impact]}>{action.impact}</span></span>
+                  <span style={{ justifySelf: "end", color: "var(--fg-muted)" }}><Icon name="chevdown" size={15} /></span>
+                </button>
+                {open === action.id ? (
+                  <div className="abody">
+                    <ActionEvidenceBlock action={action} />
+                    <p className="wtd">What to do</p>
+                    <ul>{action.steps.map((step, index) => <li key={index}><i />{step}</li>)}</ul>
+                  </div>
+                ) : null}
+              </div>
+            );
+          }) : <div className="qempty">Nothing matches this combination.</div>}
+        </div>
+      </div>
+      <button className="text-cta" onClick={() => onNav("prompts")}>
+        See the prompts behind these <Icon name="arrow" size={13} />
+      </button>
+    </div>
+  );
+}
+
+function ActionEvidenceBlock({ action }: { action: Action }) {
+  const ev = action.evidence;
+  if (!ev) return null;
+  let body: React.ReactNode = null;
+  if (ev.kind === "sources") {
+    const max = Math.max(...ev.items.map((item) => item.count), 1);
+    body = (
+      <>
+        <div className="srchead">
+          <span className="eyebrow">Source</span><span className="eyebrow">Times AI quoted it</span>
+          <span /><span className="eyebrow" style={{ textAlign: "right" }}>You</span>
+        </div>
+        {ev.items.map((item) => (
+          <div key={item.name} className={"srcrow" + (item.on ? "" : " off")}>
+            <span className="srcn">{item.name}</span>
+            <span className="srcbar"><i style={{ width: Math.max(2, Math.round((100 * item.count) / max)) + "%" }} /></span>
+            <span className="srcc">{item.count.toLocaleString()}</span>
+            <span className="srcs">{item.on ? "Listed" : "Missing"}</span>
+          </div>
+        ))}
+      </>
+    );
+  } else if (ev.kind === "progress") {
+    body = <>{ev.rows.map((row) => {
+      const share = row.total ? Math.round((100 * row.have) / row.total) : 0;
+      return (
+        <div className="prow2" key={row.name}>
+          <span className="nm">{row.name}</span>
+          <span className="track"><i style={{ width: share + "%", background: share < 50 ? "var(--destructive)" : "var(--success)" }} /></span>
+          <span className="fr" style={{ color: share < 50 ? "var(--destructive)" : "var(--success)" }}>{row.have} / {row.total}</span>
+        </div>
+      );
+    })}</>;
+  } else if (ev.kind === "queries") {
+    body = <>{ev.items.map((item) => (
+      <div className="qrow" key={item.q}>
+        <span className="qq">&ldquo;{item.q}&rdquo;</span>
+        <span className="qw">{item.where}</span>
+        <span className="qh" style={{ color: "var(--destructive)" }}>{item.hits ? item.hits + " times named" : "never named"}</span>
+      </div>
+    ))}</>;
+  } else if (ev.kind === "quotes") {
+    body = <>{ev.items.map((item) => (
+      <div className="qrow" key={item.phrase}>
+        <span className="qq">{item.phrase}</span>
+        <span className="qw">{item.quote ? "“" + item.quote.slice(0, 90) + "”" : ""}</span>
+        <span className="qh" style={{ color: "var(--destructive)" }}>{item.count} answers</span>
+      </div>
+    ))}</>;
+  } else if (ev.kind === "versus") {
+    body = (
+      <>
+        <div className="vrow"><span /><span className="vlbl">Them</span><span className="vlbl">You</span></div>
+        {ev.items.map((item) => (
+          <div className="vrow" key={item.name}>
+            <span className="nm" style={{ fontWeight: 600 }}>{item.name}</span>
+            <span style={{ color: "var(--primary)", fontWeight: 600 }}>{item.them}</span>
+            <span style={{ color: "var(--fg-muted)" }}>{item.you}</span>
+          </div>
+        ))}
+      </>
+    );
+  } else if (ev.kind === "coverage") {
+    body = <div className="cov">{ev.items.map((item) => (
+      <span key={item.name} className={"covi " + (item.on ? "cov-on" : "cov-off")}>{item.on ? "✓" : "✕"} {item.name}</span>
+    ))}</div>;
+  }
+  return (
+    <div className="st">
+      <div className="sthead"><span className="eyebrow">What we found</span></div>
+      {body}
+      {ev.foot ? <div className="stfoot">{ev.foot}</div> : null}
+    </div>
+  );
 }
 
 function buildReportStats(payload: ReportPayload): ReportStats {
