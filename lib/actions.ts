@@ -147,58 +147,80 @@ function engineActions(input: ActionInput): Action[] {
   }];
 }
 
-// Demand the company is absent from. Uses per-service coverage, so the action names
-// the actual jobs rather than an abstract category.
+// Demand the company is absent from. Thresholds are absolute-first: a service the
+// company is NEVER named on is always worth an action, and everything else is judged
+// against the company's OWN best service rather than against overall visibility —
+// a relative-to-overall threshold gets more lenient as a company gets weaker, which
+// is precisely backwards.
 function contentActions(input: ActionInput): Action[] {
   const out: Action[] = [];
-  const overall = input.visibility;
-  const weak = input.services
-    .filter((s) => s.total >= 2 && s.rate < overall * 0.6)
-    .sort((a, b) => a.rate - b.rate)
-    .slice(0, 2);
-  weak.forEach((s, index) => {
+  const usable = input.services.filter((s) => s.total >= 2);
+  if (!usable.length) return out;
+  const best = Math.max(...usable.map((s) => s.rate));
+
+  const blank = usable.filter((s) => s.mentioned === 0).sort((a, b) => b.total - a.total);
+  const behind = usable
+    .filter((s) => s.mentioned > 0 && best - s.rate >= 0.25)
+    .sort((a, b) => a.rate - b.rate);
+  const picks = [...blank, ...behind].slice(0, 2);
+
+  picks.forEach((s, index) => {
+    const zero = s.mentioned === 0;
     out.push({
       id: "content-service-" + index,
       category: "Content",
-      impact: s.rate === 0 ? "High" : "Medium",
+      impact: zero && s.total >= 3 ? "High" : "Medium",
       effort: "Medium",
       title: "Show up for " + s.service.toLowerCase() + " jobs",
-      detail: "AI names you on " + pct(s.rate) + " of " + s.service.toLowerCase()
-        + " questions, against " + pct(overall) + " of all questions",
-      gap: pct(s.rate),
-      gapLabel: "of " + s.service.toLowerCase() + " questions",
+      detail: zero
+        ? "AI never names you on any of the " + s.total + " " + s.service.toLowerCase() + " questions"
+        : "AI names you on " + pct(s.rate) + " of " + s.service.toLowerCase()
+          + " questions, against " + pct(best) + " on your best service",
+      gap: zero ? "0 of " + s.total : pct(s.rate),
+      gapLabel: zero ? s.service.toLowerCase() + " questions" : "of " + s.service.toLowerCase() + " questions",
       evidence: {
-        kind: "queries",
-        items: input.missingPrompts.filter((p) => p.q.toLowerCase().includes(s.service.toLowerCase().split(" ")[0])).slice(0, 4),
-        foot: "Questions in this group where AI did not name you."
+        kind: "progress",
+        rows: [...usable].sort((a, b) => b.rate - a.rate).slice(0, 8)
+          .map((row) => ({ name: row.service, have: row.mentioned, total: row.total })),
+        foot: "How often AI named you, by service, on high-intent questions."
       },
       steps: [
         "You are named on " + s.mentioned + " of " + s.total + " " + s.service.toLowerCase() + " questions",
-        "This is the widest gap between one service and your overall visibility"
+        zero
+          ? "Nothing on your site is answering this group of questions"
+          : "Your best service runs at " + pct(best) + ", so this is a content gap rather than a ceiling"
       ]
     });
   });
-  const weakCat = [...input.coverage].sort((a, b) => a.rate - b.rate)[0];
-  if (weakCat && weakCat.rate < 0.5 && weakCat.total >= 3) {
-    out.push({
-      id: "content-category",
-      category: "Content",
-      impact: weakCat.rate < 0.2 ? "High" : "Medium",
-      effort: "Medium",
-      title: "Answer the “" + weakCat.category.toLowerCase() + "” questions buyers ask",
-      detail: "You appear on " + weakCat.mentioned + " of " + weakCat.total + " " + weakCat.category.toLowerCase() + " questions",
-      gap: pct(weakCat.rate),
-      gapLabel: "of " + weakCat.category.toLowerCase() + " questions",
-      evidence: {
-        kind: "progress",
-        rows: input.coverage.map((c) => ({ name: c.category, have: c.mentioned, total: c.total })),
-        foot: "Coverage by question type, on high-intent prompts only."
-      },
-      steps: [
-        weakCat.category + " is your weakest question type",
-        "Every other type already runs higher, so this is a content gap rather than a visibility ceiling"
-      ]
-    });
+
+  // weakest question type, judged against the company's own strongest
+  const cov = input.coverage.filter((c) => c.total >= 3);
+  if (cov.length >= 2) {
+    const sorted = [...cov].sort((a, b) => a.rate - b.rate);
+    const low = sorted[0];
+    const high = sorted[sorted.length - 1];
+    if (high.rate - low.rate >= 0.2) {
+      out.push({
+        id: "content-category",
+        category: "Content",
+        impact: low.rate === 0 ? "High" : "Medium",
+        effort: "Medium",
+        title: "Answer the \u201c" + low.category.toLowerCase() + "\u201d questions buyers ask",
+        detail: "You appear on " + low.mentioned + " of " + low.total + " " + low.category.toLowerCase()
+          + " questions, against " + pct(high.rate) + " on " + high.category.toLowerCase(),
+        gap: pct(low.rate),
+        gapLabel: "of " + low.category.toLowerCase() + " questions",
+        evidence: {
+          kind: "progress",
+          rows: cov.map((c) => ({ name: c.category, have: c.mentioned, total: c.total })),
+          foot: "Coverage by question type, on high-intent prompts only."
+        },
+        steps: [
+          low.category + " is your weakest question type and " + high.category + " your strongest",
+          "The gap between them is " + Math.round((high.rate - low.rate) * 100) + " points"
+        ]
+      });
+    }
   }
   return out;
 }
