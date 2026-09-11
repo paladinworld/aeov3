@@ -465,7 +465,6 @@ export default function Home() {
   const total = reportStats?.totalQueries;
   const company = activeReport?.company;
   const lastRun = activeReport?.report.completedAt ? `Last run ${formatRunDate(activeReport.report.completedAt)}` : "No completed run";
-  const accessLeft = activeReport?.report.completedAt ? accessDaysLeft(activeReport.report.completedAt) : null;
 
   return (
     <>
@@ -543,15 +542,7 @@ export default function Home() {
                   <Icon name="menu" size={18} />
                 </button>
                 <div className="top-actions">
-                  <span className="last-run">
-                    {lastRun}
-                    {accessLeft !== null ? (
-                      <span className={"access-left" + (accessLeft <= 0 ? " expired" : accessLeft <= 7 ? " soon" : "")}>
-                        <Icon name="clock" size={11} />
-                        {accessLeft > 0 ? `${accessLeft} ${accessLeft === 1 ? "day" : "days"} left for access` : "Access expired"}
-                      </span>
-                    ) : null}
-                  </span>
+                  <span className="last-run">{lastRun}</span>
                   {activeReport ? (
                     <div className="share-tools">
                       <div className="share-wrap">
@@ -2918,13 +2909,6 @@ function truncate(value: string, length: number) {
 
 function formatRunDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-// Snapshot access window: report stays viewable for ACCESS_WINDOW_DAYS after the run.
-const ACCESS_WINDOW_DAYS = 30;
-function accessDaysLeft(completedAt: string, windowDays = ACCESS_WINDOW_DAYS) {
-  const expiresAt = new Date(completedAt).getTime() + windowDays * 86_400_000;
-  return Math.ceil((expiresAt - Date.now()) / 86_400_000);
 }
 
 /* ── account/report selection ── */

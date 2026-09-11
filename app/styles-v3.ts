@@ -62,9 +62,6 @@ button,input,select,textarea{font:inherit;color:inherit}
 .crumb b{color:var(--fg);font-weight:600}
 .top-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
 .last-run{font-size:12px;color:var(--fg-muted);display:flex;align-items:center;gap:10px}
-.access-left{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--primary);background:rgba(19,122,74,.08);border:1px solid rgba(19,122,74,.18);padding:3px 9px;border-radius:999px;white-space:nowrap}
-.access-left.soon{color:#9a6a00;background:rgba(176,122,0,.10);border-color:rgba(176,122,0,.22)}
-.access-left.expired{color:#b42318;background:rgba(180,35,24,.08);border-color:rgba(180,35,24,.20)}
 .share-tools{display:flex;align-items:center;gap:6px}
 .btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius-md);padding:7px 12px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--fg);transition:background var(--dur),border-color var(--dur)}
 .btn:hover{background:var(--bg-muted)}
