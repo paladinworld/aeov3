@@ -601,6 +601,57 @@ const GARAGE_DOOR_PROMPTS: PromptSpec[] = [
   { text: "garage door came off track who do I call in {place}", category: "Symptom / Problem", intent: "emergency", priority: "medium", service: "Off-track repair", geo: true }
 ];
 
+// ── Appliance Repair (residential + light commercial — e.g. Mr. Appliance). ──
+// Locked-static, 34 prompts, matching the shared 6-bucket shape used by the other
+// home-service verticals so results remain comparable across reports.
+const APPLIANCE_REPAIR_PROMPTS: PromptSpec[] = [
+  // Core General
+  { text: "best appliance repair company in {place}", category: "Core General", intent: "best", priority: "high", service: "General appliance repair", geo: true },
+  { text: "appliance repair near me in {place}", category: "Core General", intent: "near_me", priority: "high", service: "General appliance repair", geo: true },
+  { text: "best appliance repair service in {place}", category: "Core General", intent: "best", priority: "high", service: "General appliance repair", geo: true },
+  { text: "same day appliance repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency appliance repair", geo: true },
+  { text: "emergency appliance repair in {place}", category: "Core General", intent: "emergency", priority: "high", service: "Emergency appliance repair", geo: true },
+  { text: "local appliance repair company in {place}", category: "Core General", intent: "best", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "home appliance repair in {place}", category: "Core General", intent: "best", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "residential appliance repair in {place}", category: "Core General", intent: "best", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "appliance repair technician in {place}", category: "Core General", intent: "best", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "commercial appliance repair in {place}", category: "Core General", intent: "best", priority: "low", service: "Commercial appliance repair", geo: true },
+
+  // Repair & Maintenance
+  { text: "refrigerator repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Refrigerator repair", geo: true },
+  { text: "washer repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Washer repair", geo: true },
+  { text: "dryer repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Dryer repair", geo: true },
+  { text: "dishwasher repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "high", service: "Dishwasher repair", geo: true },
+  { text: "oven repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Oven repair", geo: true },
+  { text: "stove repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Range and stove repair", geo: true },
+  { text: "microwave repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Microwave repair", geo: true },
+  { text: "freezer repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "medium", service: "Freezer repair", geo: true },
+  { text: "garbage disposal repair in {place}", category: "Repair & Maintenance", intent: "best", priority: "low", service: "Garbage disposal repair", geo: true },
+
+  // Reviews & Price
+  { text: "top rated appliance repair company in {place}", category: "Reviews & Price", intent: "review", priority: "high", service: "General appliance repair", geo: true },
+  { text: "which appliance repair company in {place} has the best reviews", category: "Reviews & Price", intent: "review", priority: "high", service: "General appliance repair", geo: true },
+  { text: "most trusted appliance repair service in {place}", category: "Reviews & Price", intent: "review", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "how much does appliance repair cost in {place}", category: "Reviews & Price", intent: "price", priority: "high", service: "General appliance repair", geo: true },
+  { text: "how much does refrigerator repair cost in {place}", category: "Reviews & Price", intent: "price", priority: "medium", service: "Refrigerator repair", geo: true },
+  { text: "affordable appliance repair in {place}", category: "Reviews & Price", intent: "price", priority: "low", service: "General appliance repair", geo: true },
+
+  // Product / Brand
+  { text: "Whirlpool appliance repair in {place}", category: "Product / Brand", intent: "best", priority: "medium", service: "General appliance repair", geo: true },
+  { text: "Samsung appliance repair in {place}", category: "Product / Brand", intent: "best", priority: "low", service: "General appliance repair", geo: true },
+
+  // Consideration
+  { text: "how to choose an appliance repair company", category: "Consideration", intent: "comparison", priority: "medium", service: "General appliance repair", geo: false },
+  { text: "what to look for in an appliance repair technician", category: "Consideration", intent: "comparison", priority: "medium", service: "General appliance repair", geo: false },
+  { text: "questions to ask before hiring an appliance repair company", category: "Consideration", intent: "comparison", priority: "medium", service: "General appliance repair", geo: false },
+  { text: "is it worth repairing or replacing an appliance", category: "Consideration", intent: "comparison", priority: "low", service: "General appliance repair", geo: false },
+
+  // Symptom / Problem
+  { text: "refrigerator not cooling what should I do", category: "Symptom / Problem", intent: "problem", priority: "high", service: "Refrigerator repair", geo: false },
+  { text: "washing machine not draining who do I call", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Washer repair", geo: false },
+  { text: "dryer has no heat who do I call in {place}", category: "Symptom / Problem", intent: "problem", priority: "medium", service: "Dryer repair", geo: true }
+];
+
 const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "HVAC": HVAC_PROMPTS,
   "Tree Care": TREE_CARE_PROMPTS,
@@ -613,12 +664,13 @@ const PROMPTS_BY_VERTICAL: Record<string, PromptSpec[]> = {
   "Water Treatment": WATER_TREATMENT_PROMPTS,
   "Water Heater": WATER_HEATER_PROMPTS,
   "Restoration": RESTORATION_PROMPTS,
-  "Garage Door": GARAGE_DOOR_PROMPTS
+  "Garage Door": GARAGE_DOOR_PROMPTS,
+  "Appliance Repair": APPLIANCE_REPAIR_PROMPTS
 };
 
 // Shared builder: substitutes the company's primary "City, ST" into each prompt and
 // assigns surfaces from the geo flag (LOCAL includes Maps; NATIONAL doesn't).
-function buildQueries(company: Company, prompts: PromptSpec[]): Query[] {
+function buildQueries(company: Company, prompts: PromptSpec[], vertical?: string): Query[] {
   const primary = company.locations.find((location) => location.isPrimary) ?? company.locations[0];
   const city = primary?.city || "your city";
   const state = primary?.state || "";
@@ -629,6 +681,7 @@ function buildQueries(company: Company, prompts: PromptSpec[]): Query[] {
     const depth = queryDepth(text);
     return {
       id: id("query"),
+            vertical,
       text,
       service: spec.service,
       category: spec.category,
@@ -644,12 +697,13 @@ function buildQueries(company: Company, prompts: PromptSpec[]): Query[] {
 // Generate the prompt set for a report's vertical (defaults to HVAC). This is the single
 // entry point the report-create route uses, so every vertical flows through one path.
 export function generateQueries(company: Company, vertical?: string): Query[] {
-  return buildQueries(company, PROMPTS_BY_VERTICAL[vertical || "HVAC"] ?? HVAC_PROMPTS);
+    const label = vertical || "HVAC";
+  return buildQueries(company, PROMPTS_BY_VERTICAL[label] ?? HVAC_PROMPTS, label);
 }
 
 // Back-compat alias (HVAC-only callers).
 export function generateHvacQueries(company: Company): Query[] {
-  return buildQueries(company, HVAC_PROMPTS);
+    return buildQueries(company, HVAC_PROMPTS, "HVAC");
 }
 
 // queryDepth is metadata only now (the static list isn't scored/balanced); kept so
