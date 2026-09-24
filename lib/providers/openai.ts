@@ -56,7 +56,8 @@ export async function runChatGptSearch(params: {
     citations,
     targetCompanyName: params.company.name,
     knownCompetitors: params.company.competitors,
-    targetPlace: `${params.location.city} ${params.location.state}`
+    targetPlace: `${params.location.city} ${params.location.state}`,
+    vertical: params.query.vertical
   });
 
   return {
@@ -169,7 +170,7 @@ export async function diagnoseChatGptMissingRecommendation(params: {
       ],
       tool_choice: "auto",
       input: [
-        "You previously answered this local HVAC recommendation question.",
+                `You previously answered this local ${params.query.vertical ?? "HVAC"} recommendation question.`,
         "",
         "Location: " + params.location.label,
         "Original question: " + params.query.text,
@@ -233,7 +234,7 @@ async function createSearchResponse(params: {
     ],
     tool_choice: "auto",
     include: ["web_search_call.action.sources"],
-    input: `You are helping a homeowner evaluate local HVAC providers.
+        input: `You are helping a homeowner evaluate local ${params.query.vertical ?? "HVAC"} providers.
 
 Location: ${params.location.label}
 Question: ${params.query.text}
@@ -268,6 +269,7 @@ async function extractMentions(params: {
   targetCompanyName: string;
   knownCompetitors: string[];
   targetPlace?: string;
+    vertical?: string;
 }): Promise<CompanyMention[]> {
   if (!params.answer.trim()) return [];
   const place = placeTokens(params.targetPlace);
@@ -281,7 +283,7 @@ async function extractMentions(params: {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_EXTRACTION_MODEL || "gpt-4.1-mini",
-        input: `Extract ranked local HVAC company mentions from this AI answer.
+                input: `Extract ranked local ${params.vertical ?? "HVAC"} company mentions from this AI answer.
 
 Return JSON only in this shape:
 {"mentions":[{"companyName":"...","rank":1,"sentiment":"positive|neutral|negative","summary":"short reason","isTarget":false}]}
