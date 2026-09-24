@@ -168,6 +168,7 @@ export async function runGoogleAiOverview(params: {
     citations,
     targetCompanyName: params.company.name,
     knownCompetitors: params.company.competitors,
+        vertical: params.query.vertical,
     targetPlace: `${params.location.city} ${params.location.state}`
   });
 
