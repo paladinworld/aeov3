@@ -63,6 +63,10 @@ export type Company = {
 
 export type Query = {
   id: string;
+  // New reports persist their originating vertical so provider prompts and mention
+  // extraction use the right industry context. Older reports omit this and retain
+  // the HVAC fallback.
+  vertical?: string;
   text: string;
   service: string; // HVAC Service | "General HVAC" | a vertical-specific label (Tree Care, etc.)
   category: QueryCategory;
