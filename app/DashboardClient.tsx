@@ -42,6 +42,7 @@ const NAV: Record<View, string> = {
 };
 
 const defaultServices: Service[] = ["AC repair", "Furnace repair", "Emergency HVAC", "Heat pump repair", "Maintenance/tune-up"];
+const AUDIT_VERTICALS = ["HVAC", "Pest Control", "Tree Care", "Commercial Landscaping", "Plumbing", "Roofing", "Windows", "Foundation", "Water Treatment", "Water Heater", "Restoration", "Garage Door", "Appliance Repair"];
 // Google Maps (local pack) is collected but EXCLUDED from the customer-facing
 // report: it measures local-SEO/proximity ranking, not "do AI assistants
 // recommend you" (AI visibility). The two scored surfaces are the AI answers —
@@ -207,6 +208,7 @@ export default function Home() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
+    const [selectedVertical, setSelectedVertical] = useState("HVAC");
   const [repeatRuns, setRepeatRuns] = useState(1);
   const [activeReport, setActiveReport] = useState<ReportPayload | null>(null);
   const [view, setView] = useState<View>("home");
@@ -422,6 +424,7 @@ export default function Home() {
       body: JSON.stringify({
         companyId: selectedCompany.id,
         locationIds: selectedCompany.locations.map((location) => location.id),
+                vertical: selectedVertical,
         repeatRuns
       })
     });
@@ -584,9 +587,11 @@ export default function Home() {
                   companies={companies}
                   reports={reports}
                   selectedCompanyId={selectedCompanyId}
+                                    selectedVertical={selectedVertical}
                   repeatRuns={repeatRuns}
                   selectedCompany={selectedCompany}
                   setSelectedCompanyId={setSelectedCompanyId}
+                                    setSelectedVertical={setSelectedVertical}
                   setRepeatRuns={setRepeatRuns}
                   createReport={createReport}
                   loadReport={loadReport}
@@ -1512,7 +1517,15 @@ function SentimentView({ payload, stats }: { payload: ReportPayload; stats: Repo
         <div className="sent-meter">
           <i style={{ left: `${leftPct}%` }}>{signed(s.score)}</i>
         </div>
-        <div className="sent-scale">
+                <label className="fld">
+          Vertical
+          <select value={selectedVertical} onChange={(event) => setSelectedVertical(event.target.value)}>
+            {AUDIT_VERTICALS.map((vertical) => (
+              <option key={vertical} value={vertical}>{vertical}</option>
+            ))}
+          </select>
+        </label>
+<div className="sent-scale">
           <span>Negative (−1)</span>
           <span>Neutral (0)</span>
           <span>Positive (+1)</span>
@@ -1576,9 +1589,11 @@ function SetupView({
   companies,
   reports,
   selectedCompanyId,
+    selectedVertical,
   repeatRuns,
   selectedCompany,
   setSelectedCompanyId,
+    setSelectedVertical,
   setRepeatRuns,
   createReport,
   loadReport,
@@ -1587,9 +1602,11 @@ function SetupView({
   companies: Company[];
   reports: Report[];
   selectedCompanyId: string;
+    selectedVertical: string;
   repeatRuns: number;
   selectedCompany?: Company;
   setSelectedCompanyId: (value: string) => void;
+    setSelectedVertical: (value: string) => void;
   setRepeatRuns: (value: number) => void;
   createReport: () => Promise<void>;
   loadReport: (id: string) => Promise<void>;
@@ -1612,7 +1629,15 @@ function SetupView({
             ))}
           </select>
         </label>
-        <label className="fld">
+                <label className="fld">
+          Vertical
+          <select value={selectedVertical} onChange={(event) => setSelectedVertical(event.target.value)}>
+            {AUDIT_VERTICALS.map((vertical) => (
+              <option key={vertical} value={vertical}>{vertical}</option>
+            ))}
+          </select>
+        </label>
+<label className="fld">
           Repeat runs per query / platform
           <input type="number" min={1} max={10} value={repeatRuns} onChange={(event) => setRepeatRuns(Number(event.target.value))} />
         </label>
