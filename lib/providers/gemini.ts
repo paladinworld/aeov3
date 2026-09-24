@@ -160,7 +160,7 @@ export async function diagnoseGeminiMissingRecommendation(params: {
     tool: params.surface === "gemini_maps" ? "maps" : "search",
     location: params.location,
     prompt: [
-      "You previously answered this local HVAC recommendation question.",
+                  `You previously answered this local ${params.query.vertical ?? "HVAC"} recommendation question.`,
       "",
       "Location: " + params.location.label,
       "Original question: " + params.query.text,
@@ -193,7 +193,8 @@ async function buildRunFromGemini(params: {
     citations,
     targetCompanyName: params.company.name,
     knownCompetitors: params.company.competitors,
-    targetPlace: `${params.location.city} ${params.location.state}`
+    targetPlace: `${params.location.city} ${params.location.state}`,
+    vertical: params.query.vertical
   });
 
   return {
@@ -269,6 +270,7 @@ export async function extractMentions(params: {
   targetCompanyName: string;
   knownCompetitors: string[];
   targetPlace?: string;
+    vertical?: string;
 }): Promise<CompanyMention[]> {
   if (!params.answer.trim()) return [];
   const place = placeTokens(params.targetPlace);
@@ -286,7 +288,7 @@ export async function extractMentions(params: {
             role: "user",
             parts: [
               {
-                text: `Extract ranked local HVAC company mentions from this AI answer.
+                                text: `Extract ranked local ${params.vertical ?? "HVAC"} company mentions from this AI answer.
 
 Return JSON only in this shape:
 {"mentions":[{"companyName":"...","rank":1,"sentiment":"positive|neutral|negative","summary":"short reason","isTarget":false}]}
@@ -333,7 +335,7 @@ ${params.answer}`
 }
 
 function buildPrompt(params: { company: Company; location: Location; query: Query }) {
-  return `You are helping a homeowner evaluate local HVAC providers.
+    return `You are helping a homeowner evaluate local ${params.query.vertical ?? "HVAC"} providers.
 
 Location: ${params.location.label}
 Question: ${params.query.text}
